@@ -9,7 +9,7 @@ export function basketSummary(result,{offset=0,itemOffset=0,names=new Map()}={})
   const found=new Map(s.items.map(i=>[i.id,i]));
   return `<b>${safe(s.chain||s.name)}</b> · ${s.found===result.items.length?'Весь список':`Только ${s.found} из ${result.items.length}`} \n`+items.map(item=>{
    const row=found.get(item.id),name=item.product?briefName(names.get(item.name)||bilingual(null,item.name),65):item.query.slice(0,65);
-   return row?`✓ ${safe(name)} × ${row.quantity} — ${row.estimated?'от ':''}${money(row.total)}${row.estimated&&row.variant?' · '+safe(row.variant):''}`:`✕ ${safe(name)} — не найдено`;
+   return row?`✓ ${safe(name)} × ${row.quantity} — ${row.estimated?'от ':''}${money(row.total)}${row.variant?' · '+safe(row.variant):''}${row.unitPrice?' · '+safe(row.unitPrice):''}`:`✕ ${safe(name)} — не найдено`;
   }).join('\n')+`\n<b>${s.found===result.items.length?'Весь список':'Найденные товары'}:</b> ${result.estimated?'от ':''}${money(s.total)}`;
  }).join('\n\n')+(result.estimated?'\n\nПодбор по названию: вид товара и упаковка могут различаться.':'\n\nСравниваем выбранные товары.')+'\nНаличие и цены филиала могут отличаться.';
 }

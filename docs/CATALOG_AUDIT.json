@@ -1,0 +1,2182 @@
+{
+  "date": "2026-10-20",
+  "sources": [
+    {
+      "alias": "lidl",
+      "offers": 2992,
+      "date": "2026-10-20"
+    },
+    {
+      "alias": "gomex",
+      "offers": 6093,
+      "date": "2026-10-20"
+    },
+    {
+      "alias": "matijevic",
+      "offers": 508,
+      "date": "2026-10-20"
+    },
+    {
+      "alias": "aman",
+      "offers": 7122,
+      "date": "2026-10-20"
+    },
+    {
+      "alias": "maxi",
+      "offers": 25658,
+      "date": "2026-10-20"
+    },
+    {
+      "alias": "okov",
+      "offers": 75453,
+      "date": "2026-10-20"
+    },
+    {
+      "alias": "lilly",
+      "offers": 192,
+      "date": "2026-10-20"
+    },
+    {
+      "alias": "metro",
+      "offers": 9487,
+      "date": "2026-10-20"
+    }
+  ],
+  "offers": 127505,
+  "measurable": 54593,
+  "unit_prices": 51815,
+  "metadata_dimension_conflicts": 343,
+  "dictionary_fallback_names": 70658,
+  "no_dictionary_words": 56847,
+  "conflict_examples": [
+    {
+      "source": "lidl",
+      "name": "Mini mix Eis Classic(12x36g) MK12 12x50ml",
+      "metadata_unit": "l",
+      "title_kind": "weight"
+    },
+    {
+      "source": "lidl",
+      "name": "Zelene masline sa bademom MK12 370ml",
+      "metadata_unit": "kg",
+      "title_kind": "volume"
+    },
+    {
+      "source": "lidl",
+      "name": "Paster. krastavci kor. Premium MK12 720ml",
+      "metadata_unit": "kg",
+      "title_kind": "volume"
+    },
+    {
+      "source": "lidl",
+      "name": "Pelat od paradajza MK12 425ml",
+      "metadata_unit": "kg",
+      "title_kind": "volume"
+    },
+    {
+      "source": "lidl",
+      "name": "Seckani paradajz u parad. soku MK12 425ml",
+      "metadata_unit": "kg",
+      "title_kind": "volume"
+    },
+    {
+      "source": "lidl",
+      "name": "Italijanski paradajz sos SK39 400ml",
+      "metadata_unit": "kg",
+      "title_kind": "volume"
+    },
+    {
+      "source": "lidl",
+      "name": "Sterilisani crveni pasulj MK12 425ml",
+      "metadata_unit": "kg",
+      "title_kind": "volume"
+    },
+    {
+      "source": "lidl",
+      "name": "Seckani parad. sa zač. biljem SK1 425ml",
+      "metadata_unit": "kg",
+      "title_kind": "volume"
+    },
+    {
+      "source": "lidl",
+      "name": "Kompot od kriški manga(ATG230g)MK12 425ml",
+      "metadata_unit": "g",
+      "title_kind": "volume"
+    },
+    {
+      "source": "lidl",
+      "name": "Kukuruz šećerac 3x212 ml MK4 3x212ml",
+      "metadata_unit": "kg",
+      "title_kind": "volume"
+    },
+    {
+      "source": "lidl",
+      "name": "Voćni koktel, blago zaslađeni MK12 850ml",
+      "metadata_unit": "g",
+      "title_kind": "volume"
+    },
+    {
+      "source": "lidl",
+      "name": "Sterilisani šareni pasulj Bor. MK12 425ml",
+      "metadata_unit": "kg",
+      "title_kind": "volume"
+    },
+    {
+      "source": "lidl",
+      "name": "Manje sladak kompot od breskve MK12 850ml",
+      "metadata_unit": "g",
+      "title_kind": "volume"
+    },
+    {
+      "source": "lidl",
+      "name": "Slad. štapić čoko van. (16x33g) MK6 16x60ml",
+      "metadata_unit": "l",
+      "title_kind": "weight"
+    },
+    {
+      "source": "lidl",
+      "name": "Peč. pas. sa 33% paradajz sosa MK12 425ml",
+      "metadata_unit": "g",
+      "title_kind": "volume"
+    },
+    {
+      "source": "lidl",
+      "name": "Jalapenos papričice MK12 370ml",
+      "metadata_unit": "g",
+      "title_kind": "volume"
+    },
+    {
+      "source": "lidl",
+      "name": "Got. jelo od pas. i kuk. u p. MK12 425ml",
+      "metadata_unit": "kg",
+      "title_kind": "volume"
+    },
+    {
+      "source": "lidl",
+      "name": "Kapar MK10 106ml",
+      "metadata_unit": "kg",
+      "title_kind": "volume"
+    },
+    {
+      "source": "lidl",
+      "name": "Ananas kolu. u sopst.soku MK12 850ml",
+      "metadata_unit": "g",
+      "title_kind": "volume"
+    },
+    {
+      "source": "lidl",
+      "name": "Sterilisani grašak MK12 425ml",
+      "metadata_unit": "g",
+      "title_kind": "volume"
+    }
+  ],
+  "dictionary_queries": [
+    {
+      "query": "огурец",
+      "offers": 53,
+      "networks": 6
+    },
+    {
+      "query": "помидор",
+      "offers": 170,
+      "networks": 6
+    },
+    {
+      "query": "картошка",
+      "offers": 239,
+      "networks": 7
+    },
+    {
+      "query": "морковь",
+      "offers": 89,
+      "networks": 5
+    },
+    {
+      "query": "лук",
+      "offers": 294,
+      "networks": 6
+    },
+    {
+      "query": "чеснок",
+      "offers": 134,
+      "networks": 6
+    },
+    {
+      "query": "капуста",
+      "offers": 69,
+      "networks": 5
+    },
+    {
+      "query": "кабачок",
+      "offers": 40,
+      "networks": 4
+    },
+    {
+      "query": "баклажан",
+      "offers": 21,
+      "networks": 4
+    },
+    {
+      "query": "перец",
+      "offers": 497,
+      "networks": 7
+    },
+    {
+      "query": "салат",
+      "offers": 389,
+      "networks": 7
+    },
+    {
+      "query": "яблоко",
+      "offers": 716,
+      "networks": 7
+    },
+    {
+      "query": "банан",
+      "offers": 348,
+      "networks": 6
+    },
+    {
+      "query": "апельсин",
+      "offers": 871,
+      "networks": 7
+    },
+    {
+      "query": "мандарин",
+      "offers": 40,
+      "networks": 6
+    },
+    {
+      "query": "слива",
+      "offers": 34,
+      "networks": 5
+    },
+    {
+      "query": "песто",
+      "offers": 35,
+      "networks": 3
+    },
+    {
+      "query": "соус",
+      "offers": 671,
+      "networks": 7
+    },
+    {
+      "query": "лимон",
+      "offers": 567,
+      "networks": 6
+    },
+    {
+      "query": "груша",
+      "offers": 172,
+      "networks": 6
+    },
+    {
+      "query": "клубника",
+      "offers": 587,
+      "networks": 7
+    },
+    {
+      "query": "виноград",
+      "offers": 148,
+      "networks": 6
+    },
+    {
+      "query": "арбуз",
+      "offers": 70,
+      "networks": 5
+    },
+    {
+      "query": "авокадо",
+      "offers": 25,
+      "networks": 5
+    },
+    {
+      "query": "яйцо",
+      "offers": 212,
+      "networks": 7
+    },
+    {
+      "query": "курица",
+      "offers": 789,
+      "networks": 7
+    },
+    {
+      "query": "индейка",
+      "offers": 1,
+      "networks": 1
+    },
+    {
+      "query": "говядина",
+      "offers": 106,
+      "networks": 6
+    },
+    {
+      "query": "свинина",
+      "offers": 168,
+      "networks": 6
+    },
+    {
+      "query": "мясо",
+      "offers": 683,
+      "networks": 7
+    },
+    {
+      "query": "фарш",
+      "offers": 20,
+      "networks": 6
+    },
+    {
+      "query": "рыба",
+      "offers": 238,
+      "networks": 7
+    },
+    {
+      "query": "лосось",
+      "offers": 133,
+      "networks": 6
+    },
+    {
+      "query": "тунец",
+      "offers": 337,
+      "networks": 6
+    },
+    {
+      "query": "колбаса",
+      "offers": 591,
+      "networks": 7
+    },
+    {
+      "query": "сосиски",
+      "offers": 74,
+      "networks": 6
+    },
+    {
+      "query": "ветчина",
+      "offers": 187,
+      "networks": 7
+    },
+    {
+      "query": "бекон",
+      "offers": 137,
+      "networks": 7
+    },
+    {
+      "query": "йогурт",
+      "offers": 696,
+      "networks": 7
+    },
+    {
+      "query": "кефир",
+      "offers": 71,
+      "networks": 5
+    },
+    {
+      "query": "сметана",
+      "offers": 279,
+      "networks": 6
+    },
+    {
+      "query": "сливки",
+      "offers": 279,
+      "networks": 6
+    },
+    {
+      "query": "творог",
+      "offers": 998,
+      "networks": 7
+    },
+    {
+      "query": "сыра",
+      "offers": 998,
+      "networks": 7
+    },
+    {
+      "query": "молока",
+      "offers": 547,
+      "networks": 6
+    },
+    {
+      "query": "шоколад",
+      "offers": 1671,
+      "networks": 7
+    },
+    {
+      "query": "печенье",
+      "offers": 1284,
+      "networks": 6
+    },
+    {
+      "query": "мороженое",
+      "offers": 709,
+      "networks": 6
+    },
+    {
+      "query": "сок",
+      "offers": 1141,
+      "networks": 6
+    },
+    {
+      "query": "газировка",
+      "offers": 427,
+      "networks": 6
+    },
+    {
+      "query": "пиво",
+      "offers": 846,
+      "networks": 6
+    },
+    {
+      "query": "вино",
+      "offers": 1929,
+      "networks": 6
+    },
+    {
+      "query": "минералка",
+      "offers": 12,
+      "networks": 4
+    },
+    {
+      "query": "энергетик",
+      "offers": 294,
+      "networks": 5
+    },
+    {
+      "query": "напиток",
+      "offers": 1036,
+      "networks": 6
+    },
+    {
+      "query": "чая",
+      "offers": 975,
+      "networks": 7
+    },
+    {
+      "query": "кофейный",
+      "offers": 998,
+      "networks": 6
+    },
+    {
+      "query": "меда",
+      "offers": 142,
+      "networks": 6
+    },
+    {
+      "query": "соль",
+      "offers": 384,
+      "networks": 7
+    },
+    {
+      "query": "гречка",
+      "offers": 87,
+      "networks": 5
+    },
+    {
+      "query": "овсянка",
+      "offers": 347,
+      "networks": 6
+    },
+    {
+      "query": "хлопья",
+      "offers": 121,
+      "networks": 6
+    },
+    {
+      "query": "хлеба",
+      "offers": 748,
+      "networks": 6
+    },
+    {
+      "query": "макарон",
+      "offers": 899,
+      "networks": 8
+    },
+    {
+      "query": "кетчуп",
+      "offers": 237,
+      "networks": 7
+    },
+    {
+      "query": "майонез",
+      "offers": 223,
+      "networks": 6
+    },
+    {
+      "query": "орехи",
+      "offers": 905,
+      "networks": 7
+    },
+    {
+      "query": "арахис",
+      "offers": 427,
+      "networks": 5
+    },
+    {
+      "query": "шампуни",
+      "offers": 554,
+      "networks": 7
+    },
+    {
+      "query": "мыла",
+      "offers": 901,
+      "networks": 6
+    },
+    {
+      "query": "паста",
+      "offers": 500,
+      "networks": 7
+    },
+    {
+      "query": "зубная",
+      "offers": 576,
+      "networks": 7
+    },
+    {
+      "query": "салфетки",
+      "offers": 496,
+      "networks": 8
+    },
+    {
+      "query": "батареек",
+      "offers": 600,
+      "networks": 3
+    },
+    {
+      "query": "губка",
+      "offers": 201,
+      "networks": 6
+    },
+    {
+      "query": "пакет",
+      "offers": 1064,
+      "networks": 7
+    },
+    {
+      "query": "туалетная",
+      "offers": 457,
+      "networks": 7
+    },
+    {
+      "query": "маринованные",
+      "offers": 543,
+      "networks": 7
+    },
+    {
+      "query": "консервированные",
+      "offers": 66,
+      "networks": 6
+    },
+    {
+      "query": "молотый",
+      "offers": 439,
+      "networks": 7
+    },
+    {
+      "query": "растворимый",
+      "offers": 401,
+      "networks": 7
+    },
+    {
+      "query": "зёрна",
+      "offers": 239,
+      "networks": 5
+    },
+    {
+      "query": "капсулы",
+      "offers": 193,
+      "networks": 6
+    },
+    {
+      "query": "чёрный",
+      "offers": 7676,
+      "networks": 8
+    },
+    {
+      "query": "зелёный",
+      "offers": 2476,
+      "networks": 7
+    },
+    {
+      "query": "негазированная",
+      "offers": 142,
+      "networks": 4
+    },
+    {
+      "query": "газированная",
+      "offers": 155,
+      "networks": 5
+    },
+    {
+      "query": "филе",
+      "offers": 358,
+      "networks": 7
+    },
+    {
+      "query": "грудка",
+      "offers": 1494,
+      "networks": 7
+    },
+    {
+      "query": "бедро",
+      "offers": 96,
+      "networks": 6
+    },
+    {
+      "query": "крылья",
+      "offers": 102,
+      "networks": 7
+    },
+    {
+      "query": "лопатка",
+      "offers": 61,
+      "networks": 6
+    },
+    {
+      "query": "шея",
+      "offers": 728,
+      "networks": 7
+    },
+    {
+      "query": "piletina",
+      "offers": 789,
+      "networks": 7
+    },
+    {
+      "query": "ред",
+      "offers": 378,
+      "networks": 8
+    },
+    {
+      "query": "булл",
+      "offers": 72,
+      "networks": 6
+    },
+    {
+      "query": "кола",
+      "offers": 279,
+      "networks": 6
+    },
+    {
+      "query": "монстр",
+      "offers": 52,
+      "networks": 5
+    },
+    {
+      "query": "пончик",
+      "offers": 75,
+      "networks": 5
+    },
+    {
+      "query": "приправа",
+      "offers": 563,
+      "networks": 7
+    },
+    {
+      "query": "петрушка",
+      "offers": 73,
+      "networks": 5
+    },
+    {
+      "query": "укроп",
+      "offers": 54,
+      "networks": 6
+    },
+    {
+      "query": "кинза",
+      "offers": 10,
+      "networks": 2
+    },
+    {
+      "query": "базилик",
+      "offers": 89,
+      "networks": 6
+    },
+    {
+      "query": "розмарин",
+      "offers": 38,
+      "networks": 6
+    },
+    {
+      "query": "тимьян",
+      "offers": 27,
+      "networks": 5
+    },
+    {
+      "query": "мята",
+      "offers": 108,
+      "networks": 7
+    },
+    {
+      "query": "орегано",
+      "offers": 74,
+      "networks": 5
+    },
+    {
+      "query": "шпинат",
+      "offers": 95,
+      "networks": 5
+    },
+    {
+      "query": "руккола",
+      "offers": 14,
+      "networks": 5
+    },
+    {
+      "query": "сельдерей",
+      "offers": 35,
+      "networks": 5
+    },
+    {
+      "query": "пастернак",
+      "offers": 10,
+      "networks": 4
+    },
+    {
+      "query": "свёкла",
+      "offers": 64,
+      "networks": 5
+    },
+    {
+      "query": "редис",
+      "offers": 18,
+      "networks": 4
+    },
+    {
+      "query": "тыква",
+      "offers": 256,
+      "networks": 6
+    },
+    {
+      "query": "брокколи",
+      "offers": 43,
+      "networks": 5
+    },
+    {
+      "query": "цветная",
+      "offers": 28,
+      "networks": 4
+    },
+    {
+      "query": "кукуруза",
+      "offers": 260,
+      "networks": 6
+    },
+    {
+      "query": "горошек",
+      "offers": 92,
+      "networks": 6
+    },
+    {
+      "query": "фасоль",
+      "offers": 173,
+      "networks": 6
+    },
+    {
+      "query": "нут",
+      "offers": 58,
+      "networks": 7
+    },
+    {
+      "query": "чечевица",
+      "offers": 33,
+      "networks": 7
+    },
+    {
+      "query": "персик",
+      "offers": 450,
+      "networks": 6
+    },
+    {
+      "query": "абрикос",
+      "offers": 246,
+      "networks": 6
+    },
+    {
+      "query": "нектарин",
+      "offers": 18,
+      "networks": 5
+    },
+    {
+      "query": "черешня",
+      "offers": 76,
+      "networks": 5
+    },
+    {
+      "query": "вишня",
+      "offers": 281,
+      "networks": 7
+    },
+    {
+      "query": "малина",
+      "offers": 299,
+      "networks": 7
+    },
+    {
+      "query": "ежевика",
+      "offers": 48,
+      "networks": 6
+    },
+    {
+      "query": "голубика",
+      "offers": 147,
+      "networks": 6
+    },
+    {
+      "query": "смородина",
+      "offers": 42,
+      "networks": 5
+    },
+    {
+      "query": "клюква",
+      "offers": 78,
+      "networks": 5
+    },
+    {
+      "query": "грейпфрут",
+      "offers": 53,
+      "networks": 7
+    },
+    {
+      "query": "ананас",
+      "offers": 165,
+      "networks": 6
+    },
+    {
+      "query": "манго",
+      "offers": 200,
+      "networks": 6
+    },
+    {
+      "query": "киви",
+      "offers": 46,
+      "networks": 6
+    },
+    {
+      "query": "гранат",
+      "offers": 1002,
+      "networks": 8
+    },
+    {
+      "query": "дыня",
+      "offers": 63,
+      "networks": 4
+    },
+    {
+      "query": "кокос",
+      "offers": 471,
+      "networks": 6
+    },
+    {
+      "query": "инжир",
+      "offers": 47,
+      "networks": 6
+    },
+    {
+      "query": "финики",
+      "offers": 39,
+      "networks": 5
+    },
+    {
+      "query": "изюм",
+      "offers": 25,
+      "networks": 4
+    },
+    {
+      "query": "чернослив",
+      "offers": 34,
+      "networks": 5
+    },
+    {
+      "query": "миндаль",
+      "offers": 232,
+      "networks": 7
+    },
+    {
+      "query": "фундук",
+      "offers": 375,
+      "networks": 7
+    },
+    {
+      "query": "фисташки",
+      "offers": 139,
+      "networks": 6
+    },
+    {
+      "query": "кешью",
+      "offers": 52,
+      "networks": 6
+    },
+    {
+      "query": "семечки",
+      "offers": 157,
+      "networks": 6
+    },
+    {
+      "query": "кунжут",
+      "offers": 141,
+      "networks": 6
+    },
+    {
+      "query": "паприка",
+      "offers": 497,
+      "networks": 7
+    },
+    {
+      "query": "корица",
+      "offers": 99,
+      "networks": 6
+    },
+    {
+      "query": "куркума",
+      "offers": 47,
+      "networks": 5
+    },
+    {
+      "query": "имбирь",
+      "offers": 146,
+      "networks": 6
+    },
+    {
+      "query": "ваниль",
+      "offers": 690,
+      "networks": 6
+    },
+    {
+      "query": "сода",
+      "offers": 39,
+      "networks": 5
+    },
+    {
+      "query": "дрожжи",
+      "offers": 50,
+      "networks": 5
+    },
+    {
+      "query": "крахмал",
+      "offers": 7,
+      "networks": 4
+    },
+    {
+      "query": "разрыхлитель",
+      "offers": 324,
+      "networks": 6
+    },
+    {
+      "query": "сухари",
+      "offers": 126,
+      "networks": 5
+    },
+    {
+      "query": "круассан",
+      "offers": 216,
+      "networks": 6
+    },
+    {
+      "query": "булочка",
+      "offers": 229,
+      "networks": 6
+    },
+    {
+      "query": "бублик",
+      "offers": 8,
+      "networks": 4
+    },
+    {
+      "query": "торт",
+      "offers": 215,
+      "networks": 4
+    },
+    {
+      "query": "пирог",
+      "offers": 417,
+      "networks": 7
+    },
+    {
+      "query": "кекс",
+      "offers": 366,
+      "networks": 6
+    },
+    {
+      "query": "маффин",
+      "offers": 84,
+      "networks": 6
+    },
+    {
+      "query": "блины",
+      "offers": 87,
+      "networks": 5
+    },
+    {
+      "query": "вафли",
+      "offers": 104,
+      "networks": 6
+    },
+    {
+      "query": "пряник",
+      "offers": 12,
+      "networks": 2
+    },
+    {
+      "query": "чипсы",
+      "offers": 585,
+      "networks": 7
+    },
+    {
+      "query": "попкорн",
+      "offers": 105,
+      "networks": 6
+    },
+    {
+      "query": "снеки",
+      "offers": 370,
+      "networks": 7
+    },
+    {
+      "query": "крекер",
+      "offers": 121,
+      "networks": 5
+    },
+    {
+      "query": "конфеты",
+      "offers": 949,
+      "networks": 6
+    },
+    {
+      "query": "мармелад",
+      "offers": 2511,
+      "networks": 7
+    },
+    {
+      "query": "джем",
+      "offers": 178,
+      "networks": 5
+    },
+    {
+      "query": "нутелла",
+      "offers": 52,
+      "networks": 6
+    },
+    {
+      "query": "какао",
+      "offers": 528,
+      "networks": 6
+    },
+    {
+      "query": "ряженка",
+      "offers": 26,
+      "networks": 4
+    },
+    {
+      "query": "моцарелла",
+      "offers": 56,
+      "networks": 5
+    },
+    {
+      "query": "пармезан",
+      "offers": 12,
+      "networks": 3
+    },
+    {
+      "query": "фета",
+      "offers": 16,
+      "networks": 6
+    },
+    {
+      "query": "сливочный",
+      "offers": 1584,
+      "networks": 8
+    },
+    {
+      "query": "маргарин",
+      "offers": 83,
+      "networks": 5
+    },
+    {
+      "query": "сгущёнка",
+      "offers": 3,
+      "networks": 3
+    },
+    {
+      "query": "йогурта",
+      "offers": 691,
+      "networks": 7
+    },
+    {
+      "query": "кефира",
+      "offers": 71,
+      "networks": 5
+    },
+    {
+      "query": "форель",
+      "offers": 66,
+      "networks": 4
+    },
+    {
+      "query": "скумбрия",
+      "offers": 83,
+      "networks": 6
+    },
+    {
+      "query": "сардины",
+      "offers": 78,
+      "networks": 6
+    },
+    {
+      "query": "сельдь",
+      "offers": 22,
+      "networks": 6
+    },
+    {
+      "query": "хек",
+      "offers": 59,
+      "networks": 6
+    },
+    {
+      "query": "креветки",
+      "offers": 58,
+      "networks": 6
+    },
+    {
+      "query": "кальмар",
+      "offers": 36,
+      "networks": 4
+    },
+    {
+      "query": "мидии",
+      "offers": 17,
+      "networks": 3
+    },
+    {
+      "query": "осьминог",
+      "offers": 19,
+      "networks": 4
+    },
+    {
+      "query": "сёмга",
+      "offers": 133,
+      "networks": 6
+    },
+    {
+      "query": "утка",
+      "offers": 7,
+      "networks": 2
+    },
+    {
+      "query": "кролик",
+      "offers": 40,
+      "networks": 4
+    },
+    {
+      "query": "баранина",
+      "offers": 81,
+      "networks": 7
+    },
+    {
+      "query": "печень",
+      "offers": 78,
+      "networks": 6
+    },
+    {
+      "query": "сердце",
+      "offers": 353,
+      "networks": 8
+    },
+    {
+      "query": "сало",
+      "offers": 90,
+      "networks": 6
+    },
+    {
+      "query": "рёбра",
+      "offers": 212,
+      "networks": 7
+    },
+    {
+      "query": "окорок",
+      "offers": 317,
+      "networks": 7
+    },
+    {
+      "query": "голень",
+      "offers": 69,
+      "networks": 6
+    },
+    {
+      "query": "стейк",
+      "offers": 35,
+      "networks": 5
+    },
+    {
+      "query": "гуляш",
+      "offers": 40,
+      "networks": 5
+    },
+    {
+      "query": "шницель",
+      "offers": 74,
+      "networks": 5
+    },
+    {
+      "query": "пельмени",
+      "offers": 18,
+      "networks": 3
+    },
+    {
+      "query": "равиоли",
+      "offers": 18,
+      "networks": 3
+    },
+    {
+      "query": "пицца",
+      "offers": 302,
+      "networks": 7
+    },
+    {
+      "query": "суп",
+      "offers": 327,
+      "networks": 6
+    },
+    {
+      "query": "шампиньоны",
+      "offers": 66,
+      "networks": 6
+    },
+    {
+      "query": "грибы",
+      "offers": 125,
+      "networks": 7
+    },
+    {
+      "query": "вешенки",
+      "offers": 14,
+      "networks": 4
+    },
+    {
+      "query": "маслины",
+      "offers": 443,
+      "networks": 7
+    },
+    {
+      "query": "каперсы",
+      "offers": 7,
+      "networks": 3
+    },
+    {
+      "query": "хумус",
+      "offers": 114,
+      "networks": 7
+    },
+    {
+      "query": "тахини",
+      "offers": 5,
+      "networks": 1
+    },
+    {
+      "query": "горчица",
+      "offers": 119,
+      "networks": 6
+    },
+    {
+      "query": "уксус",
+      "offers": 172,
+      "networks": 6
+    },
+    {
+      "query": "хрен",
+      "offers": 223,
+      "networks": 7
+    },
+    {
+      "query": "аджика",
+      "offers": 138,
+      "networks": 5
+    },
+    {
+      "query": "барбекю",
+      "offers": 66,
+      "networks": 6
+    },
+    {
+      "query": "соевый",
+      "offers": 73,
+      "networks": 5
+    },
+    {
+      "query": "крупа",
+      "offers": 140,
+      "networks": 6
+    },
+    {
+      "query": "пшено",
+      "offers": 23,
+      "networks": 2
+    },
+    {
+      "query": "булгур",
+      "offers": 9,
+      "networks": 4
+    },
+    {
+      "query": "кускус",
+      "offers": 9,
+      "networks": 3
+    },
+    {
+      "query": "киноа",
+      "offers": 26,
+      "networks": 4
+    },
+    {
+      "query": "перловка",
+      "offers": 1,
+      "networks": 1
+    },
+    {
+      "query": "манка",
+      "offers": 61,
+      "networks": 5
+    },
+    {
+      "query": "мюсли",
+      "offers": 186,
+      "networks": 6
+    },
+    {
+      "query": "гранола",
+      "offers": 92,
+      "networks": 4
+    },
+    {
+      "query": "овсяное",
+      "offers": 341,
+      "networks": 5
+    },
+    {
+      "query": "ржаной",
+      "offers": 53,
+      "networks": 6
+    },
+    {
+      "query": "пшеничный",
+      "offers": 146,
+      "networks": 6
+    },
+    {
+      "query": "цельнозерновой",
+      "offers": 256,
+      "networks": 5
+    },
+    {
+      "query": "лимонад",
+      "offers": 84,
+      "networks": 5
+    },
+    {
+      "query": "тоник",
+      "offers": 64,
+      "networks": 6
+    },
+    {
+      "query": "квас",
+      "offers": 65,
+      "networks": 5
+    },
+    {
+      "query": "сидр",
+      "offers": 88,
+      "networks": 6
+    },
+    {
+      "query": "виски",
+      "offers": 114,
+      "networks": 5
+    },
+    {
+      "query": "водка",
+      "offers": 137,
+      "networks": 6
+    },
+    {
+      "query": "ром",
+      "offers": 98,
+      "networks": 6
+    },
+    {
+      "query": "джин",
+      "offers": 247,
+      "networks": 6
+    },
+    {
+      "query": "текила",
+      "offers": 29,
+      "networks": 4
+    },
+    {
+      "query": "ликёр",
+      "offers": 216,
+      "networks": 6
+    },
+    {
+      "query": "коньяк",
+      "offers": 25,
+      "networks": 5
+    },
+    {
+      "query": "ракия",
+      "offers": 392,
+      "networks": 6
+    },
+    {
+      "query": "средство",
+      "offers": 426,
+      "networks": 6
+    },
+    {
+      "query": "посудомойка",
+      "offers": 4,
+      "networks": 2
+    },
+    {
+      "query": "кондиционер",
+      "offers": 345,
+      "networks": 6
+    },
+    {
+      "query": "отбеливатель",
+      "offers": 13,
+      "networks": 6
+    },
+    {
+      "query": "пятновыводитель",
+      "offers": 6,
+      "networks": 3
+    },
+    {
+      "query": "перчатки",
+      "offers": 521,
+      "networks": 3
+    },
+    {
+      "query": "фольга",
+      "offers": 215,
+      "networks": 6
+    },
+    {
+      "query": "плёнка",
+      "offers": 215,
+      "networks": 6
+    },
+    {
+      "query": "пергамент",
+      "offers": 588,
+      "networks": 6
+    },
+    {
+      "query": "полотенца",
+      "offers": 761,
+      "networks": 6
+    },
+    {
+      "query": "щётка",
+      "offers": 1129,
+      "networks": 7
+    },
+    {
+      "query": "расчёска",
+      "offers": 8,
+      "networks": 1
+    },
+    {
+      "query": "бритва",
+      "offers": 186,
+      "networks": 5
+    },
+    {
+      "query": "прокладки",
+      "offers": 223,
+      "networks": 5
+    },
+    {
+      "query": "тампоны",
+      "offers": 27,
+      "networks": 5
+    },
+    {
+      "query": "дезодорант",
+      "offers": 236,
+      "networks": 4
+    },
+    {
+      "query": "антиперспирант",
+      "offers": 6,
+      "networks": 1
+    },
+    {
+      "query": "гель",
+      "offers": 692,
+      "networks": 7
+    },
+    {
+      "query": "крем",
+      "offers": 1584,
+      "networks": 8
+    },
+    {
+      "query": "лосьон",
+      "offers": 91,
+      "networks": 7
+    },
+    {
+      "query": "бальзам",
+      "offers": 122,
+      "networks": 5
+    },
+    {
+      "query": "зубы",
+      "offers": 576,
+      "networks": 7
+    },
+    {
+      "query": "ополаскиватель",
+      "offers": 102,
+      "networks": 7
+    },
+    {
+      "query": "линзы",
+      "offers": 33,
+      "networks": 7
+    },
+    {
+      "query": "подгузник",
+      "offers": 196,
+      "networks": 6
+    },
+    {
+      "query": "пелёнки",
+      "offers": 506,
+      "networks": 7
+    },
+    {
+      "query": "розетка",
+      "offers": 100,
+      "networks": 1
+    },
+    {
+      "query": "выключатель",
+      "offers": 210,
+      "networks": 1
+    },
+    {
+      "query": "удлинитель",
+      "offers": 102,
+      "networks": 1
+    },
+    {
+      "query": "отвёртка",
+      "offers": 638,
+      "networks": 1
+    },
+    {
+      "query": "дрель",
+      "offers": 321,
+      "networks": 1
+    },
+    {
+      "query": "шуруповёрт",
+      "offers": 455,
+      "networks": 1
+    },
+    {
+      "query": "молоток",
+      "offers": 308,
+      "networks": 1
+    },
+    {
+      "query": "гвозди",
+      "offers": 285,
+      "networks": 1
+    },
+    {
+      "query": "шуруп",
+      "offers": 1676,
+      "networks": 1
+    },
+    {
+      "query": "плоскогубцы",
+      "offers": 481,
+      "networks": 2
+    },
+    {
+      "query": "нож",
+      "offers": 949,
+      "networks": 4
+    },
+    {
+      "query": "ножницы",
+      "offers": 391,
+      "networks": 2
+    },
+    {
+      "query": "рулетка",
+      "offers": 40,
+      "networks": 3
+    },
+    {
+      "query": "клей",
+      "offers": 93,
+      "networks": 2
+    },
+    {
+      "query": "скотч",
+      "offers": 637,
+      "networks": 6
+    },
+    {
+      "query": "краска",
+      "offers": 3865,
+      "networks": 6
+    },
+    {
+      "query": "кисть",
+      "offers": 1129,
+      "networks": 7
+    },
+    {
+      "query": "валик",
+      "offers": 113,
+      "networks": 1
+    },
+    {
+      "query": "шпатель",
+      "offers": 39,
+      "networks": 1
+    },
+    {
+      "query": "наждачка",
+      "offers": 128,
+      "networks": 1
+    },
+    {
+      "query": "пила",
+      "offers": 408,
+      "networks": 1
+    },
+    {
+      "query": "кастрюля",
+      "offers": 716,
+      "networks": 2
+    },
+    {
+      "query": "сковорода",
+      "offers": 507,
+      "networks": 1
+    },
+    {
+      "query": "тарелка",
+      "offers": 2207,
+      "networks": 4
+    },
+    {
+      "query": "миска",
+      "offers": 796,
+      "networks": 4
+    },
+    {
+      "query": "чашка",
+      "offers": 1490,
+      "networks": 6
+    },
+    {
+      "query": "стакан",
+      "offers": 2314,
+      "networks": 6
+    },
+    {
+      "query": "ложка",
+      "offers": 245,
+      "networks": 5
+    },
+    {
+      "query": "вилка",
+      "offers": 140,
+      "networks": 3
+    },
+    {
+      "query": "чайник",
+      "offers": 134,
+      "networks": 1
+    },
+    {
+      "query": "блендер",
+      "offers": 85,
+      "networks": 1
+    },
+    {
+      "query": "миксер",
+      "offers": 143,
+      "networks": 1
+    },
+    {
+      "query": "тостер",
+      "offers": 56,
+      "networks": 2
+    },
+    {
+      "query": "утюг",
+      "offers": 230,
+      "networks": 4
+    },
+    {
+      "query": "пылесос",
+      "offers": 396,
+      "networks": 1
+    },
+    {
+      "query": "весы",
+      "offers": 59,
+      "networks": 2
+    },
+    {
+      "query": "вентилятор",
+      "offers": 162,
+      "networks": 1
+    },
+    {
+      "query": "обогреватель",
+      "offers": 78,
+      "networks": 1
+    },
+    {
+      "query": "шланг",
+      "offers": 642,
+      "networks": 3
+    },
+    {
+      "query": "ведро",
+      "offers": 650,
+      "networks": 7
+    },
+    {
+      "query": "швабра",
+      "offers": 293,
+      "networks": 4
+    },
+    {
+      "query": "веник",
+      "offers": 69,
+      "networks": 1
+    },
+    {
+      "query": "тряпка",
+      "offers": 327,
+      "networks": 4
+    },
+    {
+      "query": "коврик",
+      "offers": 312,
+      "networks": 1
+    },
+    {
+      "query": "подушка",
+      "offers": 347,
+      "networks": 1
+    },
+    {
+      "query": "одеяло",
+      "offers": 433,
+      "networks": 4
+    },
+    {
+      "query": "простыня",
+      "offers": 209,
+      "networks": 1
+    },
+    {
+      "query": "полка",
+      "offers": 974,
+      "networks": 1
+    },
+    {
+      "query": "стул",
+      "offers": 364,
+      "networks": 1
+    },
+    {
+      "query": "стол",
+      "offers": 3000,
+      "networks": 6
+    },
+    {
+      "query": "горшок",
+      "offers": 648,
+      "networks": 3
+    },
+    {
+      "query": "семена",
+      "offers": 214,
+      "networks": 6
+    },
+    {
+      "query": "удобрение",
+      "offers": 1,
+      "networks": 1
+    },
+    {
+      "query": "земля",
+      "offers": 53,
+      "networks": 2
+    }
+  ],
+  "controls": {
+    "пончик": {
+      "networks": [
+        "lidl",
+        "maxi",
+        "gomex",
+        "aman",
+        "metro"
+      ],
+      "examples": [
+        {
+          "name": "Donut sa šećerom MK60 47g",
+          "translated": "Пончик с сахаром MK60 47 г / Donut sa šećerom MK60 47g",
+          "unit": "g",
+          "unit_price": "638,09 RSD/кг"
+        },
+        {
+          "name": "Krofna sa punj. od kajsije MK105 48g",
+          "translated": "Пончик с абрикосовой начинкой MK105 48 г / Krofna sa punj. od kajsije MK105 48g",
+          "unit": "g",
+          "unit_price": "708,13 RSD/кг"
+        },
+        {
+          "name": "Krofna sa kajsija punjenjem 48g PP",
+          "translated": "Пончик с абрикосовой начинкой 48 г PP / Krofna sa kajsija punjenjem 48g PP",
+          "unit": "kg",
+          "unit_price": "728,96 RSD/кг"
+        },
+        {
+          "name": "Krofna sa kajsija punjenjem 48g PP",
+          "translated": "Пончик с абрикосовой начинкой 48 г PP / Krofna sa kajsija punjenjem 48g PP",
+          "unit": "kg",
+          "unit_price": "728,96 RSD/кг"
+        },
+        {
+          "name": "Krofna sa secerom Maxi 50g",
+          "translated": "Пончик с сахаром Maxi 50 г / Krofna sa secerom Maxi 50g",
+          "unit": "kg",
+          "unit_price": "719,80 RSD/кг"
+        },
+        {
+          "name": "Krofna sa secerom Maxi 50g",
+          "translated": "Пончик с сахаром Maxi 50 г / Krofna sa secerom Maxi 50g",
+          "unit": "kg",
+          "unit_price": "799,80 RSD/кг"
+        }
+      ]
+    },
+    "пончики": {
+      "networks": [
+        "lidl",
+        "maxi",
+        "gomex",
+        "aman",
+        "metro"
+      ],
+      "examples": [
+        {
+          "name": "Donut sa šećerom MK60 47g",
+          "translated": "Пончик с сахаром MK60 47 г / Donut sa šećerom MK60 47g",
+          "unit": "g",
+          "unit_price": "638,09 RSD/кг"
+        },
+        {
+          "name": "Krofna sa punj. od kajsije MK105 48g",
+          "translated": "Пончик с абрикосовой начинкой MK105 48 г / Krofna sa punj. od kajsije MK105 48g",
+          "unit": "g",
+          "unit_price": "708,13 RSD/кг"
+        },
+        {
+          "name": "Krofna sa kajsija punjenjem 48g PP",
+          "translated": "Пончик с абрикосовой начинкой 48 г PP / Krofna sa kajsija punjenjem 48g PP",
+          "unit": "kg",
+          "unit_price": "728,96 RSD/кг"
+        },
+        {
+          "name": "Krofna sa kajsija punjenjem 48g PP",
+          "translated": "Пончик с абрикосовой начинкой 48 г PP / Krofna sa kajsija punjenjem 48g PP",
+          "unit": "kg",
+          "unit_price": "728,96 RSD/кг"
+        },
+        {
+          "name": "Krofna sa secerom Maxi 50g",
+          "translated": "Пончик с сахаром Maxi 50 г / Krofna sa secerom Maxi 50g",
+          "unit": "kg",
+          "unit_price": "719,80 RSD/кг"
+        },
+        {
+          "name": "Krofna sa secerom Maxi 50g",
+          "translated": "Пончик с сахаром Maxi 50 г / Krofna sa secerom Maxi 50g",
+          "unit": "kg",
+          "unit_price": "799,80 RSD/кг"
+        }
+      ]
+    },
+    "донат": {
+      "networks": [
+        "lidl",
+        "maxi",
+        "gomex",
+        "aman",
+        "metro"
+      ],
+      "examples": [
+        {
+          "name": "Donut sa šećerom MK60 47g",
+          "translated": "Пончик с сахаром MK60 47 г / Donut sa šećerom MK60 47g",
+          "unit": "g",
+          "unit_price": "638,09 RSD/кг"
+        },
+        {
+          "name": "Krofna sa punj. od kajsije MK105 48g",
+          "translated": "Пончик с абрикосовой начинкой MK105 48 г / Krofna sa punj. od kajsije MK105 48g",
+          "unit": "g",
+          "unit_price": "708,13 RSD/кг"
+        },
+        {
+          "name": "Krofna sa kajsija punjenjem 48g PP",
+          "translated": "Пончик с абрикосовой начинкой 48 г PP / Krofna sa kajsija punjenjem 48g PP",
+          "unit": "kg",
+          "unit_price": "728,96 RSD/кг"
+        },
+        {
+          "name": "Krofna sa kajsija punjenjem 48g PP",
+          "translated": "Пончик с абрикосовой начинкой 48 г PP / Krofna sa kajsija punjenjem 48g PP",
+          "unit": "kg",
+          "unit_price": "728,96 RSD/кг"
+        },
+        {
+          "name": "Krofna sa secerom Maxi 50g",
+          "translated": "Пончик с сахаром Maxi 50 г / Krofna sa secerom Maxi 50g",
+          "unit": "kg",
+          "unit_price": "719,80 RSD/кг"
+        },
+        {
+          "name": "Krofna sa secerom Maxi 50g",
+          "translated": "Пончик с сахаром Maxi 50 г / Krofna sa secerom Maxi 50g",
+          "unit": "kg",
+          "unit_price": "799,80 RSD/кг"
+        }
+      ]
+    },
+    "Donat Mg": {
+      "networks": [
+        "aman",
+        "gomex"
+      ],
+      "examples": [
+        {
+          "name": "VODA DONAT MG 1L",
+          "translated": "Вода DONAT MG 1 л / VODA DONAT MG 1L",
+          "unit": "KOM",
+          "unit_price": "269,99 RSD/л"
+        },
+        {
+          "name": "VODA DONAT MG PET 1L",
+          "translated": "Вода DONAT MG PET 1 л / VODA DONAT MG PET 1L",
+          "unit": "l",
+          "unit_price": "279,99 RSD/л"
+        }
+      ]
+    },
+    "петрушка": {
+      "networks": [
+        "gomex",
+        "lidl",
+        "maxi",
+        "aman",
+        "metro"
+      ],
+      "examples": [
+        {
+          "name": "ZAČIN PERŠUNOV LIST UNIJA 7G",
+          "translated": "Приправа петрушка лист UNIJA 7 г / ZAČIN PERŠUNOV LIST UNIJA 7G",
+          "unit": "kg",
+          "unit_price": "2 262,86 RSD/кг"
+        },
+        {
+          "name": "Peršun MK30 10g",
+          "translated": "Петрушка MK30 10 г / Peršun MK30 10g",
+          "unit": "g",
+          "unit_price": "1 999,00 RSD/кг"
+        },
+        {
+          "name": "Zacin Persun list Maxi 7g",
+          "translated": "Приправа петрушка лист Maxi 7 г / Zacin Persun list Maxi 7g",
+          "unit": "kg",
+          "unit_price": "3 141,43 RSD/кг"
+        },
+        {
+          "name": "Zacin Persun list Maxi 7g",
+          "translated": "Приправа петрушка лист Maxi 7 г / Zacin Persun list Maxi 7g",
+          "unit": "kg",
+          "unit_price": "3 284,29 RSD/кг"
+        },
+        {
+          "name": "Zacin Persun list Maxi 7g",
+          "translated": "Приправа петрушка лист Maxi 7 г / Zacin Persun list Maxi 7g",
+          "unit": "kg",
+          "unit_price": "3 284,29 RSD/кг"
+        },
+        {
+          "name": "Zacin Persun list Maxi 7g",
+          "translated": "Приправа петрушка лист Maxi 7 г / Zacin Persun list Maxi 7g",
+          "unit": "kg",
+          "unit_price": "3 284,29 RSD/кг"
+        }
+      ]
+    },
+    "питьевое молоко": {
+      "networks": [
+        "metro",
+        "maxi",
+        "gomex",
+        "aman",
+        "lidl",
+        "matijevic"
+      ],
+      "examples": [
+        {
+          "name": "200ML ALPSKO MLEKO 3.5%MM-STAND.-VAR.",
+          "translated": "200 мл ALPSKO Молоко 3.5%MM-STAND.-VAR. / 200ML ALPSKO MLEKO 3.5%MM-STAND.-VAR.",
+          "unit": "L",
+          "unit_price": "305,00 RSD/л"
+        },
+        {
+          "name": "Alpsko Mleko 3,5%mm 0,2L",
+          "translated": "Alpsko Молоко 3,5%mm 0,2 л / Alpsko Mleko 3,5%mm 0,2L",
+          "unit": "lit",
+          "unit_price": "339,95 RSD/л"
+        },
+        {
+          "name": "Alpsko Mleko 3,5%mm 0,2L",
+          "translated": "Alpsko Молоко 3,5%mm 0,2 л / Alpsko Mleko 3,5%mm 0,2L",
+          "unit": "lit",
+          "unit_price": "339,95 RSD/л"
+        },
+        {
+          "name": "Alpsko Mleko 3,5%mm 0,2L",
+          "translated": "Alpsko Молоко 3,5%mm 0,2 л / Alpsko Mleko 3,5%mm 0,2L",
+          "unit": "lit",
+          "unit_price": "339,95 RSD/л"
+        },
+        {
+          "name": "Alpsko Mleko 3,5%mm 0,2L",
+          "translated": "Alpsko Молоко 3,5%mm 0,2 л / Alpsko Mleko 3,5%mm 0,2L",
+          "unit": "lit",
+          "unit_price": "339,95 RSD/л"
+        },
+        {
+          "name": "MLEKO UHT ALPSKO UHT 3.5% 200ML",
+          "translated": "Молоко UHT ALPSKO UHT 3.5% 200 мл / MLEKO UHT ALPSKO UHT 3.5% 200ML",
+          "unit": "l",
+          "unit_price": "349,95 RSD/л"
+        }
+      ]
+    },
+    "соус песто": {
+      "networks": [
+        "lidl",
+        "maxi",
+        "gomex"
+      ],
+      "examples": [
+        {
+          "name": "Pesto green World's market 190g",
+          "translated": "Песто зелёный World's market 190 г / Pesto green World's market 190g",
+          "unit": "kg",
+          "unit_price": "773,63 RSD/кг"
+        },
+        {
+          "name": "Pesto green World's market 190g",
+          "translated": "Песто зелёный World's market 190 г / Pesto green World's market 190g",
+          "unit": "kg",
+          "unit_price": "773,63 RSD/кг"
+        },
+        {
+          "name": "Pesto sos Genovese MK12 190g",
+          "translated": "Песто соус Genovese MK12 190 г / Pesto sos Genovese MK12 190g",
+          "unit": "kg",
+          "unit_price": "773,63 RSD/кг"
+        },
+        {
+          "name": "Pesto green World's market 190g",
+          "translated": "Песто зелёный World's market 190 г / Pesto green World's market 190g",
+          "unit": "kg",
+          "unit_price": "773,63 RSD/кг"
+        },
+        {
+          "name": "Pesto green World's market 190g",
+          "translated": "Песто зелёный World's market 190 г / Pesto green World's market 190g",
+          "unit": "kg",
+          "unit_price": "773,63 RSD/кг"
+        },
+        {
+          "name": "Pesto green World's market 190g",
+          "translated": "Песто зелёный World's market 190 г / Pesto green World's market 190g",
+          "unit": "kg",
+          "unit_price": "773,63 RSD/кг"
+        }
+      ]
+    },
+    "сливы": {
+      "networks": [
+        "aman",
+        "metro",
+        "lidl",
+        "maxi",
+        "gomex"
+      ],
+      "examples": [
+        {
+          "name": "SLJIVA PG",
+          "translated": "Слива PG / SLJIVA PG",
+          "unit": "KG",
+          "unit_price": null
+        },
+        {
+          "name": "METRO  SLJIVA-STAND.-VAR.",
+          "translated": "METRO  слива-STAND.-VAR. / METRO  SLJIVA-STAND.-VAR.",
+          "unit": "KG",
+          "unit_price": null
+        },
+        {
+          "name": "Šljiva, 1kg 1kg",
+          "translated": "Слива, 1 кг 1 кг / Šljiva, 1kg 1kg",
+          "unit": "kom.",
+          "unit_price": "119,99 RSD/кг"
+        },
+        {
+          "name": "SLJIVA RF --",
+          "translated": "Слива RF -- / SLJIVA RF --",
+          "unit": "KG",
+          "unit_price": null
+        },
+        {
+          "name": "Sljiva 1kg",
+          "translated": "Слива 1 кг / Sljiva 1kg",
+          "unit": "kg",
+          "unit_price": "129,99 RSD/кг"
+        },
+        {
+          "name": "SLJIVA DOMACA-STAND.-VAR.",
+          "translated": "Слива DOMACA-STAND.-VAR. / SLJIVA DOMACA-STAND.-VAR.",
+          "unit": "KG",
+          "unit_price": null
+        }
+      ]
+    }
+  },
+  "matched_queries": 331,
+  "unmatched_queries": []
+}

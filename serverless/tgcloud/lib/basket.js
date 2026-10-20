@@ -1,18 +1,31 @@
-import { requireValue,currentPrice,cutoff,day,normalize,volumeQuery,weightQuery } from './domain.js';
+import { requireValue,currentPrice,cutoff,day,normalize,unitPrice,packageMeasure } from './domain.js';
 
 // Describe the public offer behind an estimate without confirming it as the
 // user's choice or sending private basket input to a translation service.
 export function basketVariant(offer){
- const name=String(offer.name||''),v=volumeQuery(name),w=v?null:weightQuery(name),parts=[];
- if(/(?:^| )(?:mleko|mlijeko)(?: |$)/.test(normalize(name))){
-  const text=normalize(name);parts.push(/(?:^| )kis[a-z]*(?: |$)/.test(text)?'кисломолочное':/(?:^| )cokolad[a-z]*(?: |$)/.test(text)?'шоколадное':'молоко');
+ const name=String(offer.name||''),text=normalize(name),pack=packageMeasure(name),parts=[];
+ if(/(?:^| )(?:mleko|mlijeko)(?: |$)/.test(text)){
+  parts.push(/(?:^| )kis[a-z]*(?: |$)/.test(text)?'кисломолочное':/(?:^| )cokolad[a-z]*(?: |$)/.test(text)?'шоколадное':'молоко');
  }
- if(v)parts.push(v.ml>=1000?(v.ml/1000)+' л':v.ml+' мл');
- else if(w)parts.push(w.grams>=1000?(w.grams/1000)+' кг':w.grams+' г');
+ else if(/(?:^| )sljiv[a-z]*(?: |$)/.test(text))parts.push(/(?:^| )(?:suv[a-z]*|susen[a-z]*)(?: |$)/.test(text)?'чернослив':'сливы');
+ else if(/(?:^| )pile[a-z]*(?: |$)/.test(text)){const choices=[[/jetr|src/,'субпродукты'],[/kobasic|salam|virsl/,'колбаса'],[/cips|flips|kokic|popcorn|noodl/,'со вкусом курицы'],[/file/,'филе'],[/kril/,'крылья'],[/batak|karabatak/,'бёдра'],[/grud|prs|belo/,'грудка']];const type=choices.find(([pattern])=>pattern.test(text));if(type)parts.push(type[1]);}
+ if(pack)parts.push(pack.amount>=1000?(pack.amount/1000)+(pack.kind==='volume'?' л':' кг'):pack.amount+(pack.kind==='volume'?' мл':' г'));
  return parts.join(' · ');
 }
 
-export async function initBasket(db){await db.run(`CREATE TABLE IF NOT EXISTS sd_basket(uid INTEGER NOT NULL,id TEXT NOT NULL,query TEXT NOT NULL,product TEXT,name TEXT,quantity INTEGER NOT NULL,PRIMARY KEY(uid,id))`);}
+export async function initBasket(db){await db.run(`CREATE TABLE IF NOT EXISTS sd_basket(uid INTEGER NOT NULL,id TEXT NOT NULL,query TEXT NOT NULL,product TEXT,name TEXT,quantity INTEGER NOT NULL,PRIMARY KEY(uid,id))`);await db.run(`CREATE TABLE IF NOT EXISTS sd_basket_filters(uid INTEGER NOT NULL,id TEXT NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(uid,id))`);}
+export async function saveBasketFilters(store,uid,id,filters){
+ await initBasket(store.db);
+ const clean={};
+ if(typeof filters.brand==='string'&&filters.brand.length<=80)clean.brand=filters.brand;
+ if(Array.isArray(filters.type)&&filters.type.length>0&&filters.type.length<=4&&filters.type.every(t=>/^[a-z]{2,20}$/.test(t)))clean.type=filters.type;
+ if(filters.pack&&['volume','weight'].includes(filters.pack.kind)&&Number.isInteger(filters.pack.amount)&&filters.pack.amount>0&&filters.pack.amount<=100000)clean.pack={kind:filters.pack.kind,amount:filters.pack.amount};
+ if(typeof filters.fat==='string'&&/^\d+(?:\.\d+)?$/.test(filters.fat))clean.fat=filters.fat;
+ if(typeof filters.socket==='string'&&/^(E14|E27|GU10|G9|G4|H4|H7)$/.test(filters.socket))clean.socket=filters.socket;
+ const result=await store.db.run(`INSERT INTO sd_basket_filters(uid,id,payload) SELECT :uid,:id,:payload WHERE EXISTS(SELECT 1 FROM sd_basket WHERE uid=:uid AND id=:id AND product IS NULL) ON CONFLICT(uid,id) DO UPDATE SET payload=excluded.payload WHERE EXISTS(SELECT 1 FROM sd_basket WHERE uid=:uid AND id=:id AND product IS NULL)`,{':uid':uid,':id':id,':payload':JSON.stringify(clean)});
+ return result.rowsAffected===1;
+}
+
 
 export function parseList(text){
  const lines=String(text).split(/\n|;|,(?!\d)|(?<!\d),/).map(x=>x.replace(/^\s*[-•]\s*/,'').trim()).filter(Boolean);
@@ -32,7 +45,11 @@ export async function addList(store,uid,text,event){
 
 export async function addOffer(store,uid,offer,target=null){
  await initBasket(store.db);
- if(target){const result=await store.db.run('UPDATE sd_basket SET product=:product,name=:name WHERE uid=:uid AND id=:id AND product IS NULL',{':uid':uid,':id':target,':product':offer.product,':name':offer.name});return result.rowsAffected===1;}
+ if(target){
+  const item=await store.db.get(`SELECT b.query,COALESCE(f.payload,'{}') AS filters FROM sd_basket b LEFT JOIN sd_basket_filters f ON f.uid=b.uid AND f.id=b.id WHERE b.uid=:uid AND b.id=:id AND b.product IS NULL`,{':uid':uid,':id':target});if(!item)return false;
+  const filters=JSON.parse(item.filters);if(Object.keys(filters).length&&!await store.matchesOffer(item.query,offer.id,filters))return false;
+  const result=await store.db.run(`UPDATE sd_basket SET product=:product,name=:name WHERE uid=:uid AND id=:id AND product IS NULL AND COALESCE((SELECT payload FROM sd_basket_filters WHERE uid=:uid AND id=:id),'{}')=:filters`,{':uid':uid,':id':target,':product':offer.product,':name':offer.name,':filters':item.filters});return result.rowsAffected===1;
+ }
  const id='p'+offer.id;
  const result=await store.db.run(`INSERT INTO sd_basket(uid,id,query,product,name,quantity) SELECT :uid,:id,:name,:product,:name,1 WHERE (SELECT COUNT(*) FROM sd_basket WHERE uid=:uid)<30 ON CONFLICT(uid,id) DO NOTHING`,{':uid':uid,':id':id,':name':offer.name,':product':offer.product});
  requireValue(result.rowsAffected===1||await store.db.get('SELECT 1 AS present FROM sd_basket WHERE uid=:uid AND id=:id',{':uid':uid,':id':id}),'В корзине может быть до 30 позиций.');return true;
@@ -44,10 +61,11 @@ export async function resetProduct(store,uid,id){
  await initBasket(store.db);
  const next='r'+(await store.db.get('SELECT lower(hex(randomblob(8))) AS id')).id;
  const result=await store.db.run('UPDATE sd_basket SET id=:next,product=NULL,name=NULL WHERE uid=:uid AND id=:id AND product IS NOT NULL',{':uid':uid,':id':id,':next':next});
+ if(result.rowsAffected===1)await store.db.run('DELETE FROM sd_basket_filters WHERE uid=:uid AND id=:id',{':uid':uid,':id':id});
  return result.rowsAffected===1?next:null;
 }
 
-export async function cartItems(store,uid){await initBasket(store.db);return store.db.all('SELECT * FROM sd_basket WHERE uid=:uid ORDER BY id LIMIT 30',{':uid':uid});}
+export async function cartItems(store,uid){await initBasket(store.db);return (await store.db.all("SELECT b.*,COALESCE(f.payload,'{}') AS filters FROM sd_basket b LEFT JOIN sd_basket_filters f ON f.uid=b.uid AND f.id=b.id WHERE b.uid=:uid ORDER BY b.id LIMIT 30",{':uid':uid})).map(row=>({...row,filters:JSON.parse(row.filters)}));}
 
 export async function expandPendingList(store,uid,id){
  const rows=await cartItems(store,uid),item=rows.find(x=>x.id===id&&!x.product);if(!item)return false;
@@ -71,15 +89,15 @@ export async function compareBasket(store,uid){
  const allRows=await store.db.all(`SELECT o.payload,s.name AS source_name,b.id AS cart_id FROM sd_basket b JOIN sd_offers o ON o.product=b.product JOIN sd_sources s ON s.id=o.source AND s.current_gen=o.gen WHERE b.uid=:uid AND o.date>=:cutoff AND o.date<=:today LIMIT 6001`,{':uid':uid,':cutoff':cutoff(Date.now()),':today':day()});
  requireValue(allRows.length<=6000,'Слишком много предложений для одной корзины. Уточните товары.');
  for(const item of items){
-  const rows=item.product?allRows.filter(row=>row.cart_id===item.id):await store.basketCandidates(item.query);
+  const rows=item.product?allRows.filter(row=>row.cart_id===item.id):await store.basketCandidates(item.query,Date.now(),item.filters||{});
   requireValue(rows.length<=100,'Слишком много вариантов. Уточните товары в списке.');
   let best=null;
   for(const row of rows){
    const offer=JSON.parse(row.payload),price=currentPrice(offer),key=offer.source+'|'+offer.format;
    if(!matrices.has(key))matrices.set(key,{source:offer.source,chain:row.source_name,name:offer.format,items:new Map()});
    const found=matrices.get(key).items.get(item.id);
-   if(!found||price<found.price)matrices.get(key).items.set(item.id,{id:item.id,name:item.product?item.name||offer.name:item.query,estimated:!item.product,variant:!item.product?basketVariant(offer):null,source:offer.source,quantity:item.quantity,price,total:price*item.quantity});
-   if(!best||price<best.price)best={id:item.id,name:item.product?item.name||offer.name:item.query,estimated:!item.product,variant:!item.product?basketVariant(offer):null,source:offer.source,quantity:item.quantity,price,total:price*item.quantity,store:offer.format,date:offer.date};
+   if(!found||price<found.price)matrices.get(key).items.set(item.id,{id:item.id,name:item.product?item.name||offer.name:item.query,estimated:!item.product,variant:basketVariant(offer),unitPrice:unitPrice(offer,price)?.label||null,source:offer.source,quantity:item.quantity,price,total:price*item.quantity});
+   if(!best||price<best.price)best={id:item.id,name:item.product?item.name||offer.name:item.query,estimated:!item.product,variant:basketVariant(offer),unitPrice:unitPrice(offer,price)?.label||null,source:offer.source,quantity:item.quantity,price,total:price*item.quantity,store:offer.format,date:offer.date};
   }
   if(best)cheapest.push(best);else missing.push(item.name||item.query);
  }
