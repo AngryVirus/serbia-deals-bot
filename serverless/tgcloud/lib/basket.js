@@ -57,8 +57,8 @@ export async function compareBasket(store,uid){
    const offer=JSON.parse(row.payload),price=currentPrice(offer),key=offer.source+'|'+offer.format;
    if(!matrices.has(key))matrices.set(key,{source:offer.source,chain:row.source_name,name:offer.format,items:new Map()});
    const found=matrices.get(key).items.get(item.id);
-   if(!found||price<found.price)matrices.get(key).items.set(item.id,{id:item.id,name:item.name||offer.name,quantity:item.quantity,price,total:price*item.quantity});
-   if(!best||price<best.price)best={id:item.id,name:item.name||offer.name,quantity:item.quantity,price,total:price*item.quantity,store:offer.format,date:offer.date};
+   if(!found||price<found.price)matrices.get(key).items.set(item.id,{id:item.id,name:item.product?item.name||offer.name:item.query,estimated:!item.product,source:offer.source,quantity:item.quantity,price,total:price*item.quantity});
+   if(!best||price<best.price)best={id:item.id,name:item.product?item.name||offer.name:item.query,estimated:!item.product,source:offer.source,quantity:item.quantity,price,total:price*item.quantity,store:offer.format,date:offer.date};
   }
   if(best)cheapest.push(best);else missing.push(item.name||item.query);
  }

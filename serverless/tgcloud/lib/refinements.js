@@ -5,6 +5,7 @@ export function measure(text){
  return {kind:'weight',amount:grams,label:grams>=1000?(grams/1000)+' кг':grams+' г',forms:m.forms};
 }
 const types=[
+ {query:/^(?:курица|курицу|piletina|пилетина)(?:\s+\d.*)?$/i,choices:[['Филе',['file','filet']],['Крылья',['kril']],['Бёдра',['batak','karabatak']],['Грудка',['grud','prs','belo']],['Печень и сердце',['jetr','src']],['Колбаса и сосиски',['kobasic','salam','virsl']],['Снеки со вкусом курицы',['cips','flips','smok','kubet']]]},
  {query:/(?:^|\s)(?:мясо|мяса|meso|месо)(?:\s|$)/i,choices:[['Курица',['pile','pilet']],['Говядина',['goved','junec']],['Свинина',['svinj']],['Индейка',['curet']]]},
  {query:/(?:^|\s)(?:кофе|kafa|coffee)(?=\s|$)/i,choices:[['В зёрнах',['zrno','zrn']],['Молотый',['mleven','mljeven']],['Растворимый',['instant','rastvor']],['Капсулы',['kapsul']]]},
  {query:/(?:^|\s)(?:масло|масла|ulje|maslac)(?=\s|$)/i,choices:[['Сливочное',['maslac']],['Оливковое',['maslin']],['Подсолнечное',['suncokret']]]},
