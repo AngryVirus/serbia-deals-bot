@@ -5,7 +5,7 @@ import { requireValue,currentPrice,cutoff,day,normalize,unitPrice,packageMeasure
 export function basketVariant(offer){
  const name=String(offer.name||''),text=normalize(name),pack=packageMeasure(name),parts=[];
  if(/(?:^| )(?:mleko|mlijeko)(?: |$)/.test(text)){
-  parts.push(/(?:^| )kis[a-z]*(?: |$)/.test(text)?'кисломолочное':/(?:^| )cokolad[a-z]*(?: |$)/.test(text)?'шоколадное':'молоко');
+  const kind=comparisonClass(offer);parts.push(kind==='питьевое молоко'?'молоко':kind==='шоколадное молоко'?'шоколадное':kind);
  }
  else if(/(?:^| )sljiv[a-z]*(?: |$)/.test(text))parts.push(/(?:^| )(?:suv[a-z]*|susen[a-z]*)(?: |$)/.test(text)?'чернослив':'сливы');
  else if(/(?:^| )pile[a-z]*(?: |$)/.test(text)){const choices=[[/jetr|src/,'субпродукты'],[/kobasic|salam|virsl/,'колбаса'],[/cips|flips|kokic|popcorn|noodl/,'со вкусом курицы'],[/file/,'филе'],[/kril/,'крылья'],[/batak|karabatak/,'бёдра'],[/grud|prs|belo/,'грудка']];const type=choices.find(([pattern])=>pattern.test(text));if(type)parts.push(type[1]);}

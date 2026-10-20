@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture,offer,publish,message,callback} from './fixtures.js';
-import {addList,addOffer,compareBasket,basketDemand,basketQuery,comparisonClass,saveBasketFilters,cartItems} from '../tgcloud/lib/basket.js';
+import {addList,addOffer,compareBasket,basketDemand,basketQuery,basketVariant,comparisonClass,saveBasketFilters,cartItems} from '../tgcloud/lib/basket.js';
 import {Bot} from '../tgcloud/lib/bot.js';
 import {basketSummary} from '../tgcloud/lib/shopping-ui.js';
 const goods=(id,name,price,source='a'.repeat(24))=>offer(id,{source,name,regular:price,terms:name.toLowerCase().replace(',','.').split(/\s+/),product:'local:'+String(id).padStart(32,'0')});
@@ -42,7 +42,7 @@ test('basket refinement searches base name while retaining the requested amount 
 test('catalogue brand substrings and ground-coffee descriptions do not create false incompatible types',()=>{
  assert.equal(comparisonClass({name:'MLEKO SVEZE KESA 2.8% ZAPIS TARE 1L MLEKARA SPASOJEVIC'}),'питьевое молоко');
  assert.equal(comparisonClass({name:'Kafa mlevena od zrna arabike 200g'}),'молотый кофе');
- assert.equal(comparisonClass({name:'Coko mleko 1l'}),'шоколадное молоко');
+ assert.equal(comparisonClass({name:'Coko mleko 1l'}),'шоколадное молоко');assert.equal(basketVariant({name:'Coko mleko 1l'}),'шоколадное · 1 л');
 });
 
 test('candidate overflow and publication during calculation fail explicitly instead of caching a partial total',async()=>{
