@@ -16,17 +16,27 @@ export async function productNames(store,fetch,offers,now=Date.now()){
   const name=offer.name,cached=await store.db.get('SELECT ru,expires FROM sd_product_names WHERE name=:name',{':name':name});
   if(cached?.ru&&cached.expires>now){result.set(name,bilingual(cached.ru,name));return;}
   const simple=localName(name);if(simple){result.set(name,bilingual(simple,name));return;}
-  result.set(name,bilingual(cached?.ru,name));if(typeof fetch!=='function'||(await store.meta('name_translation_pause'))>now)return;
+  result.set(name,bilingual(cached?.ru,name));if(typeof fetch!=='function')return;
   const claim=await store.db.run(`INSERT INTO sd_product_names(name,lease) SELECT :name,:lease WHERE (SELECT COUNT(*) FROM sd_product_names)<3000 ON CONFLICT(name) DO UPDATE SET lease=excluded.lease WHERE sd_product_names.expires<=:now AND sd_product_names.lease<=:now`,{':name':name,':lease':now+30000,':now':now});
   if(claim.rowsAffected!==1)return;
   try{
    const limit=await store.db.run(`INSERT INTO sd_rates(id,n,expires) VALUES('name_translation',1,:until) ON CONFLICT(id) DO UPDATE SET n=CASE WHEN expires<=:now THEN 1 ELSE n+1 END,expires=CASE WHEN expires<=:now THEN :until ELSE expires END WHERE expires<=:now OR n<120`,{':until':now+60000,':now':now});
    if(limit.rowsAffected!==1)return;
-   const response=await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=sr&tl=ru&dt=t&q='+encodeURIComponent(name));
-   if(!response.ok){if(response.status===429)await store.setMeta('name_translation_pause',now+15*60000);throw Error('Unavailable');}
-   const data=await response.json();if(!Array.isArray(data?.[0]))throw Error('Invalid');
-   let ru=data[0].map(part=>typeof part?.[0]==='string'?part[0]:'').join('').trim();
-   if(!validTranslation(ru,name))throw Error('Invalid');
+   let ru;
+   try{
+    if((await store.meta('name_translation_pause'))>now)throw Error('Paused');
+    const response=await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=sr&tl=ru&dt=t&q='+encodeURIComponent(name));
+    if(!response.ok){if(response.status===429)await store.setMeta('name_translation_pause',now+15*60000);throw Error('Unavailable');}
+    const data=await response.json();if(!Array.isArray(data?.[0]))throw Error('Invalid');
+    ru=data[0].map(part=>typeof part?.[0]==='string'?part[0]:'').join('').trim();
+    if(!validTranslation(ru,name))throw Error('Invalid');
+   }catch{
+    if((await store.meta('name_translation_fallback_pause'))>now)throw Error('Paused');
+    const response=await fetch('https://api.mymemory.translated.net/get?langpair=sr%7Cru&q='+encodeURIComponent(name));
+    if(!response.ok){if(response.status===429)await store.setMeta('name_translation_fallback_pause',now+86400000);throw Error('Unavailable');}
+    const data=await response.json();if(data.quotaFinished||Number(data.responseStatus)===429){await store.setMeta('name_translation_fallback_pause',now+86400000);throw Error('Quota');}
+    ru=data.responseData?.translatedText?.trim();if(Number(data.responseStatus)!==200||!validTranslation(ru,name))throw Error('Invalid');
+   }
    // Preserve the catalogue brand verbatim if the translator changes its spelling.
    const brand=String(offer.brand||'').trim();if(brand&&brand.length<60&&!/^(brend|brand|example)$/i.test(brand)&&!latin(ru).includes(latin(brand)))ru=brand+' '+ru;
    await store.db.run('UPDATE sd_product_names SET ru=:ru,expires=:expires,lease=0 WHERE name=:name AND lease=:lease',{':ru':ru,':expires':now+30*86400000,':name':name,':lease':now+30000});result.set(name,bilingual(ru,name));
