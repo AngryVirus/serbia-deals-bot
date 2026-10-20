@@ -20,7 +20,7 @@ const shoppingWords=[
  ['яблоко яблоки яблок яблоками','jabuk'],['банан бананы бананов','banan'],['апельсин апельсины','pomorand narand'],['мандарин мандарины','mandarin'],
  ['лимон лимоны','limun'],['груша груши','krusk'],['клубника клубнику','jagod'],['виноград винограда','grozd'],['арбуз арбузы','lubenic'],['авокадо','avokad'],
  ['яйцо яиц яйцами','jaja jaje'],['курица курицу курицы куриный куриное куриные','pile pilet'],['индейка индейку','curet'],['говядина говядину','goved junec'],
- ['свинина свинину','svinj'],['мясо мяса','meso'],['фарш фарша','mleven mljeven'],['рыба рыбу рыбы','riba riblj'],['лосось лосося','losos'],['тунец тунца','tunjevin tuna'],
+ ['свинина свинину','svinj'],['мясо мяса meso месо','meso pile pilet goved junec svinj curet'],['фарш фарша','mleven mljeven'],['рыба рыбу рыбы','riba riblj'],['лосось лосося','losos'],['тунец тунца','tunjevin tuna'],
  ['колбаса колбасу колбасы','kobasic salam'],['сосиски сосисок','virsl hrenov'],['ветчина ветчину','sunk'],['бекон бекона','slanin bacon'],
  ['йогурт йогурты йогурта','jogurt yogurt'],['кефир кефира','kefir'],['сметана сметану','pavlak'],['сливки сливок','pavlak vrhnj'],['творог творога','sir'],
  ['сыра сыры','sir'],['молока молочку','mleko mlijeko'],['шоколад шоколада шоколадка','cokolad'],['печенье печенья','keks biskvit'],['мороженое мороженого','sladoled'],
@@ -49,8 +49,20 @@ const phrases=[
 const aliases=Object.fromEntries([...Object.entries(words),...shoppingWords.flatMap(([forms,terms])=>forms.split(' ').map(form=>[form,terms.split(' ')]))].map(([key,value])=>[normalize(key),value]));
 const energyTokens=new Set(shoppingWords.find(([forms])=>forms.startsWith('энергетик '))[0].split(' ').map(normalize));
 export const energyQuery=query=>normalize(query).split(' ').some(t=>energyTokens.has(t));
+export function volumeQuery(query){
+ const match=String(query).match(/(?<![\p{L}\p{N}.,])(\d+(?:[.,]\d+)?)\s*(ml|мл|cl|l|л)(?![\p{L}\p{N}])/iu);if(!match)return null;
+ const factor=/^(ml|мл)$/i.test(match[2])?1:/^cl$/i.test(match[2])?10:1000,ml=Number(match[1].replace(',','.'))*factor;
+ if(!Number.isInteger(ml)||ml<1||ml>10000)return null;
+ const liters=String(ml/1000),centiliters=String(ml/10),forms=[ml+'ml',liters+'l',centiliters+'cl'];
+ return {text:match[0],ml,forms,terms:[...new Set(forms.map(x=>normalize(x).split(' ').at(-1)))]};
+}
+export function weightQuery(query){
+ const match=String(query).match(/(?<![\p{L}\p{N}.,])(\d+(?:[.,]\d+)?)\s*(kg|кг|g|г)(?![\p{L}\p{N}])/iu);if(!match)return null;
+ const grams=Number(match[1].replace(',','.'))*(/^(kg|кг)$/i.test(match[2])?1000:1);if(!Number.isInteger(grams)||grams<1||grams>100000)return null;
+ const forms=[grams+'g',(grams/1000)+'kg'];return {text:match[0],grams,forms,terms:[...new Set(forms.map(x=>normalize(x).split(' ').at(-1)))]};
+}
 export function queryGroups(query){
- const original=String(query);let translated=' '+normalize(query)+' ';
+ const original=String(query),volume=volumeQuery(query)||weightQuery(query);let translated=' '+normalize(volume?original.replace(volume.text,' '):query)+' ';
  for(const [from,to] of phrases)translated=translated.replaceAll(' '+from+' ',' '+to+' ');
  const tokens=translated.trim().split(' ').filter(Boolean);
  requireValue(tokens.length>0&&tokens.length<=8&&original.length<=120,'Введите название короче 120 символов.');
@@ -66,6 +78,7 @@ export function queryGroups(query){
   if(['фарш','фарша'].map(normalize).includes(token)){groups.push(group,['mes','junec','goved','svinj','pile','curet']);continue;}
   groups.push(redBull&&group.some(t=>t==='red'||t==='bull')?[...group,'redbull']:group);
  }
+ if(volume)groups.push(volume.terms);
  return groups;
 }
 export const freshProduceQuery=query=>!/(марин|сол[её]н|консерв|паста|соус|суп|сок|сметан|kisel|marin|paster|konzerv)/i.test(String(query))&&!/(kisel|marin|paster|konzerv|pasta|sos|supa|sok|pavl|perec)/.test(normalize(query))&&queryGroups(query).some(group=>group.some(word=>/^(krastav|paradajz|rajcic)/.test(word)));

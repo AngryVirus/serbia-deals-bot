@@ -24,7 +24,7 @@ export function imageHash(text) {
 const decode=s=>s.replace(/&#(x[0-9a-f]+|\d+);/gi,(_,n)=>{const c=n[0].toLowerCase()==='x'?parseInt(n.slice(1),16):Number(n);return c>=0&&c<=0x10ffff?String.fromCodePoint(c):'□';}).replace(/&(lt|gt|amp|quot|apos|#x27);/g,(_,n)=>({lt:'<',gt:'>',amp:'&',quot:'"',apos:"'",'#x27':"'"})[n]);
 export function categoryIcon(text) {
  const label=text.split(':')[0].trim();
- return {'Товар':'search','Корзина':'cart','Количество':'cart','Статус':'eye','Магазин':'pin','Прайс':'clock','Итого':'coins','Город':'pin','Магазины':'pin','Поиск':'search','Цена':'coins','Скидка':'coins','Обновление':'clock','Уведомления':'bell','Товары':'search','Цоколь':'bulb','Яркость':'bulb','Цвет света':'bulb'}[label] || null;
+ return {'Бренд':'id','Вид':'search','Объём':'cart','Вес':'cart','Жирность':'search','Товар':'search','Корзина':'cart','Количество':'cart','Статус':'eye','Магазин':'pin','Прайс':'clock','Итого':'coins','Город':'pin','Магазины':'pin','Поиск':'search','Цена':'coins','Скидка':'coins','Обновление':'clock','Уведомления':'bell','Товары':'search','Цоколь':'bulb','Яркость':'bulb','Цвет света':'bulb'}[label] || null;
 }
 // Small antialiased vector glyphs, drawn locally without emoji fonts or requests.
 function drawIcon(pixel,kind,cx,cy) {
