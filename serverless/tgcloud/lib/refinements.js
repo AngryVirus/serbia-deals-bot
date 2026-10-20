@@ -6,11 +6,11 @@ export function measure(text){
 }
 const types=[
  {query:/(?:^|\s)(?:мясо|мяса|meso|месо)(?:\s|$)/i,choices:[['Курица',['pile','pilet']],['Говядина',['goved','junec']],['Свинина',['svinj']],['Индейка',['curet']]]},
- {query:/(кофе|kafa|coffee)/i,choices:[['В зёрнах',['zrno','zrn']],['Молотый',['mleven','mljeven']],['Растворимый',['instant','rastvor']],['Капсулы',['kapsul']]]},
- {query:/(масло|ulje|maslac)/i,choices:[['Сливочное',['maslac']],['Оливковое',['maslin']],['Подсолнечное',['suncokret']]]},
- {query:/(чай|caj|чај)/i,choices:[['Чёрный',['crni','crn']],['Зелёный',['zeleni','zelen']],['Травяной',['biljni','biljn']]]},
- {query:/(рис|pirinac)/i,choices:[['Длиннозёрный',['dugo']],['Круглозёрный',['okrug']],['Басмати',['basmati']],['Жасмин',['jasmin']]]},
- {query:/(вода|voda)/i,choices:[['Газированная',['gazirana','gaziran']],['Негазированная',['negaz']]]}
+ {query:/(?:^|\s)(?:кофе|kafa|coffee)(?=\s|$)/i,choices:[['В зёрнах',['zrno','zrn']],['Молотый',['mleven','mljeven']],['Растворимый',['instant','rastvor']],['Капсулы',['kapsul']]]},
+ {query:/(?:^|\s)(?:масло|масла|ulje|maslac)(?=\s|$)/i,choices:[['Сливочное',['maslac']],['Оливковое',['maslin']],['Подсолнечное',['suncokret']]]},
+ {query:/(?:^|\s)(?:чай|чая|caj|чај)(?=\s|$)/i,choices:[['Чёрный',['crni','crn']],['Зелёный',['zeleni','zelen']],['Травяной',['biljni','biljn']]]},
+ {query:/(?:^|\s)(?:рис|риса|pirinac)(?=\s|$)/i,choices:[['Длиннозёрный',['dugo']],['Круглозёрный',['okrug']],['Басмати',['basmati']],['Жасмин',['jasmin']]]},
+ {query:/(?:^|\s)(?:вода|воды|voda)(?=\s|$)/i,choices:[['Газированная',['gazirana','gaziran']],['Негазированная',['negaz']]]}
 ];
 const meaningfulBrand=brand=>typeof brand==='string'&&brand.length<=80&&!/^(brend|brand|unknown|n\/a|bez brenda|-|nepoznat)$/i.test(brand.trim());
 export function buildRefinement(query,offers,token,now=Date.now(),single=false){
@@ -26,3 +26,10 @@ export function buildRefinement(query,offers,token,now=Date.now(),single=false){
  return facets.length?{query,token,facets,selected:{},expires:now+15*60000}:null;
 }
 export function refinementFilters(draft){const filters={};for(const f of draft.facets){const i=draft.selected[f.key];if(Number.isInteger(i)&&f.values[i])filters[f.key]=f.values[i].value;}return filters;}
+
+export function filterLabels(filters={}){
+ const labels=[];if(filters.type){const choice=types.flatMap(t=>t.choices).find(([,value])=>JSON.stringify(value)===JSON.stringify(filters.type));if(choice)labels.push(choice[0]);}
+ if(filters.brand)labels.push(filters.brand);
+ if(filters.pack){const n=filters.pack.amount;labels.push(filters.pack.kind==='volume'?(n>=1000?(n/1000)+' л':n+' мл'):(n>=1000?(n/1000)+' кг':n+' г'));}
+ if(filters.fat)labels.push(filters.fat+'%');if(filters.socket)labels.push(filters.socket);return labels;
+}
