@@ -42,7 +42,7 @@ async function cachedNames(store,fetch,offers,now){
     ru=data.responseData?.translatedText?.trim();if(Number(data.responseStatus)!==200||!validTranslation(ru,name))throw Error('Invalid');
    }
    // Preserve the catalogue brand verbatim if the translator changes its spelling.
-   const brand=String(offer.brand||'').trim();if(brand&&brand.length<60&&!/^(brend|brand|example)$/i.test(brand)&&!latin(ru).includes(latin(brand)))ru=brand+' '+ru;
+   const brand=String(offer.brand||'').trim();if(brand&&brand.length<60&&latin(name).includes(latin(brand))&&!/^(brend|brand|example)$/i.test(brand)&&!latin(ru).includes(latin(brand)))ru=brand+' '+ru;
    await store.db.run('UPDATE sd_product_names SET ru=:ru,expires=:expires,lease=0 WHERE name=:name AND lease=:lease',{':ru':ru,':expires':now+30*86400000,':name':name,':lease':now+30000});result.set(name,bilingual(ru,name));
   }catch{/* Public original remains usable; no external response or URL is logged. */}
   finally{await store.db.run('UPDATE sd_product_names SET lease=0,expires=CASE WHEN ru IS NULL THEN :retry ELSE expires END WHERE name=:name AND lease=:lease',{':retry':now+60000,':name':name,':lease':now+30000});}

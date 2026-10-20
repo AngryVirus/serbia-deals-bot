@@ -24,7 +24,7 @@ export function imageHash(text) {
 const decode=s=>s.replace(/&#(x[0-9a-f]+|\d+);/gi,(_,n)=>{const c=n[0].toLowerCase()==='x'?parseInt(n.slice(1),16):Number(n);return c>=0&&c<=0x10ffff?String.fromCodePoint(c):'□';}).replace(/&(lt|gt|amp|quot|apos|#x27);/g,(_,n)=>({lt:'<',gt:'>',amp:'&',quot:'"',apos:"'",'#x27':"'"})[n]);
 export function categoryIcon(text) {
  const label=text.split(':')[0].trim();
- return {'Товар':'search','Корзина':'cart','Количество':'cart','Статус':'eye','Магазин':'pin','Прайс':'clock','Итого':'coins','Город':'pin','Магазины':'pin','Поиск':'search','Цена':'coins','Скидка':'coins','Обновление':'clock','Уведомления':'bell','Товары':'search','Цоколь':'laptop','Яркость':'laptop','Цвет света':'laptop'}[label] || null;
+ return {'Товар':'search','Корзина':'cart','Количество':'cart','Статус':'eye','Магазин':'pin','Прайс':'clock','Итого':'coins','Город':'pin','Магазины':'pin','Поиск':'search','Цена':'coins','Скидка':'coins','Обновление':'clock','Уведомления':'bell','Товары':'search','Цоколь':'bulb','Яркость':'bulb','Цвет света':'bulb'}[label] || null;
 }
 // Small antialiased vector glyphs, drawn locally without emoji fonts or requests.
 function drawIcon(pixel,kind,cx,cy) {
@@ -34,6 +34,7 @@ function drawIcon(pixel,kind,cx,cy) {
  const path=points=>{for(let i=1;i<points.length;i++)line(...points[i-1],...points[i]);};
  const circle=(x,y,r)=>{const points=[];for(let i=0;i<=48;i++)points.push([x+r*Math.cos(i*Math.PI/24),y+r*Math.sin(i*Math.PI/24)]);path(points);};
  disc(0,0,24,background);
+ if(kind==='bulb'){circle(0,-5,10);path([[-7,2],[-5,8],[5,8],[7,2]]);line(-4,12,4,12);line(-2,15,2,15);path([[-3,-6],[0,-2],[3,-6]]);line(0,-2,0,7);}
  if(kind==='cart'){path([[-16,-12],[-11,-12],[-6,6],[12,6],[16,-6],[-9,-6]]);circle(-4,13,2);circle(10,13,2);}
  if(kind==='pin'){circle(0,-5,9);path([[-8,0],[0,14],[8,0]]);circle(0,-5,3);}
  if(kind==='laptop'){path([[-12,-10],[12,-10],[12,7],[-12,7],[-12,-10]]);path([[-15,11],[15,11]]);}
