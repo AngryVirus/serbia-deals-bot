@@ -24,5 +24,5 @@ test('network overview renders a compact image and retains basket selection navi
  const chain=buttons(f).find(b=>b.callback_data.startsWith('chainsel:'));await new Bot(f).handle(callback(5,chain.callback_data));assert(buttons(f).some(b=>b.callback_data==='basket'));await new Bot(f).handle(callback(5,'offer:'+offer().id));assert(buttons(f).some(b=>b.text==='✅ Выбрать для корзины'));
 });
 test('returning to basket cancels text entry so a later search is not added accidentally',async()=>{
- const f=await fixture();await new Bot(f).handle(message(5,'/start'));await new Bot(f).handle(callback(5,'basketinput'));await new Bot(f).handle(callback(5,'basket'));assert.equal((await f.store.user(5)).pending,null);await new Bot(f).handle(message(5,'огурцы'));assert.equal((await cartItems(f.store,5)).length,0);
+ const f=await fixture();await new Bot(f).handle(message(5,'/start'));await new Bot(f).handle(callback(5,'basketinput'));await new Bot(f).handle(callback(5,'basket'));assert.equal((await f.store.user(5)).pending??null,null);await new Bot(f).handle(message(5,'огурцы'));assert.equal((await cartItems(f.store,5)).length,0);
 });
