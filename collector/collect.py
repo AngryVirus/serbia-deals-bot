@@ -39,8 +39,18 @@ def upload(source,offers,stats,body,deadline=None):
         batch.append(offer);size+=amount
     if batch:batches.append(batch)
     context={'source':source['id'],'gen':generation,'owner':owner}
-    state=invoke('begin',**context,name=source['name'],url=f"https://data.gov.rs/sr/datasets/{source['id']}/",date=stats['date'],chunks=len(batches))
-    if state.get('unchanged'):return {'unchanged':True}
+    while True:
+        if deadline and time.monotonic()>deadline-15:raise RuntimeError('Import budget; checkpoint retained')
+        state=invoke('begin',**context,name=source['name'],url=f"https://data.gov.rs/sr/datasets/{source['id']}/",date=stats['date'],chunks=len(batches))
+        if not state.get('cleanup'):break
+    if state.get('unchanged'):
+        result={'unchanged':True}
+        try:
+            while not deadline or time.monotonic()<deadline-15:
+                if not invoke('cleanup',**context).get('cleanup'):break
+            else:result['cleanup_deferred']=True
+        except RuntimeError:result['cleanup_deferred']=True
+        return result
     done=set(state.get('done',[]))
     for part,rows in enumerate(batches):
         if deadline and time.monotonic()>deadline-15:raise RuntimeError('Upload budget; checkpoint retained')
@@ -48,7 +58,17 @@ def upload(source,offers,stats,body,deadline=None):
             packed=base64.b64encode(zlib.compress(json.dumps(rows,ensure_ascii=False,separators=(',',':')).encode())).decode()
             if len(packed)>110000:raise ValueError('Compressed batch too large')
             invoke('chunk',**context,part=part,packed=packed)
-    return invoke('finish',**context,count=len(offers))
+    while True:
+        if deadline and time.monotonic()>deadline-15:raise RuntimeError('Verification budget; checkpoint retained')
+        result=invoke('finish',**context,count=len(offers))
+        if not result.get('verifying'):break
+    try:
+        while not deadline or time.monotonic()<deadline-15:
+            if not invoke('cleanup',**context).get('cleanup'):break
+        else:result['cleanup_deferred']=True
+    except RuntimeError:
+        result['cleanup_deferred']=True
+    return result
 
 
 def main():
@@ -91,7 +111,7 @@ def main():
             report.append({'source':source['alias'],'state':'unavailable','reason':type(error).__name__})
             from .cloud import ManagementError
             if isinstance(error,ManagementError):
-                report[-1].update(http_status=error.status,category=error.category)
+                report[-1].update(http_status=error.status,category=error.category,hints=error.hints,operation=error.operation)
             print(json.dumps(report[-1]),flush=True)
             if args.publish:
                 try:invoke('source_failure',source=source['id'])

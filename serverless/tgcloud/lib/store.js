@@ -49,5 +49,5 @@ export class Store{
  async watches(uid){return this.db.all('SELECT product,name,baseline FROM sd_watches WHERE uid=:uid ORDER BY name LIMIT 100',{':uid':uid});}
  async removeWatch(uid,product){await this.db.run('DELETE FROM sd_watches WHERE uid=:uid AND product=:product',{':uid':uid,':product':product});await this.db.run("UPDATE sd_queue SET state='cancelled' WHERE uid=:uid AND product=:product AND state='pending'",{':uid':uid,':product':product});}
  async deleteUser(uid){await this.db.run('DELETE FROM sd_watches WHERE uid=:uid',{':uid':uid});await this.db.run('DELETE FROM sd_queue WHERE uid=:uid',{':uid':uid});await this.db.run('DELETE FROM sd_rates WHERE id=:key',{':key':'search:'+uid});await this.db.run('DELETE FROM sd_updates WHERE id LIKE :prefix',{':prefix':uid+':%'});await this.db.run('DELETE FROM sd_users WHERE id=:uid',{':uid':uid});}
- async sources(){return this.db.all('SELECT id,name,date,checked,status,current_gen IS NOT NULL AS active FROM sd_sources ORDER BY name');}
+ async sources(){return this.db.all('SELECT id,name,date,checked,status,current_gen,current_gen IS NOT NULL AS active FROM sd_sources ORDER BY name');}
 }

@@ -15,6 +15,7 @@ def main():
         print('Code staged:',result)
         print('Activation unchanged:',state['active'])
     elif args.action=='check':
+        print('Identity and schema:',invoke('init'),flush=True)
         result=invoke('status')
         print('Active:',result['active'],'sources:',len(result['sources']))
         print('Queue:',result['queue'])

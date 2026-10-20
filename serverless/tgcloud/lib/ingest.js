@@ -1,18 +1,35 @@
 import { requireValue,day,cutoff } from './domain.js';
-import { Store } from './store.js';
+async function cleanupGeneration(store,source,gen){
+ const db=store.db,p={':source':source,':gen':gen};
+ const state=await db.get('SELECT current_gen,stage_gen FROM sd_sources WHERE id=:source',p);
+ requireValue(gen!==state?.current_gen&&gen!==state?.stage_gen,'Cannot clean a live generation');
+ const rows=await db.all('SELECT rowid AS id FROM sd_offers WHERE source=:source AND gen=:gen LIMIT 250',p);
+ if(rows.length){const ids={':ids':JSON.stringify(rows.map(r=>r.id))};await db.run('DELETE FROM sd_terms WHERE offer IN(SELECT value FROM json_each(:ids))',ids);await db.run('DELETE FROM sd_offers WHERE rowid IN(SELECT value FROM json_each(:ids))',ids);return false;}
+ await db.run('DELETE FROM sd_chunks WHERE source=:source AND gen=:gen',p);return true;
+}
 export async function ingest(store,input){
  const {operation,source,gen,owner}=input;
  requireValue(/^[a-f0-9]{24}$/.test(source||'')&&/^[a-f0-9]{32}$/.test(gen||'')&&/^[a-f0-9-]{36}$/.test(owner||''));
  const db=store.db,now=Date.now(),p={':source':source,':gen':gen,':owner':owner,':now':now};
+ const cleanupKey='cleanup:'+source;
+ const pending=async()=>{const value=await store.meta(cleanupKey);return Array.isArray(value)?value:value?[value]:[];};
+ const enqueue=async old=>{const list=await pending();if(old&&!list.includes(old))await store.setMeta(cleanupKey,[...list,old]);};
+ const clean=async()=>{let list=await pending();const live=await db.get('SELECT current_gen,stage_gen FROM sd_sources WHERE id=:source',p);const safe=list.filter(g=>g!==live?.current_gen&&g!==live?.stage_gen);if(safe.length!==list.length){list=safe;await store.setMeta(cleanupKey,list);}if(!list.length)return false;const done=await cleanupGeneration(store,source,list[0]);if(done){await db.run('DELETE FROM sd_meta WHERE key=:key',{':key':'catalog_count:'+source+':'+list[0]});list.shift();await store.setMeta(cleanupKey,list);}return !done||list.length>0;};
+ if(operation==='cleanup'){
+  const lock=await db.run('UPDATE sd_sources SET owner=:owner,lease=:lease WHERE id=:source AND (owner IS NULL OR owner=:owner OR lease<=:now)',{...p,':lease':now+120000});
+  requireValue(lock.rowsAffected===1,'Source busy');
+  try{return {cleanup:await clean()};}finally{await db.run('UPDATE sd_sources SET owner=NULL,lease=NULL WHERE id=:source AND owner=:owner AND stage_gen IS NULL',p);}
+ }
  if(operation==='begin'){
   requireValue(typeof input.name==='string'&&input.name.length<=160&&Number.isSafeInteger(input.chunks)&&input.chunks>0&&input.chunks<=5000);
   requireValue(input.url===`https://data.gov.rs/sr/datasets/${source}/`&&/^\d{4}-\d{2}-\d{2}$/.test(input.date)&&input.date>=cutoff(now)&&input.date<=day(now));
+  const previous=await db.get('SELECT * FROM sd_sources WHERE id=:source',p);
   await db.run(`INSERT INTO sd_sources(id,name,url,stage_gen,expected,owner,lease,date) VALUES(:source,:name,:url,:gen,:expected,:owner,:lease,:date) ON CONFLICT(id) DO UPDATE SET name=excluded.name,url=excluded.url,stage_gen=excluded.stage_gen,expected=excluded.expected,owner=excluded.owner,lease=excluded.lease WHERE sd_sources.lease<=:now OR sd_sources.lease IS NULL OR sd_sources.owner=:owner`,{...p,':name':input.name,':url':input.url,':expected':input.chunks,':lease':now+120000,':date':input.date});
   const state=await db.get('SELECT * FROM sd_sources WHERE id=:source',p);
   requireValue(state.owner===owner,'Source busy');
   if(state.current_gen===gen){await db.run("UPDATE sd_sources SET stage_gen=NULL,lease=NULL,owner=NULL,checked=:now,status='ok' WHERE id=:source AND owner=:owner",p);return {unchanged:true};}
-  await db.run(`DELETE FROM sd_terms WHERE offer IN(SELECT rowid FROM sd_offers WHERE source=:source AND gen!=:gen AND gen!=COALESCE(:current,''))`,{...p,':current':state.current_gen});
-  for(const table of ['sd_offers','sd_chunks'])await db.run(`DELETE FROM ${table} WHERE source=:source AND gen!=:gen AND gen!=COALESCE(:current,'')`,{...p,':current':state.current_gen});
+  if(previous?.stage_gen&&previous.stage_gen!==gen&&previous.stage_gen!==previous.current_gen)await enqueue(previous.stage_gen);
+  if(await clean())return {cleanup:true};
   const done=await db.all('SELECT part FROM sd_chunks WHERE source=:source AND gen=:gen',p);
   return {done:done.map(x=>x.part)};
  }
@@ -37,11 +54,18 @@ export async function ingest(store,input){
  if(operation==='finish'){
   const count=await db.get('SELECT COUNT(*) AS n FROM sd_chunks WHERE source=:source AND gen=:gen',p);
   requireValue(count.n===state.expected&&Number.isInteger(input.count)&&input.count>0,'Incomplete source upload');
-  const offers=await db.get('SELECT COUNT(*) AS n,MAX(date) AS date FROM sd_offers WHERE source=:source AND gen=:gen',p);requireValue(offers.n===input.count,'Offer count mismatch');
-  const result=await db.run(`UPDATE sd_sources SET current_gen=:gen,stage_gen=NULL,lease=NULL,owner=NULL,date=:date,checked=:now,status='ok' WHERE id=:source AND owner=:owner AND stage_gen=:gen AND lease>:now`,{...p,':date':offers.date});requireValue(result.rowsAffected===1,'Publication lost lease');
-  await db.run('DELETE FROM sd_terms WHERE offer IN(SELECT rowid FROM sd_offers WHERE source=:source AND gen!=:gen)',p);
-  await db.run('DELETE FROM sd_offers WHERE source=:source AND gen!=:gen',p);
-  await db.run('DELETE FROM sd_chunks WHERE source=:source AND gen!=:gen',p);
+  const verifyKey='verify:'+source;
+  let check=await store.meta(verifyKey);
+  if(check?.gen!==gen)check={gen,after:'',count:0,date:''};
+  const page=await db.all('SELECT id,date FROM sd_offers WHERE source=:source AND gen=:gen AND id>:after ORDER BY id LIMIT 1000',{...p,':after':check.after});
+  for(const row of page){check.after=row.id;check.count++;if(row.date>check.date)check.date=row.date;}
+  await store.setMeta(verifyKey,check);
+  if(page.length===1000)return {verifying:true,count:check.count};
+  requireValue(check.count===input.count,'Offer count mismatch');
+  const offers={n:check.count},snapshot={date:check.date};
+  await store.setMeta('catalog_count:'+source+':'+gen,offers.n);
+  if(state.current_gen&&state.current_gen!==gen)await enqueue(state.current_gen);
+  const result=await db.run(`UPDATE sd_sources SET current_gen=:gen,stage_gen=NULL,lease=NULL,owner=NULL,date=:date,checked=:now,status='ok' WHERE id=:source AND owner=:owner AND stage_gen=:gen AND lease>:now`,{...p,':date':snapshot.date});requireValue(result.rowsAffected===1,'Publication lost lease');
   return {published:true,count:offers.n};
  }
  throw Error('Unknown import operation');

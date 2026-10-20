@@ -8,10 +8,12 @@ import time
 ROOT=Path(__file__).resolve().parents[1]/'serverless'
 LAST=0
 class ManagementError(RuntimeError):
-    def __init__(self,status,category):
+    def __init__(self,status,category,hints=None):
         self.status=status if isinstance(status,int) else None
         self.category=category if category in {'sqlite_full','pragma_restricted','execution_limit','sql_error','source_lease','revision_review','unclassified'} else 'unclassified'
-        super().__init__(f'Management request failed (HTTP {self.status}; category={self.category}); private output withheld')
+        allowed={'database','quota','limit','size','disk','full','memory','timeout','execution','sql','sqlite','pragma','authorized','denied','syntax','column','table','request','payload','argument','module','invalid','unsupported','function','rate','maximum','rows','bytes','budget','read','only','statement','failed','step','steps','instruction','instructions','row','scanned','scan','exceeded','result','returned','output'}
+        self.hints=[word for word in (hints or []) if word in allowed]
+        super().__init__(f'Management request failed (HTTP {self.status}; category={self.category}; hints={self.hints}); private output withheld')
 
 
 def call(command='run', **fields):
@@ -32,9 +34,13 @@ def call(command='run', **fields):
                 if not isinstance(delay,(int,float)) or not 0<delay<=60:
                     raise RuntimeError('Management rate limit; retry in the next cycle')
                 time.sleep(delay);continue
-            raise ManagementError(output.get('status'),output.get('category'))
+            raise ManagementError(output.get('status'),output.get('category'),output.get('hints'))
         return output['result']
 
 
 def invoke(operation,**fields):
-    return call(args={'operation':operation,**fields})
+    try:
+        return call(args={'operation':operation,**fields})
+    except ManagementError as error:
+        error.operation=operation
+        raise

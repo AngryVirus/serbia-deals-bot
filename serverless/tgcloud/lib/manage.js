@@ -11,7 +11,13 @@ export async function manage(input,ctx,{db,api}){
  if(operation==='init'){if(await store.meta('active')===null)await store.setMeta('active',false);return {ready:true,active:await store.meta('active')};}
  if(operation==='status'){
   const sources=await store.sources(),queue=await db.all('SELECT state,COUNT(*) AS count FROM sd_queue GROUP BY state');
-  const catalog=await db.get('SELECT COUNT(*) AS offers FROM sd_offers o JOIN sd_sources s ON s.id=o.source AND s.current_gen=o.gen');
+  let offers=0;
+  for(const source of sources.filter(s=>s.active)){
+   const cached=await store.meta('catalog_count:'+source.id+':'+source.current_gen);
+   const count=cached??(await db.get('SELECT COUNT(*) AS n FROM sd_offers WHERE source=:source AND gen=(SELECT current_gen FROM sd_sources WHERE id=:source)',{':source':source.id})).n;
+   offers+=count;
+  }
+  const catalog={offers};
   let storage=null;
   try{
    const pages=await db.get('PRAGMA page_count'),size=await db.get('PRAGMA page_size');
@@ -37,7 +43,7 @@ export async function manage(input,ctx,{db,api}){
   const raw=unzlibSync(new Uint8Array(out));requireValue(raw.length<1200000);
   input={...input,rows:JSON.parse(decodeURIComponent(Array.from(raw,b=>'%'+b.toString(16).padStart(2,'0')).join('')))};
  }
- if(['begin','chunk','finish'].includes(operation))return ingest(store,input);
+ if(['begin','chunk','finish','cleanup'].includes(operation))return ingest(store,input);
  if(operation==='collection_complete'){requireValue(Number.isInteger(input.successful)&&input.successful>0);await store.setMeta('last_collection',Date.now());return {saved:true};}
  if(operation==='prepare_notifications')return prepareNotifications(store);
  if(operation==='deliver_notifications'){if(await store.meta('active')!==true)return {paused:true};return deliverNotifications(store,api);}
