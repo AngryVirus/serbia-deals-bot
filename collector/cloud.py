@@ -11,7 +11,7 @@ class ManagementError(RuntimeError):
     def __init__(self,status,category,hints=None):
         self.status=status if isinstance(status,int) else None
         self.category=category if category in {'sqlite_full','pragma_restricted','execution_limit','sql_error','source_lease','revision_review','unclassified'} else 'unclassified'
-        allowed={'database','quota','limit','size','disk','full','memory','timeout','execution','sql','sqlite','pragma','authorized','denied','syntax','column','table','request','payload','argument','module','invalid','unsupported','function','rate','maximum','rows','bytes','budget','read','only','statement','failed'}
+        allowed={'database','quota','limit','size','disk','full','memory','timeout','execution','sql','sqlite','pragma','authorized','denied','syntax','column','table','request','payload','argument','module','invalid','unsupported','function','rate','maximum','rows','bytes','budget','read','only','statement','failed','step','steps','instruction','instructions','row','scanned','scan','exceeded','result','returned','output'}
         self.hints=[word for word in (hints or []) if word in allowed]
         super().__init__(f'Management request failed (HTTP {self.status}; category={self.category}; hints={self.hints}); private output withheld')
 
