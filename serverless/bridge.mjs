@@ -30,6 +30,7 @@ import {Store} from '../lib/store.js';
 import {adminRoute} from '../lib/admin.js';
 import {cartItems} from '../lib/basket.js';
 import {productNames} from '../lib/product-names.js';
+import {buildRefinement,refinementFilters} from '../lib/refinements.js';
 export default async function(input,ctx){
  if(ctx?.ownerRun!==true)throw Error('Private probe only');
  await assertBot(api);
@@ -50,9 +51,16 @@ export default async function(input,ctx){
  bot.user={};await bot.search('огурцы');
  if(chains.length){bot.user={};await bot.search('огурцы',0,chains[0].source_id);const offers=await bot.store.searchChain('огурцы',chains[0].source_id,0);if(offers.length){bot.user={};await bot.card(JSON.parse(offers[0].payload).id);}}
  bot.user={};await bot.comparison();
+ const refinementChecks=[];
+ for(const query of ['энергетик','мясо','молоко','кофе','шампунь','лампочка']){
+  const samples=await bot.store.refinementSamples(query),draft=buildRefinement(query,samples.map(r=>JSON.parse(r.payload)),'probe');
+  const check={query,samples:samples.length,facets:draft?.facets.map(f=>f.key)||[]};
+  if(draft){bot.user={};await bot.refine(draft);for(const facet of draft.facets)if(['brand','pack'].includes(facet.key))draft.selected[facet.key]=0;const filtered=await bot.store.searchChains(query,Date.now(),refinementFilters(draft));check.filtered_networks=filtered.length;}
+  refinementChecks.push(check);
+ }
  const names=await productNames(bot.store,translationFetch,[{name:'LED sijalica E27 9W 806lm'},{name:'Energetski napitak Red Bull 0,25l',brand:'Red Bull'}]);
  const translated=[...names.values()].filter(name=>!name.startsWith('Перевод недоступен')).length;
- return {translations:{checked:names.size,translated,requests:translationRequests},...home,admin_photo_calls:adminPhotos,admin_text_calls:adminTexts,source_photo_calls:sourcePhotos,source_text_calls:sourceTexts,shopping_photo_calls:photoCalls-beforePhotos,shopping_text_calls:textCalls-beforeTexts,elapsed_ms:Date.now()-started};
+ return {refinements:refinementChecks,translations:{checked:names.size,translated,requests:translationRequests},...home,admin_photo_calls:adminPhotos,admin_text_calls:adminTexts,source_photo_calls:sourcePhotos,source_text_calls:sourceTexts,shopping_photo_calls:photoCalls-beforePhotos,shopping_text_calls:textCalls-beforeTexts,elapsed_ms:Date.now()-started};
 }`;
   try{result.ui={ok:true,...(await client.runFunction(token,'endpoints/ui_probe',{...sources,'endpoints/ui_probe':probe},{},{ownerRun:true})).result};}
   catch(error){const detail=String(error.message||'')+' '+JSON.stringify(error.parameters||{});result.ui={ok:false,status:Number.isInteger(error.status)?error.status:null,hints:['time','limit','memory','source','size','module','parse','syntax','inputfile','function','png','invalid','cpu','heap','execution'].filter(word=>detail.toLowerCase().includes(word))};}

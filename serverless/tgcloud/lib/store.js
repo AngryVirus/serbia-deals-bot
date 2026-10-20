@@ -1,4 +1,4 @@
-import { requireValue,positive,queryGroups,day,cutoff,currentPrice,bulbQuery,energyQuery,freshProduceQuery,freshMeatQuery,oilQuery,butterQuery } from './domain.js';
+import { requireValue,positive,queryGroups,day,cutoff,currentPrice,bulbQuery,energyQuery,volumeQuery,weightQuery,freshProduceQuery,freshMeatQuery,oilQuery,butterQuery } from './domain.js';
 const SCHEMA=[
  `CREATE TABLE IF NOT EXISTS sd_meta(key TEXT PRIMARY KEY,value TEXT NOT NULL)`,
  `CREATE TABLE IF NOT EXISTS sd_admin_records(kind TEXT NOT NULL,key TEXT NOT NULL,payload TEXT NOT NULL,at INTEGER NOT NULL,PRIMARY KEY(kind,key))`,
@@ -42,26 +42,37 @@ export class Store{
   const id='search:'+uid,result=await this.db.run(`INSERT INTO sd_rates(id,n,expires) VALUES(:id,1,:end) ON CONFLICT(id) DO UPDATE SET n=CASE WHEN expires<=:now THEN 1 ELSE n+1 END,expires=CASE WHEN expires<=:now THEN :end ELSE expires END WHERE expires<=:now OR n<20`,{':id':id,':end':now+60000,':now':now});
   if(result.rowsAffected===1)return 0;const row=await this.db.get('SELECT expires FROM sd_rates WHERE id=:id',{':id':id});return Math.max(1,Math.ceil((row.expires-now)/1000));
  }
- async searchPlan(query,now=Date.now(),source=null){
+ async searchPlan(query,now=Date.now(),source=null,filters={}){
   const groups=queryGroups(query),params={':today':day(now),':cutoff':cutoff(now),':offset':0};
   const exact=token=>['so','sir','med','luk','sok','cola','kola','pivo','vino'].includes(token)||/^(?:e\d+|gu\d+|g\d+|\d+(?:w|lm|k|kg|g|ml|l)|\d{8,14})$/.test(token);
   const range=(alias,key,token)=>exact(token)?`${alias}.term=:${key}`:`(${alias}.term>=:${key} AND ${alias}.term<:${key}end)`;
   const clauses=groups.map((group,i)=>{const ranges=group.map((token,j)=>{const key='g'+i+'_'+j;params[':'+key]=token;params[':'+key+'end']=token+'\uffff';return range('t',key,token);});return `EXISTS(SELECT 1 FROM sd_terms t WHERE t.offer=o.rowid AND (${ranges.join(' OR ')}))`;});
   const anchors=groups[0].map((token,j)=>range('a','g0_'+j,token)).join(' OR ');
   if(source){requireValue(/^[a-f0-9]{24}$/.test(source));params[':source']=source;}
-  return {params,sql:`SELECT DISTINCT o.id,o.product,o.source AS source_id,o.payload,s.name AS source_name,s.url AS source_url,s.checked AS downloaded,${PRICE} AS price FROM sd_terms a CROSS JOIN sd_offers o CROSS JOIN sd_sources s WHERE o.rowid=a.offer AND s.id=o.source AND s.current_gen=o.gen AND o.date>=:cutoff AND o.date<=:today AND (${anchors}) ${bulbQuery(query)?"AND json_extract(o.payload,'$.traits.kind')='bulb'":''} ${energyQuery(query)?'AND '+ENERGY:''} ${freshProduceQuery(query)?'AND '+FRESH_PRODUCE:''} ${freshMeatQuery(query)?'AND '+FRESH_MEAT:''} ${oilQuery(query)?'AND '+PLAIN_OIL:''} ${butterQuery(query)?'AND '+PLAIN_BUTTER:''} ${clauses.length>1?'AND '+clauses.slice(1).join(' AND '):''} ${source?'AND o.source=:source':''}`};
+  const volume=volumeQuery(query)||weightQuery(query);let volumeClause='';if(volume){const title="(' '||replace(replace(replace(replace(replace(replace(lower(o.name),' ',''),',','.'),'мл','ml'),'кг','kg'),'г','g'),'л','l')||' ')";volumeClause=' AND ('+volume.forms.map((form,i)=>{params[':volume'+i]='*[^0-9.]'+form+'[^a-z0-9]*';return title+' GLOB :volume'+i;}).join(' OR ')+')';}
+  let refinement='';
+  if(typeof filters.brand==='string'&&filters.brand.length<=80){params[':brand']=filters.brand;refinement+=" AND json_extract(o.payload,'$.brand')=:brand";}
+  if(Array.isArray(filters.type)&&filters.type.length<=4&&filters.type.every(t=>/^[a-z]{2,20}$/.test(t))){refinement+=' AND '+hasTerm(filters.type.map((t,i)=>{params[':type'+i]=t;params[':typeend'+i]=t+'\uffff';return `(e.term>=:type${i} AND e.term<:typeend${i})`;}).join(' OR '));}
+  if(typeof filters.socket==='string'&&/^(E14|E27|GU10|G9|G4|H4|H7)$/i.test(filters.socket)){params[':socket']=filters.socket;refinement+=" AND json_extract(o.payload,'$.traits.socket')=:socket";}
+  const compact="(' '||replace(replace(replace(replace(replace(replace(lower(o.name),' ',''),',','.'),'мл','ml'),'кг','kg'),'г','g'),'л','l')||' ')";
+  if(filters.pack&&['volume','weight'].includes(filters.pack.kind)&&Number.isInteger(filters.pack.amount)&&filters.pack.amount>0&&filters.pack.amount<=100000){const n=filters.pack.amount,forms=filters.pack.kind==='volume'?[n+'ml',(n/1000)+'l',(n/10)+'cl']:[n+'g',(n/1000)+'kg'];refinement+=' AND ('+forms.map((f,i)=>{params[':pack'+i]='*[^0-9.]'+f+'[^a-z0-9]*';return compact+' GLOB :pack'+i;}).join(' OR ')+')';}
+  if(typeof filters.fat==='string'&&/^\d+(?:\.\d+)?$/.test(filters.fat)){params[':fat']='*[^0-9.]'+filters.fat+'%*';refinement+=' AND '+compact+' GLOB :fat';}
+  return {params,sql:`SELECT DISTINCT o.id,o.product,o.source AS source_id,o.payload,s.name AS source_name,s.url AS source_url,s.checked AS downloaded,${PRICE} AS price FROM sd_terms a CROSS JOIN sd_offers o CROSS JOIN sd_sources s WHERE o.rowid=a.offer AND s.id=o.source AND s.current_gen=o.gen AND o.date>=:cutoff AND o.date<=:today AND (${anchors}) ${bulbQuery(query)?"AND json_extract(o.payload,'$.traits.kind')='bulb'":''} ${energyQuery(query)?'AND '+ENERGY:''} ${freshProduceQuery(query)?'AND '+FRESH_PRODUCE:''} ${freshMeatQuery(query)?'AND '+FRESH_MEAT:''} ${oilQuery(query)?'AND '+PLAIN_OIL:''} ${butterQuery(query)?'AND '+PLAIN_BUTTER:''} ${clauses.length>1?'AND '+clauses.slice(1).join(' AND '):''} ${volumeClause} ${refinement} ${source?'AND o.source=:source':''}`};
  }
  async search(query,offset=0,now=Date.now()){
   const plan=await this.searchPlan(query,now);plan.params[':offset']=Math.min(1000,Math.max(0,offset));
   return this.db.all(plan.sql+' ORDER BY price,o.id LIMIT 6 OFFSET :offset',plan.params);
  }
- async searchChains(query,now=Date.now()){
-  const plan=await this.searchPlan(query,now);
+ async searchChains(query,now=Date.now(),filters={}){
+  const plan=await this.searchPlan(query,now,null,filters);
   return this.db.all(`WITH matches AS (${plan.sql}) SELECT source_id,source_name,MIN(price) AS min_price,MAX(price) AS max_price,COUNT(*) AS offers FROM matches GROUP BY source_id,source_name ORDER BY min_price,source_name LIMIT 100`,plan.params);
  }
- async searchChain(query,source,offset=0,now=Date.now()){
-  const plan=await this.searchPlan(query,now,source);plan.params[':offset']=Math.min(1000,Math.max(0,offset));
+ async searchChain(query,source,offset=0,now=Date.now(),filters={}){
+  const plan=await this.searchPlan(query,now,source,filters);plan.params[':offset']=Math.min(1000,Math.max(0,offset));
   return this.db.all(`WITH matches AS (${plan.sql}), ranked AS (SELECT *,ROW_NUMBER() OVER(PARTITION BY product ORDER BY price,id) AS position,MIN(price) OVER(PARTITION BY product) AS min_price,MAX(price) OVER(PARTITION BY product) AS max_price FROM matches) SELECT * FROM ranked WHERE position=1 ORDER BY price,id LIMIT 6 OFFSET :offset`,plan.params);
+ }
+ async refinementSamples(query,now=Date.now()){
+  const plan=await this.searchPlan(query,now);return this.db.all(plan.sql+' LIMIT 120',plan.params);
  }
  async basketCandidates(query,now=Date.now()){
   const plan=await this.searchPlan(query,now);
