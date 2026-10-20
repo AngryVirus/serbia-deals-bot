@@ -18,12 +18,14 @@ const SCHEMA=[
 ];
 export const PRICE=`CASE WHEN o.discount IS NOT NULL AND o.begin<=:today AND (o.end>=:today OR o.end IS NULL AND o.date=:today) THEN o.discount ELSE o.regular END`;
 export const ACTIVE=`JOIN sd_sources s ON s.id=o.source AND s.current_gen=o.gen WHERE o.date>=:cutoff AND o.date<=:today`;
+const termPrefixes=prefixes=>{const lengths=new Map();for(const p of prefixes){if(!lengths.has(p.length))lengths.set(p.length,[]);lengths.get(p.length).push(p);}return [...lengths].map(([length,terms])=>`substr(e.term,1,${length}) IN (${terms.map(t=>"'"+t+"'").join(',')})`).join(' OR ');};
 const hasTerm=condition=>`EXISTS(SELECT 1 FROM sd_terms e WHERE e.offer=o.rowid AND (${condition}))`;
 const ENERGY=`(${hasTerm("e.term>='energet' AND e.term<'energeu'")} OR (${hasTerm("e.term='energy'")} AND ${hasTerm("e.term IN ('drink','drinks','napitak','pice')")}) OR (${hasTerm("e.term='red'")} AND ${hasTerm("e.term='bull'")}) OR ${hasTerm("e.term='redbull'")} OR lower(trim(json_extract(o.payload,'$.brand'))) IN ('red bull','redbull','guarana','monster','monster energy','hell','hell energy','ultra energy'))`;
 const processedPrefixes=['pavlak','sos','supa','kisel','paster','marin','pasiran','konzerv','pelat','susen','suseni','pire','namaz','sok','cips','arom','seme','sjeme','sadnic','koncentr','dvopek','oljusten','seckan','plocic','corb','kuvan','posud','testenin','sardin','tunj','skus','filet','pasulj','pec','kecap'];
-const FRESH_PRODUCE=`NOT ${hasTerm(processedPrefixes.map(t=>`e.term>='${t}' AND e.term<'${t}\uffff'`).join(' OR ')+" OR e.term GLOB '[0-9]*ml' OR e.term GLOB '[0-9]*l'")}`;
-const preparedMeatPrefixes=['pastet','kobasic','salam','virsl','hrenov','bujon','corb','supa','sos','namaz','instant','gotov','sendvic','pizz','hrana','konzerv','pohov','panir','pecen','dimlj','nudl','zacin','flips','peciv','lisnat','burek','sunk','narezak','delikates','rolnic','kroasan','pita','mesavin','igrack','gumen','zvizd','pse','mack','hrana'];
-const FRESH_MEAT=`NOT ${hasTerm(preparedMeatPrefixes.map(t=>`e.term>='${t}' AND e.term<'${t}\uffff'`).join(' OR '))}`;
+const FRESH_PRODUCE=`NOT ${hasTerm(termPrefixes(processedPrefixes)+" OR e.term GLOB '[0-9]*ml' OR e.term GLOB '[0-9]*l'")}`;
+const preparedMeatPrefixes=['pastet','kobasic','salam','virsl','hrenov','bujon','corb','supa','sos','namaz','instant','gotov','sendvic','pizz','hrana','konzerv','pohov','panir','pecen','dimlj','nudl','zacin','flips','peciv','lisnat','burek','sunk','narezak','delikates','rolnic','kroasan','pita','mesavin','igrack','gumen','zvizd','pse','mack','hrana','drzac','makaz','arom','cips','posebn','pljek','parizer','kuvan'];
+const rawMeatPrefixes=['file','batak','karabatak','kril','grud','prs','snic','belo','bijel','meso','svez','svjez','celo','cijel','but','pleck','rebr','vrat'];
+const FRESH_MEAT=`(NOT ${hasTerm(termPrefixes(preparedMeatPrefixes))} AND ${hasTerm("e.term IN ('pile','piletina','curetina','junetina','govedina','svinjetina') OR "+termPrefixes(rawMeatPrefixes))})`;
 export class Store{
  constructor(db){const bound=(sql,p={})=>Object.fromEntries([...sql.matchAll(/:[A-Za-z_]\w*/g)].map(x=>x[0]).filter(k=>Object.hasOwn(p,k)).map(k=>[k,p[k]]));this.db=Object.fromEntries(['run','get','all'].map(method=>[method,(sql,p)=>db[method](sql,bound(sql,p))]));}
  async init(){for(const sql of SCHEMA)await this.db.run(sql);}
