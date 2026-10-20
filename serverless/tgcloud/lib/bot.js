@@ -6,26 +6,28 @@ import {roleOf,banned,snapshot,trackUser,lockUser,unlockUser} from './moderation
 import {deliverNotice} from './moderation-notices.js';
 import { Store } from './store.js';
 import { OWNER_ID,assertBot,positive,safe,money,bulbQuery,unitPrice } from './domain.js';
-import { renderImage } from './image-renderer.js';
+import { renderImage,IMAGE_VERSION } from './image-renderer.js';
 import { cartItems,addList,addOffer,compareBasket,parseList,expandPendingList,resetProduct,saveBasketFilters } from './basket.js';
 const button=(text,data)=>({text,callback_data:data});
 const BACK=[[button('🏠 Меню','home')]];
 export class Bot{
- constructor(deps){Object.assign(this,deps);this.store=new Store(deps.db);}
+ constructor(deps){Object.assign(this,deps);this.store=new Store(deps.db);this.metrics={screen:'other',lookup_ms:0,render_ms:0,telegram_ms:0};}
  async panel(text,rows=BACK,visual=true,cacheKey=null){
   const markup={inline_keyboard:rows},target=this.freshPanel?null:this.user.panel;let message,photo,isPhoto=false;
   // Only explicitly named, immutable public screens share Telegram media IDs.
   // Buttons/permissions are rebuilt for each request; private panels never enter it.
-  const mediaKey=cacheKey?'panel-v1:'+cacheKey+':'+text:null;
+  const mediaKey=cacheKey?IMAGE_VERSION+':'+cacheKey+':'+text:null;
   let cachedId=null;
   if(visual&&this.InputFile&&mediaKey)try{cachedId=(await this.db.get('SELECT file_id FROM sd_panel_media WHERE key=:key',{':key':mediaKey}))?.file_id||null;}catch{}
-  const imageFile=()=>{try{const image=renderImage(text);return new this.InputFile(image.bytes,'serbia-deals.png',{type:'image/png'});}catch{return null;}};
+  const imageFile=()=>{const started=Date.now();try{const image=renderImage(text,{format:'jpeg'});return new this.InputFile(image.bytes,'serbia-deals.jpg',{type:'image/jpeg'});}catch{return null;}finally{this.metrics.render_ms+=Date.now()-started;}};
   if(visual&&this.InputFile)photo=cachedId||imageFile();
   const sendImage=async media=>{
-   let result;
+   const started=Date.now();let result;
+   try{
    if(target)try{result=await this.api.editMessageMedia({chat_id:this.uid,message_id:target,media:{type:'photo',media,caption:''},reply_markup:markup});}catch(e){if(/message is not modified/i.test(e.description||e.message||''))return {unchanged:true};if((e.code||e.error_code)!==400)throw e;if(cachedId)throw e;}
    if(!result)result=await this.api.sendPhoto({chat_id:this.uid,photo:media,reply_markup:markup});
    return result;
+   }finally{this.metrics.telegram_ms+=Date.now()-started;this.metrics.panel=true;}
   };
   if(photo){
    try{message=await sendImage(photo);}catch(e){
@@ -38,16 +40,18 @@ export class Bot{
    if(isPhoto&&mediaKey&&!cachedId&&typeof fileId==='string'&&fileId.length<=512)try{await this.db.run('INSERT INTO sd_panel_media(key,file_id) VALUES(:key,:id) ON CONFLICT(key) DO UPDATE SET file_id=excluded.file_id',{':key':mediaKey,':id':fileId});}catch{}
   }
   if(!message){
+   const started=Date.now();try{
    const params={chat_id:this.uid,text,parse_mode:'HTML',reply_markup:markup,link_preview_options:{is_disabled:true}};
    if(target&&!this.user.photo)try{message=await this.api.editMessageText({...params,message_id:target});}catch(e){if(/message is not modified/i.test(e.description||e.message||''))return;if((e.code||e.error_code)!==400)throw e;}
    if(!message)message=await this.api.sendMessage(params);
+   }finally{this.metrics.telegram_ms+=Date.now()-started;this.metrics.panel=true;}
   }
   if(!positive(message?.message_id))throw Error('Unconfirmed panel');
   if(this.user.panel&&this.user.panel!==message.message_id)try{await this.api.deleteMessage({chat_id:this.uid,message_id:this.user.panel});}catch{}
   await this.store.patch(this.uid,{panel:message.message_id,photo:isPhoto});
   this.user={...this.user,panel:message.message_id,photo:isPhoto};this.freshPanel=false;
  }
- async names(offers){return productNames(this.store,this.fetch,offers);}
+ async names(offers){return this.translationRequested?productNames(this.store,this.fetch,offers):new Map(offers.map(o=>[o.name,o.name]));}
  async home(){const rows=[[button('🔎 Найти товар','search'),button('🛒 Моя корзина','basket')],[button('🔔 Уведомления','notifications'),button('❓ Помощь','help')]];if((this.uid===OWNER_ID?'owner':await roleOf(this.store,this.uid))!=='user')rows.push([button('⚙️ Админка','admin')]);return this.panel('<b>Где дешевле? Сербия</b>\n\n<b>Поиск:</b> один товар\n<b>Корзина:</b> весь список покупок\n\nВыберите, что сравнить.',rows,true,'home');}
  async prompt(){await this.store.patch(this.uid,{pending:'search'});return this.panel('<b>Найти товар</b>\n\nНазвание или штрихкод.\nНапример: огурцы · Red Bull · лампочка E27',BACK,true,'search-prompt');}
  async refine(draft,key=null,page=0){
@@ -74,9 +78,11 @@ export class Bot{
    if(bulbQuery(query)&&!/(?:e14|e27|gu10|g9|g4|h4|h7)/i.test(query)&&!this.allowAll){
     await this.store.patch(this.uid,{query,pending:null});return this.panel('<b>Какая лампочка нужна?</b>\n\nЦоколь помогает подобрать подходящие варианты. Остальные характеристики будут в названии и карточке.',[[button('E27','socket:E27'),button('E14','socket:E14'),button('GU10','socket:GU10')],[button('Показать все варианты','socket:all')],...BACK]);
    }
+   this.metrics.screen=source?'products':'networks';const lookupStart=Date.now();
    const rev=Math.random().toString(36).slice(2,9);let rows;
    try{rows=source?await this.store.searchChain(query,source,offset,Date.now(),this.user.searchFilters||{}):await this.store.searchChains(query,Date.now(),this.user.searchFilters||{});}
    catch(error){if(/Введите название/.test(error.message))throw error;return this.panel('<b>Поиск временно недоступен</b>\n\nНе удалось получить цены. Попробуйте ещё раз немного позже. Ваша корзина сохранена.',[[button('🔎 Повторить поиск','search')],[button('🛒 Моя корзина','basket')],...BACK]);}
+   this.metrics.lookup_ms=Date.now()-lookupStart;
    await this.store.patch(this.uid,{query,offset,searchSource:source,searchRev:rev,pending:null});this.user={...this.user,query,offset,searchSource:source,searchRev:rev};
    const selected=filterLabels(this.user.searchFilters),selection=selected.length?'\n<b>Выбрано:</b> '+safe(selected.join(' · ')):'';
    if(!rows.length){
@@ -93,6 +99,7 @@ export class Bot{
    }
    const shown=rows.slice(0,3),offers=shown.map(row=>JSON.parse(row.payload)),names=await this.names(offers),buttons=shown.map((row,index)=>[button(`${offset+index+1} · ${money(row.min_price)} · Выбрать`,'offer:'+offers[index].id)]);
    const nav=[];if(offset)nav.push(button('⬅️',`chainsel:${rev}:${source}:${Math.max(0,offset-3)}`));if(rows.length>3)nav.push(button('➡️',`chainsel:${rev}:${source}:${offset+3}`));if(nav.length)buttons.push(nav);
+   buttons.push([button(this.translationRequested?'🇷🇸 Оригинал':'🇷🇺 Перевести названия',this.translationRequested?'results':`translate:results:${rev}:${offset}`)]);
    buttons.push([button('⬅️ Магазины','chains'),button('🔎 Поиск','search')],...(this.user.cartTarget?[[button('🛒 Корзина','basket')]]:[]));
    const text=`<b>${safe(rows[0].source_name)}</b>\nПоиск: ${safe(query)}${selection}\n\n`+shown.map((row,index)=>`<b>${offset+index+1}. ${safe(briefName(names.get(offers[index].name)||bilingual(null,offers[index].name)))}</b>\nЦена: ${money(row.min_price)}${row.min_price===row.max_price?'':' — '+money(row.max_price)}${unitPrice(offers[index],row.min_price)?' · '+unitPrice(offers[index],row.min_price).label:''}`).join('\n\n');
    return this.panel(text,buttons);
@@ -100,14 +107,16 @@ export class Bot{
   }catch(error){if(/Введите название/.test(error.message))return this.panel('<b>Уточните запрос</b>\n\nВведите название короче 120 символов.',BACK);throw error;}
  }
  async card(id){
+  this.metrics.screen='card';const lookupStart=Date.now();
   const row=await this.store.offer(id);if(!row)return this.panel('<b>Предложение обновилось</b>\n\nПовторите поиск, чтобы увидеть действующие цены.',[[button('🔎 Найти товар','search')],...BACK]);
   const o=JSON.parse(row.payload),best=await this.store.cheapest(o.product),traits=o.traits||{};
   const specs=[traits.socket&&'Цоколь: '+traits.socket,traits.lumens&&'Яркость: '+traits.lumens+' лм',traits.kelvin&&'Цвет света: '+traits.kelvin+' K',traits.pack&&'В упаковке: '+traits.pack+' шт.'].filter(Boolean).join('\n');
   const names=await this.names([o]),name=names.get(o.name)||bilingual(null,o.name);
-  const locations=await this.store.productLocations(o.product,o.source);
+  const locations=await this.store.productLocations(o.product,o.source);this.metrics.lookup_ms=Date.now()-lookupStart;
   const text=`<b>${safe(name)}</b>\n\n<b>Цена:</b> ${money(row.price)}${unitPrice(o,row.price)?'\nЗа кг/литр: '+unitPrice(o,row.price).label:''}\n<b>Магазин:</b> ${safe(o.format)}\n<b>Прайс:</b> ${o.date}`+(row.price<o.regular?`\nСкидка до: ${safe(o.end||'не указано')}`:'')+(specs?'\n\n'+specs:'')+(o.product.startsWith('gtin:')&&best&&best.price<row.price?`\n\nВыгоднее: ${money(best.price)} · ${safe(JSON.parse(best.payload).format)}`:'')+'\n\nНаличие и цена филиала могут отличаться.';
   const rows=[[button(this.user.cartTarget?'✅ Выбрать для корзины':'🛒 В корзину','basketadd:'+o.id+':'+(this.user.cartTarget||'')),button('🔔 Следить','watch:'+o.id)]];
   if(locations.length>1)rows.push([button('🏪 Цены внутри сети','locations:'+o.id)]);
+  rows.push([button(this.translationRequested?'🇷🇸 Оригинал':'🇷🇺 Перевести название',(this.translationRequested?'offer:':'translate:offer:')+id)]);
   rows.push([button('⬅️ Товары','results'),button('🏠 Меню','home')]);
   return this.panel(text,rows);
  }
@@ -165,8 +174,9 @@ export class Bot{
  async help(){
   return this.panel('<b>Как пользоваться</b>\n\n<b>Поиск:</b> название → магазин → товар\n<b>Корзина:</b> список → сравнение цен\n<b>Уведомления:</b> снижение цены выбранного товара\n\nСписок — через запятую или с новой строки.',[[{text:'💬 Поддержка',url:'https://t.me/AngryVirus'}],[button('ℹ️ О ценах и данных','help:data')],...BACK],true,'help');
  }
- async dataHelp(){const sources=(await this.store.sources()).filter(s=>s.active);return this.panel('<b>О ценах и данных</b>\n\nПрайсы магазинов: '+sources.map(s=>`<a href="${safe(s.url)}">${safe(s.name)}</a>`).join(', ')+'.\n\nДата цен — в карточке. Наличие и цены филиалов могут отличаться.\n\nРусские названия переведены автоматически. Сербский оригинал сохранён. Для перевода передаётся только публичное название товара.\n\n/delete — удалить свою корзину и настройки.',[[button('⬅️ Помощь','help')]],false);}
+ async dataHelp(){const sources=(await this.store.sources()).filter(s=>s.active);return this.panel('<b>О ценах и данных</b>\n\nПрайсы магазинов: '+sources.map(s=>`<a href="${safe(s.url)}">${safe(s.name)}</a>`).join(', ')+'.\n\nДата цен — в карточке. Наличие и цены филиалов могут отличаться.\n\nНазвания показаны как в прайсе. Перевод на русский доступен по кнопке в списке товаров и карточке. Сербский оригинал сохранён. Для перевода передаётся только публичное название товара.\n\n/delete — удалить свою корзину и настройки.',[[button('⬅️ Помощь','help')]],false);}
  async handle(update){
+  const requestStart=Date.now();
   await assertBot(this.api);
   const cb=update.callback_query,msg=cb?.message||update.message,uid=(cb?.from||msg?.from)?.id;
   if(!positive(uid)||!positive(msg?.message_id)||msg?.chat?.type!=='private'||msg.chat.id!==uid||(cb&&(typeof cb.id!=='string'||cb.id.length>128||cb.from.is_bot)))return;
@@ -183,7 +193,7 @@ export class Bot{
    this.freshPanel=!cb;
    if(cb){this.user.panel=msg.message_id;if(Array.isArray(msg.photo))this.user.photo=true;else if(typeof msg.text==='string')this.user.photo=false;}
    return await this.dispatch(update);
-  }finally{await unlockUser(this.store,uid,key);await this.db.run('DELETE FROM sd_updates WHERE expires<:now',{':now':now});}
+  }finally{if(this.metrics.panel)try{const {panel,screen,...timing}=this.metrics;await this.store.setMeta('ui_latency:'+screen,{at:Date.now(),request_ms:Date.now()-requestStart,...timing});}catch{}await unlockUser(this.store,uid,key);await this.db.run('DELETE FROM sd_updates WHERE expires<:now',{':now':now});}
  }
  async dispatch(update){
   const cb=update.callback_query,msg=cb?.message||update.message,uid=this.uid;
@@ -242,6 +252,14 @@ export class Bot{
   if(/^chainsel:[a-z0-9]{7}:[a-f0-9]{24}:\d{1,4}$/.test(action)&&this.user.query){const [,rev,source,offset]=action.split(':');if(rev===this.user.searchRev&&Number(offset)<=1000){this.allowAll=true;return this.search(this.user.query,Number(offset),source);}return this.panel('<b>Поиск уже изменился</b>',[[button('К результатам','results')],...BACK]);}
   if(action==='results'&&this.user.query){this.allowAll=true;return this.search(this.user.query,this.user.offset||0,this.user.searchSource||null);}
   if(/^locations:[a-f0-9]{32}$/.test(action))return this.locations(action.slice(10));
+  if(/^translate:offer:[a-f0-9]{32}$/.test(action)){
+   const wait=await this.store.rate(uid);if(wait)return this.panel(`<b>Небольшая пауза</b>\nПеревод будет доступен через ${wait} сек.`,[[button('⬅️ К товару','offer:'+action.slice(16))]]);
+   this.translationRequested=true;return this.card(action.slice(16));
+  }
+  if(/^translate:results:[a-z0-9]{7}:\d{1,4}$/.test(action)){
+   const [, ,rev,offset]=action.split(':');if(rev!==this.user.searchRev||Number(offset)!==(this.user.offset||0)||!this.user.query||!this.user.searchSource)return this.panel('<b>Поиск уже изменился</b>',[[button('К результатам','results')],...BACK]);
+   this.translationRequested=true;this.allowAll=true;return this.search(this.user.query,Number(offset),this.user.searchSource);
+  }
   if(/^offer:[a-f0-9]{32}$/.test(action))return this.card(action.slice(6));
   if(/^watch:[a-f0-9]{32}$/.test(action)){const added=await this.store.watch(uid,action.slice(6));return this.panel(added?'<b>Товар отслеживается</b>\n\n'+(this.user.enabled?'Сообщим о снижении цены.':'Включите уведомления, чтобы получать сообщения.'):'<b>Предложение обновилось</b>\n\nПовторите поиск.',[[button(this.user.enabled?'🔔 Уведомления':'🔔 Включить уведомления',this.user.enabled?'notifications':'notify:on')],[button('⬅️ К товару','offer:'+action.slice(6))],...BACK]);}
   if(/^remove:(?:gtin:\d{14}|local:[a-f0-9]{32})$/.test(action)){await this.store.removeWatch(uid,action.slice(7));return this.watches();}
