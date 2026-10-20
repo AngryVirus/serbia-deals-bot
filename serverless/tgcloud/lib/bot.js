@@ -12,13 +12,30 @@ const button=(text,data)=>({text,callback_data:data});
 const BACK=[[button('🏠 Меню','home')]];
 export class Bot{
  constructor(deps){Object.assign(this,deps);this.store=new Store(deps.db);}
- async panel(text,rows=BACK,visual=true){
+ async panel(text,rows=BACK,visual=true,cacheKey=null){
   const markup={inline_keyboard:rows},target=this.freshPanel?null:this.user.panel;let message,photo,isPhoto=false;
-  if(visual&&this.InputFile)try{const image=renderImage(text);photo=new this.InputFile(image.bytes,'serbia-deals.png',{type:'image/png'});}catch{/* A failed visual must leave a usable text menu. */}
+  // Only explicitly named, immutable public screens share Telegram media IDs.
+  // Buttons/permissions are rebuilt for each request; private panels never enter it.
+  const mediaKey=cacheKey?'panel-v1:'+cacheKey+':'+text:null;
+  let cachedId=null;
+  if(visual&&this.InputFile&&mediaKey)try{cachedId=(await this.db.get('SELECT file_id FROM sd_panel_media WHERE key=:key',{':key':mediaKey}))?.file_id||null;}catch{}
+  const imageFile=()=>{try{const image=renderImage(text);return new this.InputFile(image.bytes,'serbia-deals.png',{type:'image/png'});}catch{return null;}};
+  if(visual&&this.InputFile)photo=cachedId||imageFile();
+  const sendImage=async media=>{
+   let result;
+   if(target)try{result=await this.api.editMessageMedia({chat_id:this.uid,message_id:target,media:{type:'photo',media,caption:''},reply_markup:markup});}catch(e){if(/message is not modified/i.test(e.description||e.message||''))return {unchanged:true};if((e.code||e.error_code)!==400)throw e;if(cachedId)throw e;}
+   if(!result)result=await this.api.sendPhoto({chat_id:this.uid,photo:media,reply_markup:markup});
+   return result;
+  };
   if(photo){
-   if(target)try{message=await this.api.editMessageMedia({chat_id:this.uid,message_id:target,media:{type:'photo',media:photo,caption:''},reply_markup:markup});}catch(e){if(/message is not modified/i.test(e.description||e.message||''))return;if((e.code||e.error_code)!==400)throw e;}
-   if(!message)try{message=await this.api.sendPhoto({chat_id:this.uid,photo,reply_markup:markup});}catch(e){if(![400,413].includes(e.code||e.error_code))throw e;}
+   try{message=await sendImage(photo);}catch(e){
+    if(![400,413].includes(e.code||e.error_code))throw e;
+    if(cachedId){cachedId=null;try{await this.db.run('DELETE FROM sd_panel_media WHERE key=:key',{':key':mediaKey});}catch{}photo=imageFile();if(photo)try{message=await sendImage(photo);}catch(retry){if(![400,413].includes(retry.code||retry.error_code))throw retry;}}
+   }
+   if(message?.unchanged)return;
    isPhoto=Boolean(message);
+   const fileId=message?.photo?.at(-1)?.file_id;
+   if(isPhoto&&mediaKey&&!cachedId&&typeof fileId==='string'&&fileId.length<=512)try{await this.db.run('INSERT INTO sd_panel_media(key,file_id) VALUES(:key,:id) ON CONFLICT(key) DO UPDATE SET file_id=excluded.file_id',{':key':mediaKey,':id':fileId});}catch{}
   }
   if(!message){
    const params={chat_id:this.uid,text,parse_mode:'HTML',reply_markup:markup,link_preview_options:{is_disabled:true}};
@@ -31,8 +48,8 @@ export class Bot{
   this.user={...this.user,panel:message.message_id,photo:isPhoto};this.freshPanel=false;
  }
  async names(offers){return productNames(this.store,this.fetch,offers);}
- async home(){const rows=[[button('🔎 Найти товар','search'),button('🛒 Моя корзина','basket')],[button('🔔 Уведомления','notifications'),button('❓ Помощь','help')]];if((this.uid===OWNER_ID?'owner':await roleOf(this.store,this.uid))!=='user')rows.push([button('⚙️ Админка','admin')]);return this.panel('<b>Где дешевле? Сербия</b>\n\n<b>Поиск:</b> один товар\n<b>Корзина:</b> весь список покупок\n\nВыберите, что сравнить.',rows);}
- async prompt(){await this.store.patch(this.uid,{pending:'search'});return this.panel('<b>Найти товар</b>\n\nНазвание или штрихкод.\nНапример: огурцы · Red Bull · лампочка E27',BACK);}
+ async home(){const rows=[[button('🔎 Найти товар','search'),button('🛒 Моя корзина','basket')],[button('🔔 Уведомления','notifications'),button('❓ Помощь','help')]];if((this.uid===OWNER_ID?'owner':await roleOf(this.store,this.uid))!=='user')rows.push([button('⚙️ Админка','admin')]);return this.panel('<b>Где дешевле? Сербия</b>\n\n<b>Поиск:</b> один товар\n<b>Корзина:</b> весь список покупок\n\nВыберите, что сравнить.',rows,true,'home');}
+ async prompt(){await this.store.patch(this.uid,{pending:'search'});return this.panel('<b>Найти товар</b>\n\nНазвание или штрихкод.\nНапример: огурцы · Red Bull · лампочка E27',BACK,true,'search-prompt');}
  async refine(draft,key=null,page=0){
   const facet=draft.facets.find(f=>f.key===key),rows=[];
   if(facet){
@@ -146,7 +163,7 @@ export class Bot{
  }
  async notifications(){const rows=await this.store.watches(this.uid);return this.panel('<b>Снижение цены</b>\n\n'+(this.user.enabled?'<b>Статус:</b> включены':'<b>Статус:</b> выключены')+`\n<b>Товары:</b> ${rows.length}\n\n`+(rows.length?'Сообщим о снижении цены.':'Откройте товар → «Следить».'),[[button(this.user.enabled?'🔕 Выключить уведомления':'🔔 Включить уведомления',this.user.enabled?'notify:off':'notify:on')],[button('📋 Отслеживаемые товары','watches')],...BACK]);}
  async help(){
-  return this.panel('<b>Как пользоваться</b>\n\n<b>Поиск:</b> название → магазин → товар\n<b>Корзина:</b> список → сравнение цен\n<b>Уведомления:</b> снижение цены выбранного товара\n\nСписок — через запятую или с новой строки.',[[{text:'💬 Поддержка',url:'https://t.me/AngryVirus'}],[button('ℹ️ О ценах и данных','help:data')],...BACK]);
+  return this.panel('<b>Как пользоваться</b>\n\n<b>Поиск:</b> название → магазин → товар\n<b>Корзина:</b> список → сравнение цен\n<b>Уведомления:</b> снижение цены выбранного товара\n\nСписок — через запятую или с новой строки.',[[{text:'💬 Поддержка',url:'https://t.me/AngryVirus'}],[button('ℹ️ О ценах и данных','help:data')],...BACK],true,'help');
  }
  async dataHelp(){const sources=(await this.store.sources()).filter(s=>s.active);return this.panel('<b>О ценах и данных</b>\n\nПрайсы магазинов: '+sources.map(s=>`<a href="${safe(s.url)}">${safe(s.name)}</a>`).join(', ')+'.\n\nДата цен — в карточке. Наличие и цены филиалов могут отличаться.\n\nРусские названия переведены автоматически. Сербский оригинал сохранён. Для перевода передаётся только публичное название товара.\n\n/delete — удалить свою корзину и настройки.',[[button('⬅️ Помощь','help')]],false);}
  async handle(update){
@@ -161,7 +178,7 @@ export class Bot{
    this.uid=uid;this.requestLock=key;this.actor=snapshot(cb?.from||msg.from);this.inputMessageId=update.message?.message_id;
    if(await banned(this.store,uid)){await deliverNotice(this.store,this.api,this.InputFile,'ban',uid,true,key);return;}
    if(cb)try{await this.api.answerCallbackQuery({callback_query_id:cb.id});}catch{}
-   this.user=await this.store.ensure(uid);await trackUser(this.store,cb?.from||msg.from);this.user=await this.store.user(uid);
+   this.user=await this.store.ensure(uid);this.user={...this.user,...await trackUser(this.store,cb?.from||msg.from),blocked:0};
    await deliverNotice(this.store,this.api,this.InputFile,'ban',uid,true,key);await deliverNotice(this.store,this.api,this.InputFile,'role',uid,true,key);
    this.freshPanel=!cb;
    if(cb){this.user.panel=msg.message_id;if(Array.isArray(msg.photo))this.user.photo=true;else if(typeof msg.text==='string')this.user.photo=false;}
@@ -201,7 +218,7 @@ export class Bot{
   if(/^cartitem:[a-z0-9-]{1,40}$/.test(action))return this.basketItem(action.slice(9));
   if(/^cartchange:[a-z0-9-]{1,40}$/.test(action)){const next=await resetProduct(this.store,uid,action.slice(11));if(!next)return this.basket();await this.store.patch(uid,{cartTarget:null,refinement:null,searchFilters:{}});this.user={...this.user,cartTarget:null,refinement:null,searchFilters:{}};return this.basketItem(next);}
   if(/^cartfilters:[a-z0-9-]{1,40}$/.test(action)){const id=action.slice(12);await saveBasketFilters(this.store,uid,id,{});await this.store.patch(uid,{refinement:null,cartTarget:null});this.user={...this.user,refinement:null,cartTarget:null};return this.basketItem(id);}
-  if(action==='basketinput'){await this.store.patch(uid,{pending:'basket',cartTarget:null});return this.panel('<b>Добавьте список покупок</b>\n\nТовары — с новой строки или через запятую. Количество — после ×.\n\nМолоко 1 л × 2\nКофе\nОгурцы\n\nДо 20 товаров за раз, 30 в корзине.',BACK);}
+  if(action==='basketinput'){await this.store.patch(uid,{pending:'basket',cartTarget:null});return this.panel('<b>Добавьте список покупок</b>\n\nТовары — с новой строки или через запятую. Количество — после ×.\n\nМолоко 1 л × 2\nКофе\nОгурцы\n\nДо 20 товаров за раз, 30 в корзине.',BACK,true,'basket-input');}
   if(action==='basketcompare')return this.comparison();
   if(/^basketoverview:(0|[1-9][0-9]?):(0|5|10|15|20|25)$/.test(action)){const [,offset,itemOffset]=action.split(':');return this.comparison(null,Number(offset),Number(itemOffset));}
   if(/^basketshop:[a-f0-9]{24}:(0|5|10|15|20|25)$/.test(action)){const [,source,offset]=action.split(':');return this.comparison(source,Number(offset));}

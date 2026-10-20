@@ -13,7 +13,7 @@ export async function lockUser(store,uid,key,now=Date.now()){return (await store
 export async function unlockUser(store,uid,key){await store.db.run('DELETE FROM sd_locks WHERE id=:uid AND owner=:key',{':uid':uid,':key':key});}
 export async function trackUser(store,from,now=Date.now()){
  const fields={...snapshot(from),last_seen:now,last_day:day(now),delivery_blocked:false};
- await store.patch(from.id,fields);await store.db.run('UPDATE sd_users SET blocked=0 WHERE id=:uid',{':uid':from.id});
+ await store.patch(from.id,fields);await store.db.run('UPDATE sd_users SET blocked=0 WHERE id=:uid',{':uid':from.id});return fields;
 }
 export async function resolveTarget(store,api,input){
  if(/^[1-9]\d{0,15}$/.test(input)&&positive(Number(input)))return {uid:Number(input)};

@@ -1,4 +1,5 @@
 import { requireValue,positive,queryGroups,day,cutoff,currentPrice,bulbQuery,energyQuery,volumeQuery,weightQuery,groceryQuery,donutQuery,parsleyQuery,plumQuery,pestoQuery,milkQuery,plainMilkQuery,freshProduceQuery,freshMeatQuery,relatedChickenQuery,oilQuery,butterQuery } from './domain.js';
+const SCHEMA_VERSION=2;
 const SCHEMA=[
  `CREATE TABLE IF NOT EXISTS sd_meta(key TEXT PRIMARY KEY,value TEXT NOT NULL)`,
  `CREATE TABLE IF NOT EXISTS sd_admin_records(kind TEXT NOT NULL,key TEXT NOT NULL,payload TEXT NOT NULL,at INTEGER NOT NULL,PRIMARY KEY(kind,key))`,
@@ -16,7 +17,11 @@ const SCHEMA=[
  `CREATE TABLE IF NOT EXISTS sd_chunks(source TEXT NOT NULL,gen TEXT NOT NULL,part INTEGER NOT NULL,PRIMARY KEY(source,gen,part))`,
  `CREATE TABLE IF NOT EXISTS sd_watches(uid INTEGER NOT NULL,product TEXT NOT NULL,name TEXT NOT NULL,baseline INTEGER NOT NULL,PRIMARY KEY(uid,product))`,
  `CREATE TABLE IF NOT EXISTS sd_queue(id INTEGER PRIMARY KEY AUTOINCREMENT,uid INTEGER NOT NULL,product TEXT NOT NULL,price INTEGER NOT NULL,offer TEXT NOT NULL,state TEXT NOT NULL DEFAULT 'pending',after INTEGER NOT NULL DEFAULT 0,created INTEGER NOT NULL,UNIQUE(uid,product,price,created))`,
- `CREATE INDEX IF NOT EXISTS sd_queue_pending ON sd_queue(state,after,id)`
+ `CREATE INDEX IF NOT EXISTS sd_queue_pending ON sd_queue(state,after,id)`,
+ `CREATE TABLE IF NOT EXISTS sd_product_names(name TEXT PRIMARY KEY,ru TEXT,expires INTEGER NOT NULL DEFAULT 0,lease INTEGER NOT NULL DEFAULT 0)`,
+ `CREATE TABLE IF NOT EXISTS sd_panel_media(key TEXT PRIMARY KEY,file_id TEXT NOT NULL)`,
+ `CREATE TABLE IF NOT EXISTS sd_basket_reports(uid INTEGER PRIMARY KEY,fingerprint TEXT NOT NULL,payload TEXT NOT NULL,expires INTEGER NOT NULL)`,
+ `CREATE INDEX IF NOT EXISTS sd_basket_report_expiry ON sd_basket_reports(expires)`
 ];
 export const PRICE=`CASE WHEN o.discount IS NOT NULL AND o.begin<=:today AND (o.end>=:today OR o.end IS NULL AND o.date=:today) THEN o.discount ELSE o.regular END`;
 export const ACTIVE=`JOIN sd_sources s ON s.id=o.source AND s.current_gen=o.gen WHERE o.date>=:cutoff AND o.date<=:today`;
@@ -43,7 +48,19 @@ const PLAIN_OIL=`(${hasTerm("e.term IN ('ulje','ulja')")} AND NOT ${hasTerm(term
 const PLAIN_BUTTER=`NOT ${hasTerm(termPrefixes(['posud','noz','mazal','kutij','tacn','podmet','porcel','stakl','cuv','keks','biskvit','kroasan','peciv','grisin','kokic','popcorn','baget','marg','kikirik','badem','pistac','orah','kokos','kakao']))}`;
 export class Store{
  constructor(db){const bound=(sql,p={})=>Object.fromEntries([...sql.matchAll(/:[A-Za-z_]\w*/g)].map(x=>x[0]).filter(k=>Object.hasOwn(p,k)).map(k=>[k,p[k]]));this.db=Object.fromEntries(['run','get','all'].map(method=>[method,(sql,p)=>db[method](sql,bound(sql,p))]));}
- async init(){for(const sql of SCHEMA)await this.db.run(sql);await this.db.run("DELETE FROM sd_admin_records WHERE kind='audit' AND at<:cutoff",{':cutoff':Date.now()-10*86400000});await this.db.run("INSERT INTO sd_meta(key,value) VALUES('users_tracking',:now) ON CONFLICT DO NOTHING",{':now':JSON.stringify(Date.now())});}
+ async init(){
+  // Persist completion only after every idempotent migration succeeds. Independent
+  // invocations and parallel cold starts share this marker, never process memory.
+  await this.db.run(SCHEMA[0]);
+  if(await this.meta('schema_version')!==SCHEMA_VERSION){
+   for(const sql of SCHEMA.slice(1))await this.db.run(sql);
+   await this.db.run("INSERT INTO sd_meta(key,value) VALUES('users_tracking',:now) ON CONFLICT DO NOTHING",{':now':JSON.stringify(Date.now())});
+   await this.setMeta('schema_version',SCHEMA_VERSION);
+  }
+  this.db.schemaReady=true;
+  await this.db.run("DELETE FROM sd_basket_reports WHERE expires<:now",{':now':Date.now()});
+  await this.db.run("DELETE FROM sd_admin_records WHERE kind='audit' AND at<:cutoff",{':cutoff':Date.now()-10*86400000});
+ }
  async meta(key){const row=await this.db.get('SELECT value FROM sd_meta WHERE key=:key',{':key':key});return row?JSON.parse(row.value):null;}
  async setMeta(key,value){await this.db.run('INSERT INTO sd_meta(key,value) VALUES(:key,:value) ON CONFLICT(key) DO UPDATE SET value=excluded.value',{':key':key,':value':JSON.stringify(value)});}
  async user(uid){const row=await this.db.get('SELECT * FROM sd_users WHERE id=:uid',{':uid':uid});return row?{...row,...JSON.parse(row.payload)}:null;}
@@ -111,7 +128,7 @@ export class Store{
  }
  async watches(uid){return this.db.all('SELECT product,name,baseline FROM sd_watches WHERE uid=:uid ORDER BY name LIMIT 100',{':uid':uid});}
  async removeWatch(uid,product){await this.db.run('DELETE FROM sd_watches WHERE uid=:uid AND product=:product',{':uid':uid,':product':product});await this.db.run("UPDATE sd_queue SET state='cancelled' WHERE uid=:uid AND product=:product AND state='pending'",{':uid':uid,':product':product});}
- async deleteUser(uid){await this.db.run('DELETE FROM sd_watches WHERE uid=:uid',{':uid':uid});await this.db.run('DELETE FROM sd_queue WHERE uid=:uid',{':uid':uid});await this.db.run('DELETE FROM sd_rates WHERE id=:key',{':key':'search:'+uid});await this.db.run('DELETE FROM sd_updates WHERE id LIKE :prefix',{':prefix':uid+':%'});await this.db.run('DELETE FROM sd_users WHERE id=:uid',{':uid':uid});}
+ async deleteUser(uid){await this.db.run('DELETE FROM sd_basket_reports WHERE uid=:uid',{':uid':uid});await this.db.run('DELETE FROM sd_watches WHERE uid=:uid',{':uid':uid});await this.db.run('DELETE FROM sd_queue WHERE uid=:uid',{':uid':uid});await this.db.run('DELETE FROM sd_rates WHERE id=:key',{':key':'search:'+uid});await this.db.run('DELETE FROM sd_updates WHERE id LIKE :prefix',{':prefix':uid+':%'});await this.db.run('DELETE FROM sd_users WHERE id=:uid',{':uid':uid});}
  async catalogHealth(now=Date.now()){return this.db.get('SELECT COUNT(*) AS active,COALESCE(SUM(date>=:cutoff AND date<=:today),0) AS fresh,MAX(CASE WHEN date<=:today THEN date END) AS latest FROM sd_sources WHERE current_gen IS NOT NULL',{':cutoff':cutoff(now),':today':day(now)});}
  async sources(){return this.db.all('SELECT id,name,url,date,checked,status,current_gen,current_gen IS NOT NULL AS active FROM sd_sources ORDER BY name');}
 }
