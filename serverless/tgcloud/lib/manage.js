@@ -5,11 +5,25 @@ import { OWNER_ID,assertBot,requireValue } from './domain.js';
 import { ingest } from './ingest.js';
 import { prepareNotifications,deliverNotifications } from './notifications.js';
 import { unzlibSync } from './image-codec.js';
+const COMMANDS=[{command:'start',description:'Начать работу'},{command:'menu',description:'Главное меню'},{command:'help',description:'Помощь'}];
+async function configureCommands(api){
+ let scopes=0;
+ for(const type of ['default','all_private_chats'])for(const language_code of ['', 'ru']){
+  const target={scope:{type},language_code};
+  requireValue(await api.setMyCommands({...target,commands:COMMANDS})===true,'Command registration unconfirmed');
+  const saved=await api.getMyCommands(target);
+  requireValue(Array.isArray(saved)&&JSON.stringify(saved.map(c=>({command:c.command,description:c.description})))===JSON.stringify(COMMANDS),'Command verification failed');scopes++;
+ }
+ requireValue(await api.setChatMenuButton({menu_button:{type:'commands'}})===true,'Menu button unconfirmed');
+ requireValue((await api.getChatMenuButton({}))?.type==='commands','Menu button verification failed');
+ return {commands:COMMANDS.map(c=>c.command),scopes,button:'commands'};
+}
 export async function manage(input,ctx,{db,api}){
  requireValue(ctx?.ownerRun===true,'Management requires authenticated owner run');
  await assertBot(api);
  const store=new Store(db);await store.init();
  const operation=input?.operation;
+ if(operation==='configure_commands')return configureCommands(api);
  if(operation==='init'){if(await store.meta('active')===null)await store.setMeta('active',false);return {ready:true,active:await store.meta('active')};}
  if(operation==='notices_due'){const row=await store.db.get("SELECT COUNT(*) AS count FROM sd_admin_records r JOIN sd_users u ON CAST(u.id AS TEXT)=r.key WHERE r.kind IN ('ban','role') AND json_extract(r.payload,'$.notice')='pending' AND COALESCE(json_extract(r.payload,'$.retry'),0)<=:now",{':now':Date.now()});return {due:row.count};}
  if(operation==='status'){
