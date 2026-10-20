@@ -7,7 +7,7 @@ class SelectionTests(unittest.TestCase):
         self.sources=json.loads((ROOT/'collector/sources.json').read_text())
     def test_enabled_is_bounded_reviewed_and_includes_original_sources(self):
         enabled=select_sources(self.sources,'enabled')
-        self.assertEqual({s['alias'] for s in enabled},{'lidl','maxi','okov','gomex','matijevic','lilly'})
+        self.assertEqual({s['alias'] for s in enabled},{'lidl','maxi','okov','gomex','matijevic','lilly','metro','aman'})
         self.assertLess(len(enabled),len(self.sources))
     def test_unknown_selection_does_not_silently_import_a_subset(self):
         for choice in ['','lidl,unknown','not-a-source']:

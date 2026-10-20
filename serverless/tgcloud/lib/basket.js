@@ -85,7 +85,7 @@ function bestNetworks(stores){const seen=new Set();return stores.filter(s=>{cons
 function estimatedReport(result){
  const choices=bestNetworks(result.stores).slice(0,3);
  if(!choices.length)return '<b>Для списка пока нет предложений</b>\n\nНе удалось подобрать: '+result.items.slice(0,8).map(i=>safe(i.name||i.query)).join(', ')+'.\n\nУточните названия в корзине. Можно вводить по одному товару на строку или через запятую.';
- let text='<b>Подбор для вашего списка</b>\n\nПредварительная сумма: для невыбранных позиций подобраны самые дешёвые подходящие варианты. Упаковки могут различаться — проверьте товары перед покупкой.\n\n';
+ let text='<b>Подбор для вашего списка</b>\n\nПредварительная сумма: невыбранные позиции подобраны по названию из самых дешёвых найденных вариантов. Вид товара и упаковки могут различаться — проверьте список перед покупкой.\n\n';
  for(const store of choices){text+=`<b>${safe(store.chain||store.name)}</b> · ${safe(store.name)}\nНайдено ${store.found} из ${result.items.length}: ${money(store.total)}\n`+store.items.slice(0,4).map(i=>`${safe(i.name.slice(0,75))} × ${i.quantity} — ${money(i.total)}`).join('\n')+(store.items.length>4?'\nИ ещё '+(store.items.length-4)+' позиций.':'')+(store.missing.length?'\nНе найдено: '+store.missing.slice(0,3).map(n=>safe(n.slice(0,45))).join(', '):'')+'\n\n';}
  if(!choices.some(s=>s.found===result.items.length)&&result.split?.complete)text+='<b>Весь список в разных сетях</b> — '+money(result.split.total)+'\n\n';
  return text+'Для точного сравнения одинаковых товаров откройте корзину и выберите подходящие позиции. Адреса филиалов и наличие в прайсах не подтверждены.';

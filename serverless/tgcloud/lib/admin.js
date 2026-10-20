@@ -1,3 +1,4 @@
+import {sourceHealth} from './health.js';
 import {OWNER_ID,positive,safe,day} from './domain.js';
 import {ROLE_NAMES,rank,roleOf,rawRole,record,banned,label,mayBan,mayRole,resolveTarget,verifyTag,decide,lockUser,unlockUser,userStats} from './moderation-state.js';
 import {deliverNotice} from './moderation-notices.js';
@@ -94,8 +95,10 @@ export async function adminRoute(bot,action,text){
   else if(action==='admin:stats'&&role==='owner'){
    const s=await userStats(bot.store),counts=await bot.store.db.get(`SELECT SUM(kind='ban' AND json_extract(payload,'$.active')=1) AS bans,SUM(kind='role' AND json_extract(payload,'$.role') IN ('moderator','admin')) AS staff FROM sd_admin_records WHERE kind IN ('role','ban')`);
    await show(bot,`<b>Пользователи</b>\n\nВсего: ${s.total}\nПользовались сегодня / 7 / 30 дней: ${s.today} / ${s.week} / ${s.month}\nНовые сегодня / 7 / 30 дней: ${s.new_today} / ${s.new_week} / ${s.new_month}\nУведомления включены и доступны: ${s.subscribed}\nНедоступны для доставки (403): ${s.unavailable}\nИз них подтвердили блокировку бота: ${s.blocked_bot}\nЗаблокированы командой: ${counts.bans||0}\nВ команде, кроме владельца: ${counts.staff||0}\n\nУчёт активности с ${day(await bot.store.meta('users_tracking'))}. У старых профилей дата регистрации может быть неизвестна. Удалённые профили не учитываются. Дни — по времени Сербии.\n\nОбновить — перечитать счётчики; сбор прайсов не запускается.`,[[b('🔎 Список пользователей','admin:list:users:0')],[b('🔄 Обновить счётчики','admin:stats')],...BACK]);
-  }else if(action==='admin:sources'&&role==='owner'){
-   const sources=await bot.store.sources();await show(bot,'<b>Состояние магазинов</b>\n\n'+(sources.map(s=>`${safe(s.name)}: ${safe(s.status)} · ${safe(s.date||'прайса нет')}`).join('\n')||'Сбор ещё не выполнен.')+'\n\nКнопка перечитывает состояние, сбор не запускается.',[[b('🔄 Перечитать состояние','admin:sources')],...BACK]);
+  }else if((action==='admin:sources'||/^admin:sources:\d{1,3}$/.test(action))&&role==='owner'){
+   const sources=await bot.store.sources(),page=Math.min(Math.floor(Math.max(0,sources.length-1)/6),Number(action.split(':')[2])||0),shown=sources.slice(page*6,page*6+6),active=sources.filter(s=>sourceHealth(s).active),fresh=active.filter(s=>sourceHealth(s).fresh),rows=[];
+   const nav=[];if(page)nav.push(b('⬅️ Назад','admin:sources:'+(page-1)));if(sources.length>(page+1)*6)nav.push(b('Далее ➡️','admin:sources:'+(page+1)));if(nav.length)rows.push(nav);
+   await show(bot,`<b>Состояние магазинов</b>\n\nС действующим каталогом: ${active.length}\nСо свежим прайсом: ${fresh.length}\n\n`+(shown.map(s=>`<b>${safe(s.name)}</b>\n${sourceHealth(s).label}\nДата цен: ${safe(s.date||'нет')}\nПроверено: ${s.checked?day(s.checked):'ещё не проверялся'}`).join('\n\n')||'Сбор ещё не выполнен.')+'\n\nКнопка перечитывает состояние. Обновление прайсов выполняется по расписанию и этой кнопкой не запускается.',[...rows,[b('🔄 Перечитать состояние','admin:sources:'+page)],...BACK]);
   }else await show(bot,'<b>Действие недоступно</b>');
  }catch(error){const allowed=/Введите|Пользователь с этим|@username|Недостаточно/.test(error.message);await show(bot,'<b>Не удалось выполнить действие</b>\n\n'+(allowed?safe(error.message):'Повторите позже.'));}
  return true;

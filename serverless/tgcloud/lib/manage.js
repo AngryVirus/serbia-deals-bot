@@ -1,3 +1,4 @@
+import {checkHealth} from './health.js';
 import { Store } from './store.js';
 import { cartItems,compareBasket } from './basket.js';
 import { OWNER_ID,assertBot,requireValue } from './domain.js';
@@ -41,6 +42,7 @@ export async function manage(input,ctx,{db,api}){
  if(operation==='register_sources'){
   requireValue(Array.isArray(input.rows)&&input.rows.length<=100);
   for(const row of input.rows){requireValue(/^[a-f0-9]{24}$/.test(row.id)&&typeof row.name==='string'&&row.name.length<=160);await db.run(`INSERT INTO sd_sources(id,name,url) VALUES(:id,:name,:url) ON CONFLICT(id) DO UPDATE SET name=excluded.name,url=excluded.url`,{':id':row.id,':name':row.name,':url':`https://data.gov.rs/sr/datasets/${row.id}/`});}
+  if(input.expected===true)await store.setMeta('expected_sources',input.rows.map(row=>row.id).sort());
   return {registered:input.rows.length};
  }
  if(operation==='source_failure'){
@@ -58,17 +60,6 @@ export async function manage(input,ctx,{db,api}){
  if(operation==='collection_complete'){requireValue(Number.isInteger(input.successful)&&input.successful>0);await store.setMeta('last_collection',Date.now());return {saved:true};}
  if(operation==='prepare_notifications')return prepareNotifications(store);
  if(operation==='deliver_notifications'){if(await store.meta('active')!==true)return {paused:true};return deliverNotifications(store,api);}
- if(operation==='health'){
-  const last=await store.meta('last_collection');if(!last)return {uninitialized:true};
-  const stale=Date.now()-last>36*3600000;
-  const errors=await db.get("SELECT COUNT(*) AS count FROM sd_queue WHERE state IN ('blocked','uncertain','sending') AND created>=:cutoff",{':cutoff':Date.now()-86400000});
-  const problem=stale?'collection_stale':errors.count>=10?'delivery_errors':null;
-  await db.run("INSERT INTO sd_meta(key,value) VALUES('health_state','null') ON CONFLICT DO NOTHING");
-  const previous=await store.meta('health_state');
-  if(problem!==previous){const claim=await db.run("UPDATE sd_meta SET value=:next WHERE key='health_state' AND value=:previous",{':next':JSON.stringify(problem),':previous':JSON.stringify(previous)});const text=problem==='collection_stale'?'⚠️ SerbiaDealsBot: более 36 часов без подтверждённого успешного сбора.':problem==='delivery_errors'?'⚠️ SerbiaDealsBot: выросло число проблем доставки. Проверьте очередь.':previous?'✅ SerbiaDealsBot: работа восстановлена.':null;
-   if(claim.rowsAffected===1&&text)try{await api.sendMessage({chat_id:OWNER_ID,text});}catch{/* Claimed transition is not repeated after an ambiguous send. */}
-  }
-  return {stale,delivery_errors:errors.count,problem};
- }
+ if(operation==='health')return checkHealth(store,api);
  throw Error('Unsupported management operation');
 }
