@@ -86,7 +86,7 @@ export default async function(input,ctx){
  const items=['энергетик','молоко','сливы','соус песто'].map((query,i)=>({uid:-2,id:'probe-'+i,query,product:null,name:null,quantity:1}));
  const virtualDb={run:async()=>({rowsAffected:0}),get:(...args)=>db.get(...args),all:(sql,params)=>sql.startsWith('SELECT * FROM sd_basket WHERE uid=')?Promise.resolve(items):db.all(sql,params)};
  const report=await compareBasket(new Store(virtualDb),-2);
- return {items:items.length,networks:basketNetworks(report).map(s=>({name:s.chain,found:s.found,items:s.items.map(i=>({query:i.name,price:i.total})),missing:s.missing}))};
+ return {items:items.length,milk_samples:(await new Store(virtualDb).basketCandidates('молоко')).map(r=>({store:r.source_name,name:JSON.parse(r.payload).name})),networks:basketNetworks(report).map(s=>({name:s.chain,found:s.found,items:s.items.map(i=>({query:i.name,price:i.total})),missing:s.missing}))};
 }`;
   try{result.basket={ok:true,...(await client.runFunction(token,'endpoints/basket_probe',{...Object.fromEntries(['lib/domain','lib/store','lib/basket','lib/shopping-ui','lib/product-names'].map(name=>[name,sources[name]])),'endpoints/basket_probe':basketProbe}, {},{ownerRun:true})).result};}
   catch(error){const detail=String(error.message||'').toLowerCase();result.basket={ok:false,hints:['time','limit','memory','syntax'].filter(word=>detail.includes(word))};}
