@@ -45,6 +45,7 @@ const shoppingWords=[
  ['ред','red'],['булл бул','bull'],['кола колу','cola kola'],['монстр','monster']
 ];
 const phrases=[
+ ['питьевое молоко','молоко'],['обычное молоко','молоко'],['кисломолочное молоко','молоко kisel'],['шоколадное молоко','молоко cokolad'],
  ['соус песто','pesto'],['соуса песто','pesto'],
  ['кофе в зернах','kafa zrn'],['кофе в зёрнах','kafa zrn'],['кофе в капсулах','kafa kapsul'],
  ['сливочное масло','maslac'],['сливочного масла','maslac'],
@@ -93,7 +94,8 @@ export function queryGroups(query){
  if(volume)groups.push(volume.terms);
  return groups;
 }
-export const plumQuery=query=>queryGroups(query).some(group=>group.some(word=>/^sljiv/.test(word)))&&!/(?:^| )(?:rakij[a-z]*|sljivovic[a-z]*|paradajz|rajcic[a-z]*|dzem|pekmez|kasic[a-z]*|kasa|sok|caj|knedl[a-z]*|cokolad[a-z]*)(?: |$)/.test(normalize(query))&&!/раки|сливовиц|томат|помидор|джем|варень|каша|пюре|сок|чай|шоколад/i.test(String(query));
+export const plumQuery=query=>!volumeQuery(query)&&queryGroups(query).some(group=>group.some(word=>/^sljiv/.test(word)))&&!/(?:^| )(?:rakij[a-z]*|sljivovic[a-z]*|paradajz|rajcic[a-z]*|dzem|pekmez|peciv[a-z]*|rolnic[a-z]*|pita|burek|kroas[a-z]*|lisnat[a-z]*|strudl[a-z]*|kolac[a-z]*|marmel[a-z]*|slatko|arom[a-z]*|kasic[a-z]*|kasa|sok|caj|knedl[a-z]*|cokolad[a-z]*)(?: |$)/.test(normalize(query))&&!/раки|сливовиц|томат|помидор|джем|варень|каша|пюре|сок|чай|шоколад/i.test(String(query));
+export const plainMilkQuery=query=>/(?:^|\s)(?:питьевое|обычное)(?:\s|$)/i.test(query)&&/(молок)/i.test(query);
 export const milkQuery=query=>queryGroups(query).some(group=>group.some(word=>/^(mleko|mlijeko)$/.test(word)))&&!/(?:^| )(?:posud[a-z]*|lon[a-z]*|aparat[a-z]*|sapun|losion|telo|tijelo|ciscenj[a-z]*|sampon|kupk[a-z]*)(?: |$)/.test(normalize(query))&&!/посуд|кастрюл|кувшин|аппарат|мыло|лосьон|очищ|тела|шампунь/i.test(String(query));
 export const pestoQuery=query=>queryGroups(query).some(group=>group.includes('pesto'))&&!/(?:^| )(?:sir|pastet[a-z]*|rolnic[a-z]*|humus|hummus)(?: |$)/.test(normalize(query))&&!/сыр|паштет|рулет|хумус/i.test(String(query));
 export const freshProduceQuery=query=>!/(марин|сол[её]н|консерв|паста|соус|суп|сок|сметан|kisel|marin|paster|konzerv)/i.test(String(query))&&!/(kisel|marin|paster|konzerv|pasta|sos|supa|sok|pavl|perec)/.test(normalize(query))&&queryGroups(query).some(group=>group.some(word=>/^(krastav|paradajz|rajcic)/.test(word)));

@@ -1,4 +1,16 @@
-import { requireValue,currentPrice,cutoff,day } from './domain.js';
+import { requireValue,currentPrice,cutoff,day,normalize,volumeQuery,weightQuery } from './domain.js';
+
+// Describe the public offer behind an estimate without confirming it as the
+// user's choice or sending private basket input to a translation service.
+export function basketVariant(offer){
+ const name=String(offer.name||''),v=volumeQuery(name),w=v?null:weightQuery(name),parts=[];
+ if(/(?:^| )(?:mleko|mlijeko)(?: |$)/.test(normalize(name))){
+  const text=normalize(name);parts.push(/(?:^| )kis[a-z]*(?: |$)/.test(text)?'кисломолочное':/(?:^| )cokolad[a-z]*(?: |$)/.test(text)?'шоколадное':'молоко');
+ }
+ if(v)parts.push(v.ml>=1000?(v.ml/1000)+' л':v.ml+' мл');
+ else if(w)parts.push(w.grams>=1000?(w.grams/1000)+' кг':w.grams+' г');
+ return parts.join(' · ');
+}
 
 export async function initBasket(db){await db.run(`CREATE TABLE IF NOT EXISTS sd_basket(uid INTEGER NOT NULL,id TEXT NOT NULL,query TEXT NOT NULL,product TEXT,name TEXT,quantity INTEGER NOT NULL,PRIMARY KEY(uid,id))`);}
 
@@ -66,8 +78,8 @@ export async function compareBasket(store,uid){
    const offer=JSON.parse(row.payload),price=currentPrice(offer),key=offer.source+'|'+offer.format;
    if(!matrices.has(key))matrices.set(key,{source:offer.source,chain:row.source_name,name:offer.format,items:new Map()});
    const found=matrices.get(key).items.get(item.id);
-   if(!found||price<found.price)matrices.get(key).items.set(item.id,{id:item.id,name:item.product?item.name||offer.name:item.query,estimated:!item.product,source:offer.source,quantity:item.quantity,price,total:price*item.quantity});
-   if(!best||price<best.price)best={id:item.id,name:item.product?item.name||offer.name:item.query,estimated:!item.product,source:offer.source,quantity:item.quantity,price,total:price*item.quantity,store:offer.format,date:offer.date};
+   if(!found||price<found.price)matrices.get(key).items.set(item.id,{id:item.id,name:item.product?item.name||offer.name:item.query,estimated:!item.product,variant:!item.product?basketVariant(offer):null,source:offer.source,quantity:item.quantity,price,total:price*item.quantity});
+   if(!best||price<best.price)best={id:item.id,name:item.product?item.name||offer.name:item.query,estimated:!item.product,variant:!item.product?basketVariant(offer):null,source:offer.source,quantity:item.quantity,price,total:price*item.quantity,store:offer.format,date:offer.date};
   }
   if(best)cheapest.push(best);else missing.push(item.name||item.query);
  }

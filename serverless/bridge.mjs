@@ -70,7 +70,7 @@ import {Store} from '../lib/store.js';
 import {assertBot} from '../lib/domain.js';
 export default async function(input,ctx){
  if(ctx?.ownerRun!==true)throw Error('Private probe only');await assertBot(api);const store=new Store(db),queries=[];
- for(const query of ['молотый кофе','кофе в зернах','куриное филе','зелёный чай','Энергетик монстр 0.5','курица','сливы','соус песто']){const rows=await store.search(query),check={query,matches:rows.length};if(['Энергетик монстр 0.5','курица'].includes(query)){const chains=await store.searchChains(query);check.networks=chains.length;check.products=chains.length?(await store.searchChain(query,chains[0].source_id)).length:0;}queries.push(check);}
+ for(const query of ['молотый кофе','кофе в зернах','куриное филе','зелёный чай','Энергетик монстр 0.5','курица','сливы','соус песто','питьевое молоко']){const rows=await store.search(query),check={query,matches:rows.length};if(query==='питьевое молоко')check.refined_networks=(await store.searchChains('молоко',Date.now(),{type:['milkplain']})).length;if(['Энергетик монстр 0.5','курица'].includes(query)){const chains=await store.searchChains(query);check.networks=chains.length;check.products=chains.length?(await store.searchChain(query,chains[0].source_id)).length:0;}queries.push(check);}
  const patchProbe=await db.get("SELECT json_patch(json_remove(:payload,'$.searchFilters'),:fields) AS value",{':payload':JSON.stringify({query:'probe',searchFilters:{brand:'Old'}}),':fields':JSON.stringify({searchFilters:{}})});const topLevelReplace=JSON.parse(patchProbe.value).searchFilters.brand===undefined;
  return {top_level_replace:topLevelReplace,queries};
 }`;
@@ -86,7 +86,7 @@ export default async function(input,ctx){
  const items=['энергетик','молоко','сливы','соус песто'].map((query,i)=>({uid:-2,id:'probe-'+i,query,product:null,name:null,quantity:1}));
  const virtualDb={run:async()=>({rowsAffected:0}),get:(...args)=>db.get(...args),all:(sql,params)=>sql.startsWith('SELECT * FROM sd_basket WHERE uid=')?Promise.resolve(items):db.all(sql,params)};
  const report=await compareBasket(new Store(virtualDb),-2);
- return {items:items.length,milk_samples:(await new Store(virtualDb).basketCandidates('молоко')).map(r=>({store:r.source_name,name:JSON.parse(r.payload).name})),networks:basketNetworks(report).map(s=>({name:s.chain,found:s.found,items:s.items.map(i=>({query:i.name,price:i.total})),missing:s.missing}))};
+ return {items:items.length,plum_samples:(await new Store(virtualDb).basketCandidates('сливы')).map(r=>({store:r.source_name,name:JSON.parse(r.payload).name})),milk_samples:(await new Store(virtualDb).basketCandidates('молоко')).map(r=>({store:r.source_name,name:JSON.parse(r.payload).name})),networks:basketNetworks(report).map(s=>({name:s.chain,found:s.found,items:s.items.map(i=>({query:i.name,price:i.total,variant:i.variant})),missing:s.missing}))};
 }`;
   try{result.basket={ok:true,...(await client.runFunction(token,'endpoints/basket_probe',{...Object.fromEntries(['lib/domain','lib/store','lib/basket','lib/shopping-ui','lib/product-names'].map(name=>[name,sources[name]])),'endpoints/basket_probe':basketProbe}, {},{ownerRun:true})).result};}
   catch(error){const detail=String(error.message||'').toLowerCase();result.basket={ok:false,hints:['time','limit','memory','syntax'].filter(word=>detail.includes(word))};}
