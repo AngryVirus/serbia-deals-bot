@@ -37,8 +37,10 @@ export async function ingest(store,input){
  if(operation==='finish'){
   const count=await db.get('SELECT COUNT(*) AS n FROM sd_chunks WHERE source=:source AND gen=:gen',p);
   requireValue(count.n===state.expected&&Number.isInteger(input.count)&&input.count>0,'Incomplete source upload');
-  const offers=await db.get('SELECT COUNT(*) AS n,MAX(date) AS date FROM sd_offers WHERE source=:source AND gen=:gen',p);requireValue(offers.n===input.count,'Offer count mismatch');
-  const result=await db.run(`UPDATE sd_sources SET current_gen=:gen,stage_gen=NULL,lease=NULL,owner=NULL,date=:date,checked=:now,status='ok' WHERE id=:source AND owner=:owner AND stage_gen=:gen AND lease>:now`,{...p,':date':offers.date});requireValue(result.rowsAffected===1,'Publication lost lease');
+  // A covering-index count avoids fetching every large payload-bearing row.
+  const offers=await db.get('SELECT COUNT(*) AS n FROM sd_offers WHERE source=:source AND gen=:gen',p);requireValue(offers.n===input.count,'Offer count mismatch');
+  const snapshot=await db.get('SELECT date FROM sd_offers WHERE source=:source AND gen=:gen LIMIT 1',p);
+  const result=await db.run(`UPDATE sd_sources SET current_gen=:gen,stage_gen=NULL,lease=NULL,owner=NULL,date=:date,checked=:now,status='ok' WHERE id=:source AND owner=:owner AND stage_gen=:gen AND lease>:now`,{...p,':date':snapshot.date});requireValue(result.rowsAffected===1,'Publication lost lease');
   await db.run('DELETE FROM sd_terms WHERE offer IN(SELECT rowid FROM sd_offers WHERE source=:source AND gen!=:gen)',p);
   await db.run('DELETE FROM sd_offers WHERE source=:source AND gen!=:gen',p);
   await db.run('DELETE FROM sd_chunks WHERE source=:source AND gen!=:gen',p);

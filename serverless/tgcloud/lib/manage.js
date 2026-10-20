@@ -11,7 +11,12 @@ export async function manage(input,ctx,{db,api}){
  if(operation==='init'){if(await store.meta('active')===null)await store.setMeta('active',false);return {ready:true,active:await store.meta('active')};}
  if(operation==='status'){
   const sources=await store.sources(),queue=await db.all('SELECT state,COUNT(*) AS count FROM sd_queue GROUP BY state');
-  const catalog=await db.get('SELECT COUNT(*) AS offers FROM sd_offers o JOIN sd_sources s ON s.id=o.source AND s.current_gen=o.gen');
+  let offers=0;
+  for(const source of sources.filter(s=>s.active)){
+   const count=(await db.get('SELECT COUNT(*) AS n FROM sd_offers WHERE source=:source AND gen=(SELECT current_gen FROM sd_sources WHERE id=:source)',{':source':source.id})).n;
+   offers+=count;
+  }
+  const catalog={offers};
   let storage=null;
   try{
    const pages=await db.get('PRAGMA page_count'),size=await db.get('PRAGMA page_size');
