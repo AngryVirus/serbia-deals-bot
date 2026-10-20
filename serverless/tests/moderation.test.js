@@ -108,3 +108,6 @@ test('simultaneous confirmations by different staff commit a single ban and audi
  for(const uid of [OWNER_ID,6]){await new Bot(f).handle(callback(uid,'admin:ban:5'));await new Bot(f).handle(message(uid,'Причина '+uid));tokens.push(keys(f).find(k=>k.startsWith('admin:confirm:')));}
  await Promise.all([new Bot(f).handle(callback(OWNER_ID,tokens[0])),new Bot(f).handle(callback(6,tokens[1]))]);assert((await record(f.store,'ban',5)).active);assert.equal((await f.db.get("SELECT COUNT(*) n FROM sd_admin_records WHERE kind='audit' AND json_extract(payload,'$.kind')='ban'")).n,1);assert.equal(f.sent.filter(p=>p.chat_id===5&&p.text?.includes('Доступ к боту ограничен')).length,1);
 });
+test('deleted staff profile cannot prevent owner from revoking remaining role',async()=>{
+ const f=await fixture();await role(f,5,'admin');await f.store.deleteUser(5);assert.equal(await rawRole(f.store,5),'admin');await change(f,5,'role',{next:'user'});assert.equal(await rawRole(f.store,5),'user');assert.equal((await deliverNotice(f.store,f.api,null,'role',5)).sent,0);await new Bot(f).handle(message(5,'/start'));assert.equal((await record(f.store,'role',5)).notice,'sent');assert.equal(keys(f).length,4);
+});
