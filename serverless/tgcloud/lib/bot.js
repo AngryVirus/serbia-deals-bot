@@ -13,22 +13,22 @@ const BACK=[[button('🏠 Меню','home')]];
 export class Bot{
  constructor(deps){Object.assign(this,deps);this.store=new Store(deps.db);}
  async panel(text,rows=BACK,visual=true){
-  const markup={inline_keyboard:rows};let message,photo,isPhoto=false;
+  const markup={inline_keyboard:rows},target=this.freshPanel?null:this.user.panel;let message,photo,isPhoto=false;
   if(visual&&this.InputFile)try{const image=renderImage(text);photo=new this.InputFile(image.bytes,'serbia-deals.png',{type:'image/png'});}catch{/* A failed visual must leave a usable text menu. */}
   if(photo){
-   if(this.user.panel)try{message=await this.api.editMessageMedia({chat_id:this.uid,message_id:this.user.panel,media:{type:'photo',media:photo,caption:''},reply_markup:markup});}catch(e){if(/message is not modified/i.test(e.description||e.message||''))return;if((e.code||e.error_code)!==400)throw e;}
+   if(target)try{message=await this.api.editMessageMedia({chat_id:this.uid,message_id:target,media:{type:'photo',media:photo,caption:''},reply_markup:markup});}catch(e){if(/message is not modified/i.test(e.description||e.message||''))return;if((e.code||e.error_code)!==400)throw e;}
    if(!message)try{message=await this.api.sendPhoto({chat_id:this.uid,photo,reply_markup:markup});}catch(e){if(![400,413].includes(e.code||e.error_code))throw e;}
    isPhoto=Boolean(message);
   }
   if(!message){
    const params={chat_id:this.uid,text,parse_mode:'HTML',reply_markup:markup,link_preview_options:{is_disabled:true}};
-   if(this.user.panel&&!this.user.photo)try{message=await this.api.editMessageText({...params,message_id:this.user.panel});}catch(e){if(/message is not modified/i.test(e.description||e.message||''))return;if((e.code||e.error_code)!==400)throw e;}
+   if(target&&!this.user.photo)try{message=await this.api.editMessageText({...params,message_id:target});}catch(e){if(/message is not modified/i.test(e.description||e.message||''))return;if((e.code||e.error_code)!==400)throw e;}
    if(!message)message=await this.api.sendMessage(params);
   }
   if(!positive(message?.message_id))throw Error('Unconfirmed panel');
   if(this.user.panel&&this.user.panel!==message.message_id)try{await this.api.deleteMessage({chat_id:this.uid,message_id:this.user.panel});}catch{}
   await this.store.patch(this.uid,{panel:message.message_id,photo:isPhoto});
-  this.user={...this.user,panel:message.message_id,photo:isPhoto};
+  this.user={...this.user,panel:message.message_id,photo:isPhoto};this.freshPanel=false;
  }
  async names(offers){return productNames(this.store,this.fetch,offers);}
  async home(){const rows=[[button('🔎 Найти товар','search'),button('🛒 Моя корзина','basket')],[button('🔔 Уведомления','notifications'),button('❓ Помощь','help')]];if((this.uid===OWNER_ID?'owner':await roleOf(this.store,this.uid))!=='user')rows.push([button('⚙️ Админка','admin')]);return this.panel('<b>Где дешевле? Сербия</b>\n\n<b>Поиск:</b> один товар\n<b>Корзина:</b> весь список покупок\n\nВыберите, что сравнить.',rows);}
@@ -155,6 +155,8 @@ export class Bot{
    if(cb)try{await this.api.answerCallbackQuery({callback_query_id:cb.id});}catch{}
    this.user=await this.store.ensure(uid);await trackUser(this.store,cb?.from||msg.from);this.user=await this.store.user(uid);
    await deliverNotice(this.store,this.api,this.InputFile,'ban',uid,true,key);await deliverNotice(this.store,this.api,this.InputFile,'role',uid,true,key);
+   this.freshPanel=!cb;
+   if(cb){this.user.panel=msg.message_id;if(Array.isArray(msg.photo))this.user.photo=true;else if(typeof msg.text==='string')this.user.photo=false;}
    return await this.dispatch(update);
   }finally{await unlockUser(this.store,uid,key);await this.db.run('DELETE FROM sd_updates WHERE expires<:now',{':now':now});}
  }
