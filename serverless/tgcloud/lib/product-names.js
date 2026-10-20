@@ -10,15 +10,18 @@ export function validTranslation(ru,sr){
  return numbers(sr).every(n=>numbers(ru).includes(n));
 }
 export async function productNames(store,fetch,offers,now=Date.now()){
+ try{return await cachedNames(store,fetch,offers,now);}catch{return new Map(offers.map(o=>[o.name,bilingual(null,o.name)]));}
+}
+async function cachedNames(store,fetch,offers,now){
  await store.db.run('CREATE TABLE IF NOT EXISTS sd_product_names(name TEXT PRIMARY KEY,ru TEXT,expires INTEGER NOT NULL DEFAULT 0,lease INTEGER NOT NULL DEFAULT 0)');
- await store.db.run('DELETE FROM sd_product_names WHERE name IN (SELECT name FROM sd_product_names WHERE expires<:old AND lease<:now LIMIT 100)',{':old':now-30*86400000,':now':now});
+ await store.db.run('DELETE FROM sd_product_names WHERE name IN (SELECT name FROM sd_product_names WHERE lease<:now AND (expires<:old OR (SELECT COUNT(*) FROM sd_product_names)>=3000) ORDER BY expires LIMIT 100)',{':old':now-30*86400000,':now':now});
  const unique=[...new Map(offers.filter(o=>typeof o.name==='string'&&o.name.length<=300).map(o=>[o.name,o])).values()],result=new Map();
  const translate=async offer=>{
   const name=offer.name,cached=await store.db.get('SELECT ru,expires FROM sd_product_names WHERE name=:name',{':name':name});
   if(cached?.ru&&cached.expires>now){result.set(name,bilingual(cached.ru,name));return;}
   const simple=localName(name);if(simple){result.set(name,bilingual(simple,name));return;}
   result.set(name,bilingual(cached?.ru,name));if(typeof fetch!=='function')return;
-  const claim=await store.db.run(`INSERT INTO sd_product_names(name,lease) SELECT :name,:lease WHERE (SELECT COUNT(*) FROM sd_product_names)<3000 ON CONFLICT(name) DO UPDATE SET lease=excluded.lease WHERE sd_product_names.expires<=:now AND sd_product_names.lease<=:now`,{':name':name,':lease':now+30000,':now':now});
+  const claim=await store.db.run(`INSERT INTO sd_product_names(name,lease) SELECT :name,:lease WHERE EXISTS(SELECT 1 FROM sd_product_names WHERE name=:name) OR (SELECT COUNT(*) FROM sd_product_names)<3000 ON CONFLICT(name) DO UPDATE SET lease=excluded.lease WHERE sd_product_names.expires<=:now AND sd_product_names.lease<=:now`,{':name':name,':lease':now+30000,':now':now});
   if(claim.rowsAffected!==1)return;
   try{
    const limit=await store.db.run(`INSERT INTO sd_rates(id,n,expires) VALUES('name_translation',1,:until) ON CONFLICT(id) DO UPDATE SET n=CASE WHEN expires<=:now THEN 1 ELSE n+1 END,expires=CASE WHEN expires<=:now THEN :until ELSE expires END WHERE expires<=:now OR n<120`,{':until':now+60000,':now':now});

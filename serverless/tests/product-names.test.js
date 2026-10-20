@@ -28,3 +28,15 @@ test('visual product card and paged results display Russian then Serbian without
 test('compact basket comparison labels partial prices and provides optional item detail',async()=>{
  const result={items:[{},{}],estimated:true,stores:[{source:'a',chain:'Полный',name:'Полный',found:2,total:10000},{source:'b',chain:'Частичный',name:'Частичный',found:1,total:100}]};const text=basketSummary(result);assert(text.includes('Весь список'));assert(text.includes('Только 1 из 2'));assert(text.includes('упаковка могут различаться'));
 });
+test('a failed primary service falls back to a valid free translation and caches it',async()=>{
+ const f=await fixture();let calls=0;const fetch=async url=>{calls++;if(url.startsWith('https://translate.googleapis.com/'))throw Error('Unavailable');return {ok:true,json:async()=>({responseStatus:200,responseData:{translatedText:'Лампочка E27 9W'}})};};const name='Sijalica E27 9W';const names=await productNames(f.store,fetch,[{name}]);assert.equal(names.get(name),'Лампочка E27 9W / '+name);await productNames(f.store,fetch,[{name}]);assert.equal(calls,2);
+});
+test('long product names keep both languages and packaging suffixes in compact lists',async()=>{
+ const {briefName}=await import('../tgcloud/lib/product-names.js');const name='Русское '.repeat(30)+'500 г / '+'Srpsko '.repeat(30)+'500g',short=briefName(name);assert(short.includes(' / '));assert(short.includes('500 г'));assert(short.endsWith('500g'));assert(short.length<190);
+});
+test('new shop and split screens remain scoped to the requesting basket',async()=>{
+ const f=await fixture();await publish(f,[offer()]);await new Bot(f).handle(message(5,'/start'));await new Bot(f).handle(callback(5,'basketadd:'+offer().id+':'));await new Bot(f).handle(callback(5,'basketcompare'));const shop=f.sent.at(-1).reply_markup.inline_keyboard.flat().find(b=>b.callback_data.startsWith('basketshop:'));assert(shop);await new Bot(f).handle(callback(5,shop.callback_data));assert(f.sent.at(-1).text.includes('Итого:'));await new Bot(f).handle(callback(6,shop.callback_data));assert(f.sent.at(-1).text.includes('Корзина пока пустая'));
+});
+test('a translation cache failure cannot take down the product screen',async()=>{
+ const f=await fixture();await publish(f,[offer()]);await new Bot(f).handle(message(5,'/start'));const run=f.db.run;f.db.run=(sql,p)=>{if(sql.includes('sd_product_names'))throw Error('Cache storage unavailable');return run(sql,p);};await new Bot(f).handle(callback(5,'offer:'+offer().id));assert(f.sent.at(-1).text.includes(offer().name));assert(f.sent.at(-1).reply_markup.inline_keyboard.flat().some(b=>b.callback_data.startsWith('basketadd:')));
+});

@@ -112,7 +112,7 @@ export class Bot{
   if(start)nav.push(button('⬅️','watches:'+(start-5)));if(all.length>start+5)nav.push(button('➡️','watches:'+(start+5)));if(nav.length)buttons.push(nav);
   return this.panel('<b>Отслеживаемые товары</b>\n\n'+(shown.length?shown.map((r,i)=>`${start+i+1}. ${safe(briefName(names.get(r.name)||bilingual(null,r.name)))}`).join('\n\n'):'Откройте товар → «Следить».'),[...buttons,[button('⬅️ Уведомления','notifications')]]);
  }
- async notifications(){const rows=await this.store.watches(this.uid);return this.panel('<b>Снижение цены</b>\n\n'+(this.user.enabled?'Уведомления включены.':'Уведомления выключены.')+`\nОтслеживаемых товаров: ${rows.length}\n\n`+(rows.length?'Сообщим о снижении цены.':'Откройте товар → «Следить».'),[[button(this.user.enabled?'🔕 Выключить уведомления':'🔔 Включить уведомления',this.user.enabled?'notify:off':'notify:on')],[button('📋 Отслеживаемые товары','watches')],...BACK]);}
+ async notifications(){const rows=await this.store.watches(this.uid);return this.panel('<b>Снижение цены</b>\n\n'+(this.user.enabled?'<b>Статус:</b> включены':'<b>Статус:</b> выключены')+`\n<b>Товары:</b> ${rows.length}\n\n`+(rows.length?'Сообщим о снижении цены.':'Откройте товар → «Следить».'),[[button(this.user.enabled?'🔕 Выключить уведомления':'🔔 Включить уведомления',this.user.enabled?'notify:off':'notify:on')],[button('📋 Отслеживаемые товары','watches')],...BACK]);}
  async help(){
   return this.panel('<b>Как пользоваться</b>\n\n<b>Поиск:</b> название → магазин → товар\n<b>Корзина:</b> список → сравнение цен\n<b>Уведомления:</b> снижение цены выбранного товара\n\nСписок — через запятую или с новой строки.',[[{text:'💬 Поддержка',url:'https://t.me/AngryVirus'}],[button('ℹ️ О ценах и данных','help:data')],...BACK]);
  }

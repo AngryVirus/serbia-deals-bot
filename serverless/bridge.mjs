@@ -42,10 +42,14 @@ export default async function(input,ctx){
  const adminPhotos=photoCalls-home.photoCalls,adminTexts=textCalls-home.textCalls;
  bot.user={};await adminRoute(bot,'admin:sources');bot.user={};await adminRoute(bot,'admin:sources:1');
  const sourcePhotos=photoCalls-home.photoCalls-adminPhotos,sourceTexts=textCalls-home.textCalls-adminTexts;
- const beforePhotos=photoCalls,beforeTexts=textCalls;
+ const beforePhotos=photoCalls,beforeTexts=textCalls;bot.store.rate=async()=>0;
  bot.user={};await bot.prompt();bot.user={};await bot.basket();bot.user={};await bot.notifications();
  const items=await cartItems(bot.store,OWNER_ID);if(items.length){bot.user={};await bot.basketItem(items[0].id);}
  const translationRequests=[];const translationFetch=async(...args)=>{try{const response=await fetch(...args);translationRequests.push({status:response.status,ok:Boolean(response.ok)});return response;}catch(error){const message=String(error.message||'').toLowerCase();translationRequests.push({failed:true,hints:['timeout','argument','options','allowed','host','denied','network','fetch','disabled','unsupported','function','undefined','not defined','invalid','http','budget','limit','quota','proxy','dns','resolve','certificate','ssl','tls','connect','owner','sandbox','safe','method','scope'].filter(word=>message.includes(word))});throw error;}};
+ const chains=await bot.store.searchChains('огурцы');
+ bot.user={};await bot.search('огурцы');
+ if(chains.length){bot.user={};await bot.search('огурцы',0,chains[0].source_id);const offers=await bot.store.searchChain('огурцы',chains[0].source_id,0);if(offers.length){bot.user={};await bot.card(JSON.parse(offers[0].payload).id);}}
+ bot.user={};await bot.comparison();
  const names=await productNames(bot.store,translationFetch,[{name:'LED sijalica E27 9W 806lm'},{name:'Energetski napitak Red Bull 0,25l',brand:'Red Bull'}]);
  const translated=[...names.values()].filter(name=>!name.startsWith('Перевод недоступен')).length;
  return {translations:{checked:names.size,translated,requests:translationRequests},...home,admin_photo_calls:adminPhotos,admin_text_calls:adminTexts,source_photo_calls:sourcePhotos,source_text_calls:sourceTexts,shopping_photo_calls:photoCalls-beforePhotos,shopping_text_calls:textCalls-beforeTexts,elapsed_ms:Date.now()-started};
