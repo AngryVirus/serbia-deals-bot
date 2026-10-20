@@ -43,3 +43,16 @@ test('package hints preserve stock-code boundaries and never invent a missing si
  assert.equal(basketVariant({name:'Cokoladno mleko 0,25l'}),'шоколадное · 250 мл');
  assert.equal(basketVariant({name:'Product without packaging'}),'');
 });
+
+test('plums stay fruit even when spirits omit the word rakija and pastries mention plums',async()=>{
+ const f=await fixture();await publish(f,[
+  milk(1,'METRO SLJIVA ZUTA',['metro','sljiva','zuta']),
+  milk(2,'0.03L NASLEDJE SLJIVA',['0','03l','nasledje','sljiva']),
+  milk(3,'Strudla sljiva 190g',['strudla','sljiva','190g']),
+  milk(4,'Kolac sa sljivama 1250g',['kolac','sa','sljivama','1250g']),
+  milk(5,'Suva sljiva 200g',['suva','sljiva','200g'])
+ ]);
+ assert.equal((await f.store.search('сливы')).length,2);
+ assert.equal((await f.store.search('strudla sljiva')).length,1);
+ assert.equal((await f.store.search('сливы 0,03 л')).length,1);
+});
