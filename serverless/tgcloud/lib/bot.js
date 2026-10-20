@@ -1,10 +1,12 @@
+import {basketSummary,basketNetworks} from './shopping-ui.js';
+import {productNames,bilingual} from './product-names.js';
 import {adminRoute} from './admin.js';
 import {roleOf,banned,snapshot,trackUser,lockUser,unlockUser} from './moderation-state.js';
 import {deliverNotice} from './moderation-notices.js';
 import { Store } from './store.js';
 import { OWNER_ID,assertBot,positive,safe,money,bulbQuery,currentPrice,day } from './domain.js';
 import { renderImage } from './image-renderer.js';
-import { cartItems,addList,addOffer,compareBasket,basketReport,parseList,expandPendingList } from './basket.js';
+import { cartItems,addList,addOffer,compareBasket,parseList,expandPendingList } from './basket.js';
 const button=(text,data)=>({text,callback_data:data});
 const BACK=[[button('🏠 Меню','home')]];
 export class Bot{
@@ -27,8 +29,9 @@ export class Bot{
   await this.store.patch(this.uid,{panel:message.message_id,photo:isPhoto});
   this.user={...this.user,panel:message.message_id,photo:isPhoto};
  }
- async home(){const rows=[[button('🔎 Найти товар','search'),button('🛒 Моя корзина','basket')],[button('🔔 Уведомления','notifications'),button('❓ Помощь','help')]];if((this.uid===OWNER_ID?'owner':await roleOf(this.store,this.uid))!=='user')rows.push([button('⚙️ Админка','admin')]);return this.panel('<b>Где дешевле? Сербия</b>\n\nПокупайте выгоднее.\n\nОдин товар — «Найти товар».\nСписок покупок — «Моя корзина».\n\nСравним цены магазинов. Дату и упаковку покажем в карточке.',rows);}
- async prompt(){await this.store.patch(this.uid,{pending:'search'});return this.panel('<b>Найти товар</b>\n\nВведите название на русском или сербском либо штрихкод.\n\nНапример: огурцы, Red Bull или лампочка E27.\n\nЦелый список удобнее добавить в корзину.',BACK);}
+ async names(offers){return productNames(this.store,this.fetch,offers);}
+ async home(){const rows=[[button('🔎 Найти товар','search'),button('🛒 Моя корзина','basket')],[button('🔔 Уведомления','notifications'),button('❓ Помощь','help')]];if((this.uid===OWNER_ID?'owner':await roleOf(this.store,this.uid))!=='user')rows.push([button('⚙️ Админка','admin')]);return this.panel('<b>Где дешевле? Сербия</b>\n\n<b>Поиск:</b> один товар\n<b>Корзина:</b> весь список покупок\n\nВыберите, что сравнить.',rows);}
+ async prompt(){await this.store.patch(this.uid,{pending:'search'});return this.panel('<b>Найти товар</b>\n\nНазвание или штрихкод.\nНапример: огурцы · Red Bull · лампочка E27',BACK);}
  async search(query,offset=0,source=null){
   const wait=await this.store.rate(this.uid);if(wait)return this.panel(`<b>Небольшая пауза</b>\n\nПовторите поиск через ${wait} сек.`,BACK);
   try{
@@ -44,47 +47,76 @@ export class Bot{
     const shown=rows.slice(offset,offset+8),buttons=shown.map(row=>[button(`${row.source_name} · ${money(row.min_price)}${row.min_price===row.max_price?'':' – '+money(row.max_price)}`.slice(0,90),`chainsel:${rev}:${row.source_id}:0`)]);
     const nav=[];if(offset)nav.push(button('⬅️ Назад',`chains:${rev}:${Math.max(0,offset-8)}`));if(rows.length>offset+8)nav.push(button('Далее ➡️',`chains:${rev}:${offset+8}`));if(nav.length)buttons.push(nav);
     buttons.push([button('🔎 Изменить поиск','search')],...(this.user.cartTarget?[[button('🛒 К корзине','basket')]]:[]),...BACK);
-    return this.panel(`<b>Где купить: ${safe(query)}</b>\n\nНайдено сетей: ${rows.length}\n\nВыберите магазин кнопкой ниже. Рядом с названием — диапазон цен.\n\nВ диапазон входят разные товары и упаковки. Точную цену и дату покажем после выбора товара.`,buttons);
+    return this.panel(`<b>Где купить: ${safe(query)}</b>\n\n<b>Магазины:</b> ${rows.length}\nВыберите сеть ниже.\n\nДиапазон цен включает разные упаковки.`,buttons);
    }
-   const shown=rows.slice(0,5),buttons=shown.map((row,index)=>{const offer=JSON.parse(row.payload);return [button(`${offset+index+1}. ${money(row.min_price)} · ${offer.name}`.slice(0,90),'offer:'+offer.id)];});
-   const nav=[];if(offset)nav.push(button('⬅️ Назад',`chainsel:${rev}:${source}:${Math.max(0,offset-5)}`));if(rows.length>5)nav.push(button('Далее ➡️',`chainsel:${rev}:${source}:${offset+5}`));if(nav.length)buttons.push(nav);
-   buttons.push([button('🏪 Все сети','chains')],[button('🔎 Изменить поиск','search')],...(this.user.cartTarget?[[button('🛒 К корзине','basket')]]:[]),...BACK);
-   const text=`<b>${safe(rows[0].source_name)} · ${safe(query)}</b>\n\n`+shown.map((row,index)=>{const offer=JSON.parse(row.payload);return `<b>${offset+index+1}. ${safe(offer.name)}</b>\n${money(row.min_price)}${row.min_price===row.max_price?'':' — '+money(row.max_price)}\n`;}).join('\n')+'\nЦены по прайсам сети и её форматов. В карточке — найденные цены выбранного товара. Адреса и наличие не подтверждены.';
-   return this.panel(text,buttons,false);
+   const shown=rows.slice(0,3),offers=shown.map(row=>JSON.parse(row.payload)),names=await this.names(offers),buttons=shown.map((row,index)=>[button(`${offset+index+1} · ${money(row.min_price)} · Выбрать`,'offer:'+offers[index].id)]);
+   const nav=[];if(offset)nav.push(button('⬅️',`chainsel:${rev}:${source}:${Math.max(0,offset-3)}`));if(rows.length>3)nav.push(button('➡️',`chainsel:${rev}:${source}:${offset+3}`));if(nav.length)buttons.push(nav);
+   buttons.push([button('⬅️ Магазины','chains'),button('🔎 Поиск','search')],...(this.user.cartTarget?[[button('🛒 Корзина','basket')]]:[]));
+   const text=`<b>${safe(rows[0].source_name)}</b>\nПоиск: ${safe(query)}\n\n`+shown.map((row,index)=>`<b>${offset+index+1}. ${safe(names.get(offers[index].name)||bilingual(null,offers[index].name))}</b>\nЦена: ${money(row.min_price)}${row.min_price===row.max_price?'':' — '+money(row.max_price)}`).join('\n\n');
+   return this.panel(text,buttons);
+
   }catch(error){if(/Введите название/.test(error.message))return this.panel('<b>Уточните запрос</b>\n\nВведите название короче 120 символов.',BACK);throw error;}
  }
  async card(id){
   const row=await this.store.offer(id);if(!row)return this.panel('<b>Предложение обновилось</b>\n\nПовторите поиск, чтобы увидеть действующие цены.',[[button('🔎 Найти товар','search')],...BACK]);
   const o=JSON.parse(row.payload),best=await this.store.cheapest(o.product),traits=o.traits||{};
   const specs=[traits.socket&&'Цоколь: '+traits.socket,traits.lumens&&'Яркость: '+traits.lumens+' лм',traits.kelvin&&'Цвет света: '+traits.kelvin+' K',traits.pack&&'В упаковке: '+traits.pack+' шт.'].filter(Boolean).join('\n');
-  const text=`<b>${safe(o.name)}</b>\n\n🏪 ${safe(o.format)}\n💰 <b>${money(row.price)}</b>\n`+(row.price<o.regular?`Обычная цена: ${money(o.regular)}\nСкидка до: ${safe(o.end||'дата не указана')}\n`:'')+(specs?'\n'+specs+'\n':'')+`\nПрайс: ${o.date}\nНаличие не подтверждено. Цена конкретного филиала может отличаться.\n`+(o.product.startsWith('gtin:')&&best?`\nЛучшее найденное предложение этого товара: ${money(best.price)} · ${safe(JSON.parse(best.payload).format)}\n`:'\nСопоставление с другими магазинами по штрихкоду не подтверждено.\n');
+  const names=await this.names([o]),name=names.get(o.name)||bilingual(null,o.name);
   const locations=await this.store.productLocations(o.product,o.source);
-  const breakdown=locations.length>1?'\n\n<b>Цены по форматам сети</b>\n'+locations.slice(0,8).map(x=>`${safe(x.name)} — ${money(x.price)}`).join('\n')+(locations.length>8?'\nЕсть и другие форматы сети.':'')+'\nАдресов филиалов в прайсе нет.':'';
-  return this.panel(text+breakdown+`\nПолучено: ${day(row.downloaded)}`,[[button(this.user.cartTarget?'✅ Выбрать для корзины':'🛒 В корзину','basketadd:'+o.id+':'+(this.user.cartTarget||''))],[button('🔔 Следить за ценой','watch:'+o.id)],[button('🔎 К результатам','results')],...BACK],false);
+  const text=`<b>${safe(name)}</b>\n\n<b>Цена:</b> ${money(row.price)}\n<b>Магазин:</b> ${safe(o.format)}\n<b>Прайс:</b> ${o.date}`+(row.price<o.regular?`\nСкидка до: ${safe(o.end||'не указано')}`:'')+(specs?'\n\n'+specs:'')+(o.product.startsWith('gtin:')&&best&&best.price<row.price?`\n\nВыгоднее: ${money(best.price)} · ${safe(JSON.parse(best.payload).format)}`:'')+'\n\nНаличие и цена филиала могут отличаться.';
+  const rows=[[button(this.user.cartTarget?'✅ Выбрать для корзины':'🛒 В корзину','basketadd:'+o.id+':'+(this.user.cartTarget||'')),button('🔔 Следить','watch:'+o.id)]];
+  if(locations.length>1)rows.push([button('🏪 Цены внутри сети','locations:'+o.id)]);
+  rows.push([button('⬅️ Товары','results'),button('🏠 Меню','home')]);
+  return this.panel(text,rows);
+ }
+ async locations(id){
+  const row=await this.store.offer(id);if(!row)return this.search(this.user.query||'');const o=JSON.parse(row.payload),locations=await this.store.productLocations(o.product,o.source);
+  return this.panel('<b>Цены внутри сети</b>\n\n'+locations.slice(0,8).map(x=>`${safe(x.name)} — ${money(x.price)}`).join('\n')+'\n\nЭто форматы сети, а не адреса филиалов.',[[button('⬅️ К товару','offer:'+id)]]);
+
  }
  async basket(offset=0){
   await this.store.patch(this.uid,{pending:null,cartTarget:null});this.user={...this.user,pending:null,cartTarget:null};
-  const items=await cartItems(this.store,this.uid),page=Math.min(Math.floor(Math.max(0,items.length-1)/5),Math.floor(offset/5)),shown=items.slice(page*5,page*5+5),rows=[];
+  const items=await cartItems(this.store,this.uid),page=Math.min(Math.floor(Math.max(0,items.length-1)/5),Math.floor(offset/5)),shown=items.slice(page*5,page*5+5),rows=[],names=await this.names(shown.filter(x=>x.product));
   if(items.length)rows.push([button('💰 Найти выгодную корзину','basketcompare')]);
   rows.push([button('➕ Добавить товары','basketinput')]);
-  for(const [i,item] of shown.entries())rows.push([button(`${page*5+i+1}. ${item.name||item.query} × ${item.quantity}`.slice(0,60),'cartitem:'+item.id)]);
+  for(const [i,item] of shown.entries())rows.push([button(`${page*5+i+1} · Изменить × ${item.quantity}`,'cartitem:'+item.id)]);
   const nav=[];if(page)nav.push(button('⬅️ Назад','basket:'+((page-1)*5)));if(items.length>(page+1)*5)nav.push(button('Далее ➡️','basket:'+((page+1)*5)));if(nav.length)rows.push(nav);
-  const text=items.length?`<b>Моя корзина · ${items.length} из 30</b>\n\n`+shown.map((x,i)=>`${page*5+i+1}. ${safe((x.name||x.query).slice(0,70))} × ${x.quantity}`).join('\n')+`\n\nСтраница ${page+1} из ${Math.ceil(items.length/5)}\n\nСразу нажмите «Найти выгодную корзину» для предварительного сравнения.\nНажмите на товар, чтобы изменить количество или уточнить упаковку.`:'<b>Ваша корзина пока пуста</b>\n\nДобавьте покупки одним сообщением:\nогурцы, курица, молоко × 2\n\nПосле этого сравним стоимость в магазинах.';
+  const text=items.length?`<b>Моя корзина · ${items.length} из 30</b>\n\n`+shown.map((x,i)=>`${page*5+i+1}. ${safe((x.product?names.get(x.name)||bilingual(null,x.name):x.query).slice(0,180))} × ${x.quantity}`).join('\n')+(items.length>5?`\n\nСтраница ${page+1} из ${Math.ceil(items.length/5)}`:'')+'\n\nСравнение по названию. Уточните упаковки для точности.':'<b>Ваша корзина пока пуста</b>\n\nДобавьте список:\nогурцы, курица, молоко × 2';
   return this.panel(text,[...rows,...BACK]);
  }
  async basketItem(id){
   const items=await cartItems(this.store,this.uid),index=items.findIndex(x=>x.id===id),item=items[index];if(!item)return this.basket();
+  const names=item.product?await this.names([item]):new Map();
   const rows=[];if(!item.product)rows.push([button(parseList(item.query).length>1?'Разделить список на товары':'🔎 Уточнить товар и упаковку','resolve:'+id)]);
   rows.push([button('− 1','quantity:'+id+':-1'),button('＋ 1','quantity:'+id+':1')],[button('🗑 Удалить из корзины','cartremove:'+id)],[button('⬅️ К корзине','basket:'+(Math.floor(index/5)*5))]);
-  return this.panel(`<b>Товар в корзине</b>\n\n${safe(item.name||item.query)}\n\n<b>Количество:</b> ${item.quantity}\n`+(item.product?'Выбрана конкретная упаковка.':'Подберём варианты по названию. Для точного сравнения уточните товар и упаковку.')+'\n\nКоличество — упаковки или штуки.',rows);
+  return this.panel(`<b>Товар в корзине</b>\n\n${safe(item.product?names.get(item.name)||bilingual(null,item.name):item.query)}\n\n<b>Количество:</b> ${item.quantity}\n`+(item.product?'Выбрана конкретная упаковка.':'Подбор по названию. Упаковка ещё не выбрана.')+'\nКоличество — упаковки или штуки.',rows);
  }
- async watches(offset=0){const rows=await this.store.watches(this.uid),shown=rows.slice(offset,offset+10);const buttons=shown.map((r,i)=>[button('Убрать '+(offset+i+1),'remove:'+r.product)]);if(offset)buttons.push([button('⬅️ Назад','watches:'+Math.max(0,offset-10))]);if(rows.length>offset+10)buttons.push([button('Далее ➡️','watches:'+(offset+10))]);return this.panel('<b>Отслеживаемые товары</b>\n\n'+(shown.length?shown.map((r,i)=>`${offset+i+1}. ${safe(r.name)}`).join('\n'):'Добавьте товар из его карточки кнопкой «Следить за ценой».'),[...buttons,...BACK]);}
- async notifications(){const rows=await this.store.watches(this.uid);return this.panel('<b>Снижение цены</b>\n\n'+(this.user.enabled?'Уведомления включены.':'Уведомления выключены.')+`\nОтслеживаемых товаров: ${rows.length}\n\n`+(rows.length?'Сообщим, когда найдём более низкую цену.':'Откройте карточку товара и нажмите «Следить за ценой».')+'\n\nПроверяем цены после обновления прайсов магазинов.',[[button(this.user.enabled?'🔕 Выключить уведомления':'🔔 Включить уведомления',this.user.enabled?'notify:off':'notify:on')],[button('📋 Отслеживаемые товары','watches')],...BACK]);}
+ async comparison(source=null,offset=0){
+  const wait=await this.store.rate(this.uid);if(wait)return this.panel(`<b>Небольшая пауза</b>\nПовторите через ${wait} сек.`,[[button('🛒 Корзина','basket')]]);
+  let report;try{report=await compareBasket(this.store,this.uid);}catch{return this.panel('<b>Не удалось сравнить</b>\nПовторите чуть позже. Корзина сохранена.',[[button('🛒 Корзина','basket')]]);}
+  const networks=basketNetworks(report),rows=[];
+  if(!source){
+   for(const store of networks.slice(0,4))rows.push([button('🏪 '+(store.chain||store.name).slice(0,45),'basketshop:'+store.source+':0')]);
+   if(report.split?.complete&&report.split.items.length)rows.push([button('🛍 В разных магазинах · '+money(report.split.total),'basketsplit:0')]);
+   return this.panel(basketSummary(report),[...rows,[button('🛒 Изменить корзину','basket')],...BACK]);
+  }
+  const shop=source==='split'?report.split:networks.find(x=>x.source===source);if(!shop?.items?.length)return this.comparison();
+  const start=Math.min(offset,Math.floor((shop.items.length-1)/5)*5),shown=shop.items.slice(start,start+5),names=await this.names(shown);
+  const title=source==='split'?'Покупки в разных магазинах':shop.chain||shop.name;
+  const text=`<b>${safe(title)}</b>\n\n`+shown.map(i=>`${safe(names.get(i.name)||bilingual(null,i.name))}\n× ${i.quantity} · ${money(i.total)}${source==='split'?' · '+safe(i.store):''}`).join('\n\n')+`\n\n<b>Итого:</b> ${money(shop.total)}`+(shop.found&&shop.found<report.items.length?`\nТолько ${shop.found} из ${report.items.length} товаров`:'')+(shop.items.length>5?`\nСтраница ${Math.floor(start/5)+1} из ${Math.ceil(shop.items.length/5)}`:'')+(report.estimated?'\n\nПроверьте вид товара и упаковку.':'')+(source==='split'?'\nСтоимость поездок не включена.':'');
+  const prefix=source==='split'?'basketsplit:':'basketshop:'+source+':',nav=[];if(start)nav.push(button('⬅️',prefix+(start-5)));if(shop.items.length>start+5)nav.push(button('➡️',prefix+(start+5)));if(nav.length)rows.push(nav);
+  return this.panel(text,[...rows,[button('⬅️ Сравнение','basketcompare'),button('🛒 Корзина','basket')]]);
+ }
+ async watches(offset=0){
+  const all=await this.store.watches(this.uid),start=Math.min(offset,Math.floor(Math.max(0,all.length-1)/5)*5),shown=all.slice(start,start+5),names=await this.names(shown),buttons=shown.map((r,i)=>[button('✖ Убрать '+(start+i+1),'remove:'+r.product)]),nav=[];
+  if(start)nav.push(button('⬅️','watches:'+(start-5)));if(all.length>start+5)nav.push(button('➡️','watches:'+(start+5)));if(nav.length)buttons.push(nav);
+  return this.panel('<b>Отслеживаемые товары</b>\n\n'+(shown.length?shown.map((r,i)=>`${start+i+1}. ${safe(names.get(r.name)||bilingual(null,r.name))}`).join('\n\n'):'Откройте товар → «Следить».'),[...buttons,[button('⬅️ Уведомления','notifications')]]);
+ }
+ async notifications(){const rows=await this.store.watches(this.uid);return this.panel('<b>Снижение цены</b>\n\n'+(this.user.enabled?'Уведомления включены.':'Уведомления выключены.')+`\nОтслеживаемых товаров: ${rows.length}\n\n`+(rows.length?'Сообщим о снижении цены.':'Откройте товар → «Следить».')+'',[[button(this.user.enabled?'🔕 Выключить уведомления':'🔔 Включить уведомления',this.user.enabled?'notify:off':'notify:on')],[button('📋 Отслеживаемые товары','watches')],...BACK]);}
  async help(){
-  const sources=(await this.store.sources()).filter(s=>s.active);
-  const credits=sources.map(s=>`<a href="${safe(s.url)}">${safe(s.name)}</a>`).join(', ');
-  return this.panel('<b>Помощь</b>\n\nНапишите название товара: «огурцы», «энергетик Red Bull», «лампочка E27». Можно искать на русском, сербском или по штрихкоду.\n\nДля корзины отправьте список через запятую или по одному товару на строку. Нажмите «Найти выгодную корзину» для предварительного подбора. Конкретную упаковку можно уточнить в корзине.\n\nРазные упаковки и модели сравниваются отдельно. Цены конкретного филиала и наличие могут отличаться.\n\nДанные: официальные прайсы '+credits+'. Дата указана в карточке.\n\n/delete — удалить свои данные.',[[{text:'💬 Поддержка',url:'https://t.me/AngryVirus'}],...BACK],false);
+  return this.panel('<b>Как пользоваться</b>\n\n<b>Поиск:</b> название → магазин → товар\n<b>Корзина:</b> список → сравнение цен\n<b>Уведомления:</b> снижение цены выбранного товара\n\nСписок — через запятую или с новой строки.',[[{text:'💬 Поддержка',url:'https://t.me/AngryVirus'}],[button('ℹ️ О ценах и данных','help:data')],...BACK]);
  }
+ async dataHelp(){const sources=(await this.store.sources()).filter(s=>s.active);return this.panel('<b>О ценах и данных</b>\n\nПрайсы магазинов: '+sources.map(s=>`<a href="${safe(s.url)}">${safe(s.name)}</a>`).join(', ')+'.\n\nДата цен — в карточке. Наличие и цены филиалов могут отличаться.\n\nРусские названия переведены автоматически. Сербский оригинал сохранён. Для перевода передаётся только публичное название товара.\n\n/delete — удалить свою корзину и настройки.',[[button('⬅️ Помощь','help')]],false);}
  async handle(update){
   await assertBot(this.api);
   const cb=update.callback_query,msg=cb?.message||update.message,uid=(cb?.from||msg?.from)?.id;
@@ -112,12 +144,15 @@ export class Bot{
   if(action==='basket')return this.basket();
   if(/^basket:(0|5|10|15|20|25)$/.test(action))return this.basket(Number(action.slice(7)));
   if(/^cartitem:[a-z0-9-]{1,40}$/.test(action))return this.basketItem(action.slice(9));
-  if(action==='basketinput'){await this.store.patch(uid,{pending:'basket',cartTarget:null});return this.panel('<b>Добавьте список покупок</b>\n\nТовары — с новой строки или через запятую. Количество — после ×.\n\nМолоко 1 л × 2\nЛампочка E27 × 3\nКофе × 1\n\nЗатем можно сразу сравнить корзину. Уточнение упаковок — по желанию. За раз — до 20 позиций, в корзине — до 30.',BACK);}
-  if(action==='basketcompare'){const wait=await this.store.rate(uid);if(wait)return this.panel(`<b>Небольшая пауза</b>\n\nПовторите сравнение через ${wait} сек.`,[[button('🛒 Корзина','basket')],...BACK]);try{const report=await compareBasket(this.store,uid);return this.panel(basketReport(report),[[button(report.pending.length?'🛒 Уточнить товары':'🛒 К корзине','basket')],...BACK],false);}catch(error){return this.panel('<b>Не удалось сравнить корзину</b>\n\n'+(/Уточните|Прайсы обновились|Слишком много/.test(error.message)?safe(error.message):'Не удалось получить цены. Повторите сравнение чуть позже.'),[[button('🛒 К корзине','basket')],...BACK],false);}}
+  if(action==='basketinput'){await this.store.patch(uid,{pending:'basket',cartTarget:null});return this.panel('<b>Добавьте список покупок</b>\n\nТовары — с новой строки или через запятую. Количество — после ×.\n\nМолоко 1 л × 2\nКофе\nОгурцы\n\nДо 20 товаров за раз, 30 в корзине.',BACK);}
+  if(action==='basketcompare')return this.comparison();
+  if(/^basketshop:[a-f0-9]{24}:(0|5|10|15|20|25)$/.test(action)){const [,source,offset]=action.split(':');return this.comparison(source,Number(offset));}
+  if(/^basketsplit:(0|5|10|15|20|25)$/.test(action))return this.comparison('split',Number(action.split(':')[1]));
   if(/^resolve:[a-z0-9-]{1,20}$/.test(action)){const item=(await cartItems(this.store,uid)).find(x=>x.id===action.slice(8)&&!x.product);if(item){if(await expandPendingList(this.store,uid,item.id))return this.basket();await this.store.patch(uid,{cartTarget:item.id});this.user.cartTarget=item.id;return this.search(item.query);}return this.basket();}
   if(/^basketadd:[a-f0-9]{32}:[a-z0-9-]{0,20}$/.test(action)){const [,id,target]=action.split(':'),found=await this.store.offer(id);if(found){try{const added=await addOffer(this.store,uid,JSON.parse(found.payload),target||null);if(!added){await this.store.patch(uid,{cartTarget:null});return this.panel('<b>Позиция корзины уже изменилась</b>\n\nЭта кнопка выбора устарела. Откройте корзину и выберите актуальную позицию.',[[button('🛒 Открыть корзину','basket')],...BACK]);}}catch(error){return this.panel(safe(error.message),[[button('🛒 Корзина','basket')],...BACK]);}}await this.store.patch(uid,{cartTarget:null});return this.basket();}
   if(/^cartremove:[a-z0-9-]{1,40}$/.test(action)){await cartItems(this.store,uid);await this.db.run('DELETE FROM sd_basket WHERE uid=:uid AND id=:id',{':uid':uid,':id':action.slice(11)});return this.basket();}
   if(/^quantity:[a-z0-9-]{1,40}:-?1$/.test(action)){const [,id,delta]=action.split(':');await this.db.run('UPDATE sd_basket SET quantity=MIN(99,MAX(1,quantity+:delta)) WHERE uid=:uid AND id=:id',{':uid':uid,':id':id,':delta':Number(delta)});return this.basketItem(id);}
+  if(action==='help:data')return this.dataHelp();
   if(action==='help'||text==='/help')return this.help();
   if(text==='/delete')return this.panel('<b>Удалить данные?</b>\n\nУдалим ваш список и настройки, отключим уведомления.',[[button('Удалить мои данные','delete:confirm')],...BACK]);
   if(action==='delete:confirm'){await cartItems(this.store,uid);await this.db.run('DELETE FROM sd_basket WHERE uid=:uid',{':uid':uid});await this.store.deleteUser(uid);return this.api.sendMessage({chat_id:uid,text:'Ваши данные удалены. /start — начать заново.'});}
@@ -130,8 +165,9 @@ export class Bot{
   if((action==='chains'||/^chains:[a-z0-9]{7}:\d{1,3}$/.test(action))&&this.user.query){const [,rev,offset]=action.split(':');if(!rev||rev===this.user.searchRev){this.allowAll=true;return this.search(this.user.query,Number(offset)||0,null);}return this.panel('<b>Поиск уже изменился</b>',[[button('К результатам','results')],...BACK]);}
   if(/^chainsel:[a-z0-9]{7}:[a-f0-9]{24}:\d{1,4}$/.test(action)&&this.user.query){const [,rev,source,offset]=action.split(':');if(rev===this.user.searchRev&&Number(offset)<=1000){this.allowAll=true;return this.search(this.user.query,Number(offset),source);}return this.panel('<b>Поиск уже изменился</b>',[[button('К результатам','results')],...BACK]);}
   if(action==='results'&&this.user.query){this.allowAll=true;return this.search(this.user.query,this.user.offset||0,this.user.searchSource||null);}
+  if(/^locations:[a-f0-9]{32}$/.test(action))return this.locations(action.slice(10));
   if(/^offer:[a-f0-9]{32}$/.test(action))return this.card(action.slice(6));
-  if(/^watch:[a-f0-9]{32}$/.test(action)){const added=await this.store.watch(uid,action.slice(6));return this.panel(added?'<b>Товар в вашем списке</b>\n\nУведомления можно включить отдельно.':'<b>Предложение обновилось</b>\n\nПовторите поиск.',[[button('🔔 Уведомления','notifications')],...BACK]);}
+  if(/^watch:[a-f0-9]{32}$/.test(action)){const added=await this.store.watch(uid,action.slice(6));return this.panel(added?'<b>Товар отслеживается</b>\n\n'+(this.user.enabled?'Сообщим о снижении цены.':'Включите уведомления, чтобы получать сообщения.'):'<b>Предложение обновилось</b>\n\nПовторите поиск.',[[button(this.user.enabled?'🔔 Уведомления':'🔔 Включить уведомления',this.user.enabled?'notifications':'notify:on')],[button('⬅️ К товару','offer:'+action.slice(6))],...BACK]);}
   if(/^remove:(?:gtin:\d{14}|local:[a-f0-9]{32})$/.test(action)){await this.store.removeWatch(uid,action.slice(7));return this.watches();}
   if(text&&!text.startsWith('/')){if(this.user.pending==='basket'){try{await addList(this.store,uid,text,msg.message_id);}catch(error){return this.panel(safe(error.message),[[button('🛒 Корзина','basket')],...BACK]);}await this.store.patch(uid,{pending:null});try{await this.api.deleteMessage({chat_id:uid,message_id:msg.message_id});}catch{}return this.basket();}await this.store.patch(uid,{pending:null});const result=await this.search(text);try{await this.api.deleteMessage({chat_id:uid,message_id:msg.message_id});}catch{}return result;}
   return this.home();

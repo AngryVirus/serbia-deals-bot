@@ -1,3 +1,3 @@
-import { db,api,InputFile } from 'sdk';
+import { db,api,fetch,InputFile } from 'sdk';
 import { Bot } from '../lib/bot.js';
-export default async function(message,ctx){return new Bot({db,api,InputFile}).handle(ctx?.update||{message});}
+export default async function(message,ctx){return new Bot({db,api,fetch,InputFile}).handle(ctx?.update||{message});}
