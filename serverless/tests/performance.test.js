@@ -47,6 +47,6 @@ test('invalid Telegram file ID is rebuilt once, while uncertain cache delivery i
  await new Bot(f).handle(message(5,'/start'));await new Bot(f).handle(message(5,'/menu'));assert.equal(calls,3);
  f.api.sendPhoto=async()=>{calls++;throw Error('timeout');};await assert.rejects(new Bot(f).handle(message(5,'/menu')),/timeout/);assert.equal(calls,4);
 });
-test('callback acknowledgement precedes database work and duplicate clicks stay idempotent',async()=>{
- const f=await fixture();await new Bot(f).handle(message(5,'/start'));let acknowledged=false;f.api.answerCallbackQuery=async()=>{acknowledged=true;};const run=f.db.run;f.db.run=(sql,p)=>{assert(acknowledged);return run(sql,p);};const cb=callback(5,'help');await new Bot(f).handle(cb);const sent=f.sent.length;await new Bot(f).handle(cb);assert.equal(f.sent.length,sent);
+test('callback acknowledgement precedes panel delivery and duplicate clicks stay idempotent',async()=>{
+ const f=await fixture();await new Bot(f).handle(message(5,'/start'));let acknowledged=false;f.api.answerCallbackQuery=async()=>{acknowledged=true;};const edit=f.api.editMessageText;f.api.editMessageText=p=>{assert(acknowledged);return edit(p);};const cb=callback(5,'help');await new Bot(f).handle(cb);const sent=f.sent.length;await new Bot(f).handle(cb);assert.equal(f.sent.length,sent);
 });

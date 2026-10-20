@@ -170,7 +170,6 @@ export class Bot{
   await assertBot(this.api);
   const cb=update.callback_query,msg=cb?.message||update.message,uid=(cb?.from||msg?.from)?.id;
   if(!positive(uid)||!positive(msg?.message_id)||msg?.chat?.type!=='private'||msg.chat.id!==uid||(cb&&(typeof cb.id!=='string'||cb.id.length>128||cb.from.is_bot)))return;
-  if(cb)try{await this.api.answerCallbackQuery({callback_query_id:cb.id});}catch{}
   await this.store.init();if(await this.store.meta('active')!==true)return;
   const key=uid+':'+(cb?'c'+cb.id:'m'+msg.message_id),now=Date.now();
   if(!await lockUser(this.store,uid,key,now))return;
@@ -178,6 +177,7 @@ export class Bot{
    const claimed=await this.db.run('INSERT INTO sd_updates(id,expires) VALUES(:key,:expires) ON CONFLICT DO NOTHING',{':key':key,':expires':now+172800000});if(claimed.rowsAffected!==1)return;
    this.uid=uid;this.requestLock=key;this.actor=snapshot(cb?.from||msg.from);this.inputMessageId=update.message?.message_id;
    if(await banned(this.store,uid)){await deliverNotice(this.store,this.api,this.InputFile,'ban',uid,true,key);return;}
+   if(cb)try{await this.api.answerCallbackQuery({callback_query_id:cb.id});}catch{}
    this.user=await this.store.ensure(uid);this.user={...this.user,...await trackUser(this.store,cb?.from||msg.from),blocked:0};
    await deliverNotice(this.store,this.api,this.InputFile,'ban',uid,true,key);await deliverNotice(this.store,this.api,this.InputFile,'role',uid,true,key);
    this.freshPanel=!cb;
