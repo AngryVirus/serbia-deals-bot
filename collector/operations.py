@@ -5,7 +5,7 @@ from .cloud import call,invoke
 
 def main():
     parser=argparse.ArgumentParser()
-    parser.add_argument('action',choices=['stage','check','activate','pause','notify','health','diagnose'])
+    parser.add_argument('action',choices=['stage','check','activate','pause','notify','health','diagnose','moderation'])
     parser.add_argument('--expected-revision',type=int)
     args=parser.parse_args()
     if args.action=='stage':
@@ -28,6 +28,13 @@ def main():
     elif args.action=='diagnose':
         print('Safe runtime diagnostics:',call('diagnose'),flush=True)
         print('Owner basket summary:',invoke('basket_check'),flush=True)
+        print('Access notice image check:',call('moderation',args={'operation':'preview'}),flush=True)
+    elif args.action=='moderation':
+        result=invoke('notices_due')
+        if result['due']:
+            print('Access notice worker:',call('moderation',args={'operation':'tick'}),flush=True)
+        else:
+            print('No access notices due',flush=True)
     elif args.action=='activate':
         status=invoke('status')
         if not any(s.get('active') for s in status.get('sources',[])):

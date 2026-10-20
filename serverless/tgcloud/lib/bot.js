@@ -1,3 +1,6 @@
+import {adminRoute} from './admin.js';
+import {roleOf,banned,snapshot,trackUser,lockUser,unlockUser} from './moderation-state.js';
+import {deliverNotice} from './moderation-notices.js';
 import { Store } from './store.js';
 import { OWNER_ID,assertBot,positive,safe,money,bulbQuery,currentPrice,day } from './domain.js';
 import { renderImage } from './image-renderer.js';
@@ -24,7 +27,7 @@ export class Bot{
   await this.store.patch(this.uid,{panel:message.message_id,photo:isPhoto});
   this.user={...this.user,panel:message.message_id,photo:isPhoto};
  }
- async home(){const rows=[[button('🔎 Найти товар','search'),button('🛒 Моя корзина','basket')],[button('🔔 Уведомления','notifications'),button('❓ Помощь','help')]];if(this.uid===OWNER_ID)rows.push([button('⚙️ Админка','admin')]);return this.panel('<b>Где дешевле? Сербия</b>\n\nНайдите один товар или сравните целую корзину покупок.\n\nНапример: огурцы, энергетик Red Bull, лампочка E27.\n\nЦены из официальных прайсов. Магазин и дата указаны в карточке.',rows);}
+ async home(){const rows=[[button('🔎 Найти товар','search'),button('🛒 Моя корзина','basket')],[button('🔔 Уведомления','notifications'),button('❓ Помощь','help')]];if((this.uid===OWNER_ID?'owner':await roleOf(this.store,this.uid))!=='user')rows.push([button('⚙️ Админка','admin')]);return this.panel('<b>Где дешевле? Сербия</b>\n\nНайдите один товар или сравните целую корзину покупок.\n\nНапример: огурцы, энергетик Red Bull, лампочка E27.\n\nЦены из официальных прайсов. Магазин и дата указаны в карточке.',rows);}
  async prompt(){await this.store.patch(this.uid,{pending:'search'});return this.panel('<b>Найти товар</b>\n\nВведите название на русском или сербском либо штрихкод.\n\nДля лампочки можно сразу указать цоколь: лампочка E27.',BACK);}
  async search(query,offset=0,source=null){
   const wait=await this.store.rate(this.uid);if(wait)return this.panel(`<b>Небольшая пауза</b>\n\nПовторите поиск через ${wait} сек.`,BACK);
@@ -70,22 +73,24 @@ export class Bot{
   const cb=update.callback_query,msg=cb?.message||update.message,uid=(cb?.from||msg?.from)?.id;
   if(!positive(uid)||!positive(msg?.message_id)||msg?.chat?.type!=='private'||msg.chat.id!==uid||(cb&&(typeof cb.id!=='string'||cb.id.length>128||cb.from.is_bot)))return;
   await this.store.init();if(await this.store.meta('active')!==true)return;
-  if(cb)try{await this.api.answerCallbackQuery({callback_query_id:cb.id});}catch{/* No mutation depends on acknowledgement. */}
   const key=uid+':'+(cb?'c'+cb.id:'m'+msg.message_id),now=Date.now();
-  const lock=await this.db.run(`INSERT INTO sd_locks(id,owner,expires) VALUES(:uid,:key,:expires) ON CONFLICT(id) DO UPDATE SET owner=excluded.owner,expires=excluded.expires WHERE sd_locks.expires<=:now`,{':uid':uid,':key':key,':expires':now+60000,':now':now});
-  if(lock.rowsAffected!==1)return;
+  if(!await lockUser(this.store,uid,key,now))return;
   try{
    const claimed=await this.db.run('INSERT INTO sd_updates(id,expires) VALUES(:key,:expires) ON CONFLICT DO NOTHING',{':key':key,':expires':now+172800000});if(claimed.rowsAffected!==1)return;
-   this.uid=uid;this.user=await this.store.ensure(uid);
+   this.uid=uid;this.requestLock=key;this.actor=snapshot(cb?.from||msg.from);this.inputMessageId=update.message?.message_id;
+   if(await banned(this.store,uid)){await deliverNotice(this.store,this.api,this.InputFile,'ban',uid,true,key);return;}
+   if(cb)try{await this.api.answerCallbackQuery({callback_query_id:cb.id});}catch{}
+   this.user=await this.store.ensure(uid);await trackUser(this.store,cb?.from||msg.from);this.user=await this.store.user(uid);
+   await deliverNotice(this.store,this.api,this.InputFile,'ban',uid,true,key);await deliverNotice(this.store,this.api,this.InputFile,'role',uid,true,key);
    return await this.dispatch(update);
-  }finally{await this.db.run('DELETE FROM sd_locks WHERE id=:uid AND owner=:key',{':uid':uid,':key':key});await this.db.run('DELETE FROM sd_updates WHERE expires<:now',{':now':now});}
+  }finally{await unlockUser(this.store,uid,key);await this.db.run('DELETE FROM sd_updates WHERE expires<:now',{':now':now});}
  }
  async dispatch(update){
   const cb=update.callback_query,msg=cb?.message||update.message,uid=this.uid;
   const action=cb?.data||'',text=update.message?.text?.trim();
-  if(action.startsWith('admin')&&uid!==OWNER_ID)return this.home();
-  if(action==='admin'){const sources=await this.store.sources();return this.panel('<b>Состояние магазинов</b>\n\n'+(sources.map(s=>`${safe(s.name)}: ${safe(s.status)} · ${safe(s.date||'прайса нет')}`).join('\n')||'Сбор ещё не выполнен.'),[[button('🔄 Перечитать состояние','admin')],...BACK]);}
-  if(action==='home'||text==='/start'||text==='/menu'){await this.store.patch(uid,{pending:null,cartTarget:null});return this.home();}
+  if(action==='home'||['/start','/menu','/cancel'].includes(text)){await this.store.patch(uid,{pending:null,cartTarget:null,adminInput:null,adminDraft:null});return this.home();}
+  if(await adminRoute(this,action,text))return;
+  if(action&&!action.startsWith('admin'))await this.store.patch(uid,{adminInput:null,adminDraft:null});
   if(action==='search'){await this.store.patch(uid,{cartTarget:null});return this.prompt();}
   if(action==='basket')return this.basket();
   if(/^basket:(0|10|20)$/.test(action))return this.basket(Number(action.slice(7)));

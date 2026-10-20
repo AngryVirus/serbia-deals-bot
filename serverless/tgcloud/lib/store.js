@@ -1,6 +1,8 @@
 import { requireValue,positive,queryGroups,day,cutoff,currentPrice,bulbQuery,energyQuery,freshProduceQuery,freshMeatQuery } from './domain.js';
 const SCHEMA=[
  `CREATE TABLE IF NOT EXISTS sd_meta(key TEXT PRIMARY KEY,value TEXT NOT NULL)`,
+ `CREATE TABLE IF NOT EXISTS sd_admin_records(kind TEXT NOT NULL,key TEXT NOT NULL,payload TEXT NOT NULL,at INTEGER NOT NULL,PRIMARY KEY(kind,key))`,
+ `CREATE INDEX IF NOT EXISTS sd_admin_time ON sd_admin_records(kind,at)`,
  `CREATE TABLE IF NOT EXISTS sd_users(id INTEGER PRIMARY KEY,enabled INTEGER NOT NULL DEFAULT 0,blocked INTEGER NOT NULL DEFAULT 0,payload TEXT NOT NULL DEFAULT '{}')`,
  `CREATE TABLE IF NOT EXISTS sd_rates(id TEXT PRIMARY KEY,n INTEGER NOT NULL,expires INTEGER NOT NULL)`,
  `CREATE TABLE IF NOT EXISTS sd_updates(id TEXT PRIMARY KEY,expires INTEGER NOT NULL)`,
@@ -28,11 +30,11 @@ const rawMeatPrefixes=['file','batak','karabatak','kril','grud','prs','snic','be
 const FRESH_MEAT=`(NOT ${hasTerm(termPrefixes(preparedMeatPrefixes))} AND ${hasTerm("e.term IN ('pile','piletina','curetina','junetina','govedina','svinjetina') OR "+termPrefixes(rawMeatPrefixes))})`;
 export class Store{
  constructor(db){const bound=(sql,p={})=>Object.fromEntries([...sql.matchAll(/:[A-Za-z_]\w*/g)].map(x=>x[0]).filter(k=>Object.hasOwn(p,k)).map(k=>[k,p[k]]));this.db=Object.fromEntries(['run','get','all'].map(method=>[method,(sql,p)=>db[method](sql,bound(sql,p))]));}
- async init(){for(const sql of SCHEMA)await this.db.run(sql);}
+ async init(){for(const sql of SCHEMA)await this.db.run(sql);await this.db.run("DELETE FROM sd_admin_records WHERE kind='audit' AND at<:cutoff",{':cutoff':Date.now()-10*86400000});await this.db.run("INSERT INTO sd_meta(key,value) VALUES('users_tracking',:now) ON CONFLICT DO NOTHING",{':now':JSON.stringify(Date.now())});}
  async meta(key){const row=await this.db.get('SELECT value FROM sd_meta WHERE key=:key',{':key':key});return row?JSON.parse(row.value):null;}
  async setMeta(key,value){await this.db.run('INSERT INTO sd_meta(key,value) VALUES(:key,:value) ON CONFLICT(key) DO UPDATE SET value=excluded.value',{':key':key,':value':JSON.stringify(value)});}
  async user(uid){const row=await this.db.get('SELECT * FROM sd_users WHERE id=:uid',{':uid':uid});return row?{...row,...JSON.parse(row.payload)}:null;}
- async ensure(uid){requireValue(positive(uid));await this.db.run('INSERT INTO sd_users(id) VALUES(:uid) ON CONFLICT DO NOTHING',{':uid':uid});return this.user(uid);}
+ async ensure(uid){requireValue(positive(uid));await this.db.run('INSERT INTO sd_users(id,payload) VALUES(:uid,:payload) ON CONFLICT DO NOTHING',{':uid':uid,':payload':JSON.stringify({first_seen:Date.now(),first_day:day()})});return this.user(uid);}
  async patch(uid,fields){await this.db.run('UPDATE sd_users SET payload=json_patch(payload,:fields) WHERE id=:uid',{':uid':uid,':fields':JSON.stringify(fields)});}
  async rate(uid,now=Date.now()){
   const id='search:'+uid,result=await this.db.run(`INSERT INTO sd_rates(id,n,expires) VALUES(:id,1,:end) ON CONFLICT(id) DO UPDATE SET n=CASE WHEN expires<=:now THEN 1 ELSE n+1 END,expires=CASE WHEN expires<=:now THEN :end ELSE expires END WHERE expires<=:now OR n<20`,{':id':id,':end':now+60000,':now':now});
