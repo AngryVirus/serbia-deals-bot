@@ -165,6 +165,7 @@ export class Bot{
    if(parts.length===3&&parts[2]==='back')return this.refine(draft);
    const facet=draft.facets.find(f=>f.key===parts[2]),value=parts[3];if(!facet||parts.length!==4)return this.refine(draft);
    if(value==='open'){
+    const wait=await this.store.rate(uid);if(wait)return this.panel(`<b>Небольшая пауза</b>\nПовторите через ${wait} сек.`,[[button('⬅️ К уточнениям',`ref:${draft.token}:back`)]]);
     try{const filters=refinementFilters(draft);delete filters[facet.key];const samples=await this.store.refinementSamples(draft.query,Date.now(),filters),available=buildRefinement(draft.query,samples.map(r=>JSON.parse(r.payload)),draft.token,Date.now(),true),next=available?.facets.find(f=>f.key===facet.key),previous=facet.values[draft.selected[facet.key]]?.value;facet.values=next?.values||[];const index=facet.values.findIndex(v=>JSON.stringify(v.value)===JSON.stringify(previous));if(index<0)delete draft.selected[facet.key];else draft.selected[facet.key]=index;draft.token=Math.random().toString(36).slice(2,10);await this.store.patch(uid,{refinement:draft});}catch{/* Existing validated choices remain usable if a refresh fails. */}
     return this.refine(draft,facet.key);
    }
