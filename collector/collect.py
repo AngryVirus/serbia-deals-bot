@@ -71,21 +71,32 @@ def upload(source,offers,stats,body,deadline=None):
     return result
 
 
+def select_sources(sources,selection):
+    if selection=='all':return sources
+    if selection=='enabled':
+        selected=set(json.loads((ROOT/'collector/enabled-sources.json').read_text())['sources'])
+    else:
+        selected={value.strip() for value in selection.split(',') if value.strip()}
+    known={value for source in sources for value in [source['id'],source['alias']]}
+    if not selected or selected-known:raise ValueError('Unknown or empty source selection')
+    return [source for source in sources if source['id'] in selected or source['alias'] in selected]
+
+
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('--publish',action='store_true')
-    parser.add_argument('--sources',default='all',help='Comma-separated reviewed dataset IDs or aliases')
+    parser.add_argument('--sources',default='enabled',help='enabled, all, or comma-separated reviewed dataset IDs/aliases')
     parser.add_argument('--budget',type=int,default=2100)
     parser.add_argument('--limit',type=int,default=100)
     args=parser.parse_args()
-    sources=json.loads((ROOT/'collector/sources.json').read_text())
-    if args.sources!='all':
-        selected=set(args.sources.split(','));sources=[s for s in sources if s['id'] in selected or s['alias'] in selected]
-        if not sources:raise SystemExit('No matching reviewed sources')
+    try:
+        sources=select_sources(json.loads((ROOT/'collector/sources.json').read_text()),args.sources)
+    except ValueError:
+        raise SystemExit('Unknown or empty reviewed source selection') from None
     deadline=time.monotonic()+max(30,min(2400,args.budget));fetcher=Fetcher(deadline=deadline)
     if args.publish:invoke('register_sources',rows=[{'id':s['id'],'name':s['name']} for s in sources])
     # Rotate the first source daily so slow/failing sources cannot starve the tail.
-    if args.sources=='all':
+    if args.sources in {'all','enabled'}:
         offset=datetime.now(ZoneInfo('Europe/Belgrade')).toordinal()%len(sources)
         sources=sources[offset:]+sources[:offset]
     report=[];successful=0

@@ -7,8 +7,8 @@ on:
         options: [check, stage, collect, activate, pause, notify, diagnose]
         default: check
       sources:
-        description: Dataset aliases/IDs, comma-separated, or all
-        default: all
+        description: enabled, all, or dataset aliases/IDs separated by commas
+        default: enabled
       expected_revision:
         description: Reviewed remote revision for a subsequent code update
         required: false

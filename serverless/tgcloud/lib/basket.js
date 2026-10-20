@@ -10,16 +10,20 @@ export function parseList(text){
 
 export async function addList(store,uid,text,event){
  const items=parseList(text);await initBasket(store.db);
- const old=await store.db.get('SELECT COUNT(*) AS n FROM sd_basket WHERE uid=:uid',{':uid':uid});requireValue(old.n+items.length<=30,'В корзине может быть до 30 позиций.');
- // Stable Telegram message ID makes a retried bulk input idempotent.
- await store.db.run(`INSERT INTO sd_basket(uid,id,query,quantity) SELECT :uid,:event||'-'||key,json_extract(value,'$.query'),json_extract(value,'$.quantity') FROM json_each(:items) WHERE 1 ON CONFLICT DO NOTHING`,{':uid':uid,':event':String(event),':items':JSON.stringify(items)});
+ // Count only new IDs, inside the insertion statement. A replay near the
+ // limit is harmless; concurrent writers cannot exceed thirty rows.
+ const params={':uid':uid,':event':String(event),':items':JSON.stringify(items)};
+ await store.db.run(`INSERT INTO sd_basket(uid,id,query,quantity) SELECT :uid,:event||'-'||key,json_extract(value,'$.query'),json_extract(value,'$.quantity') FROM json_each(:items) WHERE (SELECT COUNT(*) FROM sd_basket WHERE uid=:uid)+(SELECT COUNT(*) FROM json_each(:items) incoming WHERE NOT EXISTS(SELECT 1 FROM sd_basket b WHERE b.uid=:uid AND b.id=:event||'-'||incoming.key))<=30 ON CONFLICT DO NOTHING`,params);
+ const missing=await store.db.get(`SELECT COUNT(*) AS n FROM json_each(:items) incoming WHERE NOT EXISTS(SELECT 1 FROM sd_basket b WHERE b.uid=:uid AND b.id=:event||'-'||incoming.key)`,params);
+ requireValue(missing.n===0,'В корзине может быть до 30 позиций.');
 }
 
 export async function addOffer(store,uid,offer,target=null){
  await initBasket(store.db);
- if(target){await store.db.run('UPDATE sd_basket SET product=:product,name=:name WHERE uid=:uid AND id=:id',{':uid':uid,':id':target,':product':offer.product,':name':offer.name});return;}
- const count=await store.db.get('SELECT COUNT(*) AS n FROM sd_basket WHERE uid=:uid',{':uid':uid});requireValue(count.n<30,'В корзине может быть до 30 позиций.');
- await store.db.run(`INSERT INTO sd_basket(uid,id,query,product,name,quantity) VALUES(:uid,:id,:name,:product,:name,1) ON CONFLICT(uid,id) DO NOTHING`,{':uid':uid,':id':'p'+offer.id,':name':offer.name,':product':offer.product});
+ if(target){const result=await store.db.run('UPDATE sd_basket SET product=:product,name=:name WHERE uid=:uid AND id=:id AND product IS NULL',{':uid':uid,':id':target,':product':offer.product,':name':offer.name});return result.rowsAffected===1;}
+ const id='p'+offer.id;
+ const result=await store.db.run(`INSERT INTO sd_basket(uid,id,query,product,name,quantity) SELECT :uid,:id,:name,:product,:name,1 WHERE (SELECT COUNT(*) FROM sd_basket WHERE uid=:uid)<30 ON CONFLICT(uid,id) DO NOTHING`,{':uid':uid,':id':id,':name':offer.name,':product':offer.product});
+ requireValue(result.rowsAffected===1||await store.db.get('SELECT 1 AS present FROM sd_basket WHERE uid=:uid AND id=:id',{':uid':uid,':id':id}),'В корзине может быть до 30 позиций.');return true;
 }
 
 export async function cartItems(store,uid){await initBasket(store.db);return store.db.all('SELECT * FROM sd_basket WHERE uid=:uid ORDER BY id LIMIT 30',{':uid':uid});}

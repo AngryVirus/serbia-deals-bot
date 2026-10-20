@@ -23,7 +23,7 @@ def main():
         for source in result['sources']:
             if source['active'] or source['status']!='pending':
                 print('Source:',source['name'],'status:',source['status'],'date:',source['date'])
-        for query in ['огурцы','энергетик','энергетик Red Bull','курица']:
+        for query in ['огурцы','энергетик','энергетик Red Bull','курица','сливочное масло','оливковое масло','минеральная вода','корм для кошек','krastavac','piletina']:
             print('Search check:',invoke('search_check',query=query),flush=True)
     elif args.action=='diagnose':
         print('Safe runtime diagnostics:',call('diagnose'),flush=True)

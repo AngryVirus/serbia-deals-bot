@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   collect:
-    if: vars.SERBIA_DEALS_COLLECTION_ENABLED == 'true'
+    if: vars.SERBIA_DEALS_COLLECTION_ENABLED != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -24,7 +24,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: npm ci --ignore-scripts --no-audit --no-fund --prefix serverless
-      - run: python3 -m collector.collect --publish --budget 2100
+      - run: python3 -m collector.collect --publish --sources enabled --budget 2100
         env:
           TGCLOUD_TOKEN: ${{ secrets.SERBIA_DEALS_CLOUD_TOKEN }}
       - run: python3 -m collector.operations notify

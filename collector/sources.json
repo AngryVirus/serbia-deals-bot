@@ -45,7 +45,7 @@
   },
   {
     "id": "68f76ce9f9a700f329626af1",
-    "alias": "68f76ce9f9a700f329626af1",
+    "alias": "gomex",
     "name": "Gomex DOO",
     "hosts": [
       "aswcene.gomex.rs",
@@ -175,7 +175,7 @@
   },
   {
     "id": "6a9693b2c9f1a56f4a0a58e3",
-    "alias": "6a9693b2c9f1a56f4a0a58e3",
+    "alias": "matijevic",
     "name": "Industrija mesa Matijević",
     "hosts": [
       "data.gov.rs",
@@ -369,7 +369,7 @@
   },
   {
     "id": "6aaa6fed2c54dbbf6dd8eeee",
-    "alias": "6aaa6fed2c54dbbf6dd8eeee",
+    "alias": "lilly",
     "name": "Lilly",
     "hosts": [
       "data.gov.rs",
