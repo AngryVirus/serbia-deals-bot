@@ -91,7 +91,7 @@ def main():
             report.append({'source':source['alias'],'state':'unavailable','reason':type(error).__name__})
             from .cloud import ManagementError
             if isinstance(error,ManagementError):
-                report[-1].update(http_status=error.status,category=error.category)
+                report[-1].update(http_status=error.status,category=error.category,hints=error.hints,operation=error.operation)
             print(json.dumps(report[-1]),flush=True)
             if args.publish:
                 try:invoke('source_failure',source=source['id'])

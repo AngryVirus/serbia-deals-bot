@@ -39,4 +39,8 @@ def call(command='run', **fields):
 
 
 def invoke(operation,**fields):
-    return call(args={'operation':operation,**fields})
+    try:
+        return call(args={'operation':operation,**fields})
+    except ManagementError as error:
+        error.operation=operation
+        raise
