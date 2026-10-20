@@ -1,13 +1,13 @@
-import {buildRefinement,refinementFilters,filterLabels} from './refinements.js';
+import {buildRefinement,refinementFilters,filterLabels,restoreRefinement} from './refinements.js';
 import {basketSummary,basketNetworks} from './shopping-ui.js';
 import {productNames,bilingual,briefName} from './product-names.js';
 import {adminRoute} from './admin.js';
 import {roleOf,banned,snapshot,trackUser,lockUser,unlockUser} from './moderation-state.js';
 import {deliverNotice} from './moderation-notices.js';
 import { Store } from './store.js';
-import { OWNER_ID,assertBot,positive,safe,money,bulbQuery } from './domain.js';
+import { OWNER_ID,assertBot,positive,safe,money,bulbQuery,unitPrice } from './domain.js';
 import { renderImage } from './image-renderer.js';
-import { cartItems,addList,addOffer,compareBasket,parseList,expandPendingList,resetProduct } from './basket.js';
+import { cartItems,addList,addOffer,compareBasket,parseList,expandPendingList,resetProduct,saveBasketFilters } from './basket.js';
 const button=(text,data)=>({text,callback_data:data});
 const BACK=[[button('🏠 Меню','home')]];
 export class Bot{
@@ -44,6 +44,7 @@ export class Bot{
   const text='<b>Уточнить товар?</b>\n\n'+safe(draft.query)+'\n\n'+draft.facets.map(f=>`${safe(f.label)}: ${safe(f.values[draft.selected[f.key]]?.label||'любой вариант')}`).join('\n')+'\n\nНеобязательно: без выбора покажем все варианты.';
   for(const f of draft.facets)rows.push([button(f.label+': '+(f.values[draft.selected[f.key]]?.label||'любой'),`ref:${draft.token}:${f.key}:open`)]);
   rows.push([button(selected?'🔎 Найти варианты':'🔎 Показать все',`ref:${draft.token}:apply`)]);if(selected)rows.push([button('Показать всё без уточнений',`ref:${draft.token}:all`)]);
+  if(this.user.cartTarget)rows.push([button('✅ Сохранить для сравнения',`ref:${draft.token}:save`)]);
   return this.panel(text,[...rows,...(this.user.cartTarget?[[button('🛒 Корзина','basket')]]:BACK)]);
  }
  async search(query,offset=0,source=null){
@@ -51,7 +52,7 @@ export class Bot{
   try{
    if(!this.allowAll&&!source&&!offset){
     await this.store.patch(this.uid,{query,searchFilters:this.reuseFilters||{},refinement:null,searchRev:null});this.user={...this.user,query,searchFilters:this.reuseFilters||{},refinement:null,searchRev:null};
-    try{const samples=await this.store.refinementSamples(query),draft=buildRefinement(query,samples.map(r=>JSON.parse(r.payload)),Math.random().toString(36).slice(2,10));if(samples.length&&draft){if(this.reuseFilters)for(const facet of draft.facets){const index=facet.values.findIndex(v=>JSON.stringify(v.value)===JSON.stringify(this.reuseFilters[facet.key]));if(index>=0)draft.selected[facet.key]=index;}await this.store.patch(this.uid,{refinement:draft,pending:null});this.user.refinement=draft;return this.refine(draft);}}catch{/* Ordinary search retains its own useful error response. */}
+    try{const samples=await this.store.refinementSamples(query),draft=buildRefinement(query,samples.map(r=>JSON.parse(r.payload)),Math.random().toString(36).slice(2,10));if(samples.length&&draft){if(this.reuseFilters)restoreRefinement(draft,this.reuseFilters);await this.store.patch(this.uid,{refinement:draft,pending:null});this.user.refinement=draft;return this.refine(draft);}}catch{/* Ordinary search retains its own useful error response. */}
    }
    if(bulbQuery(query)&&!/(?:e14|e27|gu10|g9|g4|h4|h7)/i.test(query)&&!this.allowAll){
     await this.store.patch(this.uid,{query,pending:null});return this.panel('<b>Какая лампочка нужна?</b>\n\nЦоколь помогает подобрать подходящие варианты. Остальные характеристики будут в названии и карточке.',[[button('E27','socket:E27'),button('E14','socket:E14'),button('GU10','socket:GU10')],[button('Показать все варианты','socket:all')],...BACK]);
@@ -76,7 +77,7 @@ export class Bot{
    const shown=rows.slice(0,3),offers=shown.map(row=>JSON.parse(row.payload)),names=await this.names(offers),buttons=shown.map((row,index)=>[button(`${offset+index+1} · ${money(row.min_price)} · Выбрать`,'offer:'+offers[index].id)]);
    const nav=[];if(offset)nav.push(button('⬅️',`chainsel:${rev}:${source}:${Math.max(0,offset-3)}`));if(rows.length>3)nav.push(button('➡️',`chainsel:${rev}:${source}:${offset+3}`));if(nav.length)buttons.push(nav);
    buttons.push([button('⬅️ Магазины','chains'),button('🔎 Поиск','search')],...(this.user.cartTarget?[[button('🛒 Корзина','basket')]]:[]));
-   const text=`<b>${safe(rows[0].source_name)}</b>\nПоиск: ${safe(query)}${selection}\n\n`+shown.map((row,index)=>`<b>${offset+index+1}. ${safe(briefName(names.get(offers[index].name)||bilingual(null,offers[index].name)))}</b>\nЦена: ${money(row.min_price)}${row.min_price===row.max_price?'':' — '+money(row.max_price)}`).join('\n\n');
+   const text=`<b>${safe(rows[0].source_name)}</b>\nПоиск: ${safe(query)}${selection}\n\n`+shown.map((row,index)=>`<b>${offset+index+1}. ${safe(briefName(names.get(offers[index].name)||bilingual(null,offers[index].name)))}</b>\nЦена: ${money(row.min_price)}${row.min_price===row.max_price?'':' — '+money(row.max_price)}${unitPrice(offers[index],row.min_price)?' · '+unitPrice(offers[index],row.min_price).label:''}`).join('\n\n');
    return this.panel(text,buttons);
 
   }catch(error){if(/Введите название/.test(error.message))return this.panel('<b>Уточните запрос</b>\n\nВведите название короче 120 символов.',BACK);throw error;}
@@ -87,7 +88,7 @@ export class Bot{
   const specs=[traits.socket&&'Цоколь: '+traits.socket,traits.lumens&&'Яркость: '+traits.lumens+' лм',traits.kelvin&&'Цвет света: '+traits.kelvin+' K',traits.pack&&'В упаковке: '+traits.pack+' шт.'].filter(Boolean).join('\n');
   const names=await this.names([o]),name=names.get(o.name)||bilingual(null,o.name);
   const locations=await this.store.productLocations(o.product,o.source);
-  const text=`<b>${safe(name)}</b>\n\n<b>Цена:</b> ${money(row.price)}\n<b>Магазин:</b> ${safe(o.format)}\n<b>Прайс:</b> ${o.date}`+(row.price<o.regular?`\nСкидка до: ${safe(o.end||'не указано')}`:'')+(specs?'\n\n'+specs:'')+(o.product.startsWith('gtin:')&&best&&best.price<row.price?`\n\nВыгоднее: ${money(best.price)} · ${safe(JSON.parse(best.payload).format)}`:'')+'\n\nНаличие и цена филиала могут отличаться.';
+  const text=`<b>${safe(name)}</b>\n\n<b>Цена:</b> ${money(row.price)}${unitPrice(o,row.price)?'\nЗа кг/литр: '+unitPrice(o,row.price).label:''}\n<b>Магазин:</b> ${safe(o.format)}\n<b>Прайс:</b> ${o.date}`+(row.price<o.regular?`\nСкидка до: ${safe(o.end||'не указано')}`:'')+(specs?'\n\n'+specs:'')+(o.product.startsWith('gtin:')&&best&&best.price<row.price?`\n\nВыгоднее: ${money(best.price)} · ${safe(JSON.parse(best.payload).format)}`:'')+'\n\nНаличие и цена филиала могут отличаться.';
   const rows=[[button(this.user.cartTarget?'✅ Выбрать для корзины':'🛒 В корзину','basketadd:'+o.id+':'+(this.user.cartTarget||'')),button('🔔 Следить','watch:'+o.id)]];
   if(locations.length>1)rows.push([button('🏪 Цены внутри сети','locations:'+o.id)]);
   rows.push([button('⬅️ Товары','results'),button('🏠 Меню','home')]);
@@ -105,7 +106,7 @@ export class Bot{
   rows.push([button('➕ Добавить товары','basketinput')]);
   for(const [i,item] of shown.entries())rows.push([button(`${page*5+i+1} · Изменить × ${item.quantity}`,'cartitem:'+item.id)]);
   const nav=[];if(page)nav.push(button('⬅️ Назад','basket:'+((page-1)*5)));if(items.length>(page+1)*5)nav.push(button('Далее ➡️','basket:'+((page+1)*5)));if(nav.length)rows.push(nav);
-  const text=items.length?`<b>Моя корзина · ${items.length} из 30</b>\n\n`+shown.map((x,i)=>`${page*5+i+1}. ${safe(briefName(x.product?names.get(x.name)||bilingual(null,x.name):x.query))} × ${x.quantity}`).join('\n')+(items.length>5?`\n\nСтраница ${page+1} из ${Math.ceil(items.length/5)}`:'')+'\n\nСравнение по названию. Уточните упаковки для точности.':'<b>Ваша корзина пока пуста</b>\n\nДобавьте список:\nогурцы, курица, молоко × 2';
+  const text=items.length?`<b>Моя корзина · ${items.length} из 30</b>\n\n`+shown.map((x,i)=>`${page*5+i+1}. ${safe(briefName(x.product?names.get(x.name)||bilingual(null,x.name):x.query))} × ${x.quantity}${!x.product&&filterLabels(x.filters).length?' · '+safe(filterLabels(x.filters).join(' · ')):''}`).join('\n')+(items.length>5?`\n\nСтраница ${page+1} из ${Math.ceil(items.length/5)}`:'')+'\n\nСравнение по названию. Уточните упаковки для точности.':'<b>Ваша корзина пока пуста</b>\n\nДобавьте список:\nогурцы, курица, молоко × 2';
   return this.panel(text,[...rows,...BACK]);
  }
  async basketItem(id){
@@ -113,8 +114,9 @@ export class Bot{
   const names=item.product?await this.names([item]):new Map();
   const rows=[];if(!item.product)rows.push([button(parseList(item.query).length>1?'Разделить список на товары':'🔎 Уточнить товар и упаковку','resolve:'+id)]);
   if(item.product)rows.push([button('🔄 Выбрать другой товар','cartchange:'+id)]);
+  if(!item.product&&Object.keys(item.filters||{}).length)rows.push([button('Сбросить уточнения','cartfilters:'+id)]);
   rows.push([button('− 1','quantity:'+id+':-1'),button('＋ 1','quantity:'+id+':1')],[button('🗑 Удалить из корзины','cartremove:'+id)],[button('⬅️ К корзине','basket:'+(Math.floor(index/5)*5))]);
-  return this.panel(`<b>Товар в корзине</b>\n\n${safe(item.product?names.get(item.name)||bilingual(null,item.name):item.query)}\n\n<b>Количество:</b> ${item.quantity}\n`+(item.product?'Выбрана конкретная упаковка.':'Подбор по названию. Упаковка ещё не выбрана.')+'\nКоличество — упаковки или штуки.',rows);
+  return this.panel(`<b>Товар в корзине</b>\n\n${safe(item.product?names.get(item.name)||bilingual(null,item.name):item.query)}\n\n<b>Количество:</b> ${item.quantity}\n`+(item.product?'Выбрана конкретная упаковка.':'Подбор по названию. Упаковка ещё не выбрана.')+(filterLabels(item.filters).length?'\n<b>Уточнения:</b> '+safe(filterLabels(item.filters).join(' · ')):'')+'\nКоличество — упаковки или штуки.',rows);
  }
  async comparison(source=null,offset=0,itemOffset=0){
   const wait=await this.store.rate(this.uid);if(wait)return this.panel(`<b>Небольшая пауза</b>\nПовторите через ${wait} сек.`,[[button('🛒 Корзина','basket')]]);
@@ -132,7 +134,7 @@ export class Bot{
   const start=Math.min(offset,Math.floor((shop.items.length-1)/5)*5),shown=shop.items.slice(start,start+5),names=await this.names(shown.filter(i=>!i.estimated));
   const title=source==='split'?'Покупки в разных магазинах':shop.chain||shop.name;
   const missing=shop.missing||[],missingText=missing.length?'\nНе найдено: '+missing.slice(0,3).map(q=>safe(q.slice(0,60))).join(', ')+(missing.length>3?' и ещё '+(missing.length-3):''):'';
-  const text=`<b>${safe(title)}</b>\n\n`+shown.map(i=>`${safe(i.estimated?i.name:briefName(names.get(i.name)||bilingual(null,i.name)))}${i.estimated?' — выберите товар':''}\n× ${i.quantity} · ${i.estimated?'от ':''}${money(i.total)}${i.estimated&&i.variant?' · '+safe(i.variant):''}${source==='split'?' · '+safe(i.store):''}`).join('\n\n')+`\n\n<b>${report.estimated?'Предварительно от:':'Итого:'}</b> ${money(shop.total)}`+(shop.found&&shop.found<report.items.length?`\nТолько ${shop.found} из ${report.items.length} товаров`+missingText:'')+(shop.items.length>5?`\nСтраница ${Math.floor(start/5)+1} из ${Math.ceil(shop.items.length/5)}`:'')+(report.estimated?'\n\nПроверьте вид товара и упаковку.':'')+(source==='split'?'\nСтоимость поездок не включена.':'');
+  const text=`<b>${safe(title)}</b>\n\n`+shown.map(i=>`${safe(i.estimated?i.name:briefName(names.get(i.name)||bilingual(null,i.name)))}${i.estimated?' — выберите товар':''}\n× ${i.quantity} · ${i.estimated?'от ':''}${money(i.total)}${i.variant?' · '+safe(i.variant):''}${i.unitPrice?' · '+safe(i.unitPrice):''}${source==='split'?' · '+safe(i.store):''}`).join('\n\n')+`\n\n<b>${report.estimated?'Предварительно от:':'Итого:'}</b> ${money(shop.total)}`+(shop.found&&shop.found<report.items.length?`\nТолько ${shop.found} из ${report.items.length} товаров`+missingText:'')+(shop.items.length>5?`\nСтраница ${Math.floor(start/5)+1} из ${Math.ceil(shop.items.length/5)}`:'')+(report.estimated?'\n\nПроверьте вид товара и упаковку.':'')+(source==='split'?'\nСтоимость поездок не включена.':'');
   for(const item of shown)if(item.estimated&&/^[a-z0-9-]{1,20}$/.test(item.id)&&/^[a-f0-9]{24}$/.test(item.source))rows.push([button('🔎 Выбрать: '+item.name.slice(0,35),`basketpick:${item.id}:${item.source}`)]);
   const prefix=source==='split'?'basketsplit:':'basketshop:'+source+':',nav=[];if(start)nav.push(button('⬅️',prefix+(start-5)));if(shop.items.length>start+5)nav.push(button('➡️',prefix+(start+5)));if(nav.length)rows.push(nav);
   return this.panel(text,[...rows,[button('⬅️ Сравнение','basketcompare'),button('🛒 Корзина','basket')]]);
@@ -175,6 +177,7 @@ export class Bot{
   if(action.startsWith('ref:')){
    const draft=this.user.refinement,parts=action.split(':'),token=parts[1];
    if(!draft||draft.token!==token||draft.expires<Date.now())return this.panel('<b>Уточнения уже изменились</b>\nОткройте поиск заново.',[[button('🔎 Поиск','search')]]);
+   if(parts.length===3&&parts[2]==='save'&&this.user.cartTarget){const id=this.user.cartTarget,filters=refinementFilters(draft);if(!await saveBasketFilters(this.store,uid,id,filters))return this.basket();await this.store.patch(uid,{refinement:null,cartTarget:null});return this.basketItem(id);}
    if(parts.length===3&&['apply','all'].includes(parts[2])){const filters=parts[2]==='all'?{}:refinementFilters(draft);await this.store.patch(uid,{refinement:null,searchFilters:filters});this.user={...this.user,refinement:null,searchFilters:filters};this.allowAll=true;return this.search(draft.query);}
    if(parts.length===3&&parts[2]==='back')return this.refine(draft);
    const facet=draft.facets.find(f=>f.key===parts[2]),value=parts[3];if(!facet||parts.length!==4)return this.refine(draft);
@@ -197,20 +200,21 @@ export class Bot{
   if(/^basket:(0|5|10|15|20|25)$/.test(action))return this.basket(Number(action.slice(7)));
   if(/^cartitem:[a-z0-9-]{1,40}$/.test(action))return this.basketItem(action.slice(9));
   if(/^cartchange:[a-z0-9-]{1,40}$/.test(action)){const next=await resetProduct(this.store,uid,action.slice(11));if(!next)return this.basket();await this.store.patch(uid,{cartTarget:null,refinement:null,searchFilters:{}});this.user={...this.user,cartTarget:null,refinement:null,searchFilters:{}};return this.basketItem(next);}
+  if(/^cartfilters:[a-z0-9-]{1,40}$/.test(action)){const id=action.slice(12);await saveBasketFilters(this.store,uid,id,{});await this.store.patch(uid,{refinement:null,cartTarget:null});this.user={...this.user,refinement:null,cartTarget:null};return this.basketItem(id);}
   if(action==='basketinput'){await this.store.patch(uid,{pending:'basket',cartTarget:null});return this.panel('<b>Добавьте список покупок</b>\n\nТовары — с новой строки или через запятую. Количество — после ×.\n\nМолоко 1 л × 2\nКофе\nОгурцы\n\nДо 20 товаров за раз, 30 в корзине.',BACK);}
   if(action==='basketcompare')return this.comparison();
   if(/^basketoverview:(0|[1-9][0-9]?):(0|5|10|15|20|25)$/.test(action)){const [,offset,itemOffset]=action.split(':');return this.comparison(null,Number(offset),Number(itemOffset));}
   if(/^basketshop:[a-f0-9]{24}:(0|5|10|15|20|25)$/.test(action)){const [,source,offset]=action.split(':');return this.comparison(source,Number(offset));}
   if(/^basketsplit:(0|5|10|15|20|25)$/.test(action))return this.comparison('split',Number(action.split(':')[1]));
-  if(/^basketpick:[a-z0-9-]{1,20}:[a-f0-9]{24}$/.test(action)){const [,id,source]=action.split(':'),item=(await cartItems(this.store,uid)).find(x=>x.id===id&&!x.product);if(!item)return this.basket();await this.store.patch(uid,{cartTarget:id,searchFilters:{},refinement:null});this.user={...this.user,cartTarget:id,searchFilters:{},refinement:null};this.allowAll=true;return this.search(item.query,0,source);}
-  if(/^resolve:[a-z0-9-]{1,20}$/.test(action)){const item=(await cartItems(this.store,uid)).find(x=>x.id===action.slice(8)&&!x.product);if(item){if(await expandPendingList(this.store,uid,item.id))return this.basket();await this.store.patch(uid,{cartTarget:item.id});this.user.cartTarget=item.id;return this.search(item.query);}return this.basket();}
-  if(/^basketadd:[a-f0-9]{32}:[a-z0-9-]{0,20}$/.test(action)){const [,id,target]=action.split(':'),found=await this.store.offer(id);if(found){try{const added=await addOffer(this.store,uid,JSON.parse(found.payload),target||null);if(!added){await this.store.patch(uid,{cartTarget:null});return this.panel('<b>Позиция корзины уже изменилась</b>\n\nЭта кнопка выбора устарела. Откройте корзину и выберите актуальную позицию.',[[button('🛒 Открыть корзину','basket')],...BACK]);}}catch(error){return this.panel(safe(error.message),[[button('🛒 Корзина','basket')],...BACK]);}}await this.store.patch(uid,{cartTarget:null});return this.basket();}
-  if(/^cartremove:[a-z0-9-]{1,40}$/.test(action)){await cartItems(this.store,uid);await this.db.run('DELETE FROM sd_basket WHERE uid=:uid AND id=:id',{':uid':uid,':id':action.slice(11)});return this.basket();}
+  if(/^basketpick:[a-z0-9-]{1,20}:[a-f0-9]{24}$/.test(action)){const [,id,source]=action.split(':'),item=(await cartItems(this.store,uid)).find(x=>x.id===id&&!x.product);if(!item)return this.basket();await this.store.patch(uid,{cartTarget:id,searchFilters:item.filters||{},refinement:null});this.user={...this.user,cartTarget:id,searchFilters:item.filters||{},refinement:null};this.allowAll=true;return this.search(item.query,0,source);}
+  if(/^resolve:[a-z0-9-]{1,20}$/.test(action)){const item=(await cartItems(this.store,uid)).find(x=>x.id===action.slice(8)&&!x.product);if(item){if(await expandPendingList(this.store,uid,item.id))return this.basket();await this.store.patch(uid,{cartTarget:item.id});this.user.cartTarget=item.id;this.reuseFilters=item.filters||{};return this.search(item.query);}return this.basket();}
+  if(/^basketadd:[a-f0-9]{32}:[a-z0-9-]{0,20}$/.test(action)){const [,id,target]=action.split(':'),found=await this.store.offer(id);if(found){try{const added=await addOffer(this.store,uid,JSON.parse(found.payload),target||null);if(!added){await this.store.patch(uid,{cartTarget:null});return this.panel('<b>Позиция корзины уже изменилась</b>\n\nЭта кнопка выбора устарела или товар не соответствует сохранённым уточнениям. Откройте корзину и выберите актуальную позицию.',[[button('🛒 Открыть корзину','basket')],...BACK]);}}catch(error){return this.panel(safe(error.message),[[button('🛒 Корзина','basket')],...BACK]);}}await this.store.patch(uid,{cartTarget:null});return this.basket();}
+  if(/^cartremove:[a-z0-9-]{1,40}$/.test(action)){await cartItems(this.store,uid);await this.db.run('DELETE FROM sd_basket WHERE uid=:uid AND id=:id',{':uid':uid,':id':action.slice(11)});await this.db.run('DELETE FROM sd_basket_filters WHERE uid=:uid AND id=:id',{':uid':uid,':id':action.slice(11)});return this.basket();}
   if(/^quantity:[a-z0-9-]{1,40}:-?1$/.test(action)){const [,id,delta]=action.split(':');await this.db.run('UPDATE sd_basket SET quantity=MIN(99,MAX(1,quantity+:delta)) WHERE uid=:uid AND id=:id',{':uid':uid,':id':id,':delta':Number(delta)});return this.basketItem(id);}
   if(action==='help:data')return this.dataHelp();
   if(action==='help'||text==='/help')return this.help();
   if(text==='/delete')return this.panel('<b>Удалить данные?</b>\n\nУдалим ваш список и настройки, отключим уведомления.',[[button('Удалить мои данные','delete:confirm')],...BACK]);
-  if(action==='delete:confirm'){await cartItems(this.store,uid);await this.db.run('DELETE FROM sd_basket WHERE uid=:uid',{':uid':uid});await this.store.deleteUser(uid);return this.api.sendMessage({chat_id:uid,text:'Ваши данные удалены. /start — начать заново.'});}
+  if(action==='delete:confirm'){await cartItems(this.store,uid);await this.db.run('DELETE FROM sd_basket WHERE uid=:uid',{':uid':uid});await this.db.run('DELETE FROM sd_basket_filters WHERE uid=:uid',{':uid':uid});await this.store.deleteUser(uid);return this.api.sendMessage({chat_id:uid,text:'Ваши данные удалены. /start — начать заново.'});}
   if(action==='watches')return this.watches();
   if(/^watches:\d{1,2}$/.test(action))return this.watches(Math.min(90,Number(action.slice(8))));
   if(action==='notifications')return this.notifications();

@@ -1,13 +1,27 @@
+import {shoppingLexicon,normalize,packageMeasure} from './domain.js';
 // Translate public catalogue titles only; never send private searches or basket input.
 const local=new Map(Object.entries({krastavac:'Огурец',paradajz:'Помидор',krompir:'Картофель',sargarepa:'Морковь',luk:'Лук',jabuka:'Яблоко',banana:'Банан',mleko:'Молоко',jaja:'Яйца',kafa:'Кофе',secer:'Сахар',brasno:'Мука',hleb:'Хлеб',voda:'Вода',piletina:'Курица',maslac:'Сливочное масло',pirinac:'Рис',so:'Соль'}));
 const latin=value=>String(value).toLowerCase().normalize('NFKD').replace(/\p{M}/gu,'').replace(/đ/g,'dj');
 export function localName(name){return local.get(latin(name).trim())||null;}
-export function bilingual(ru,sr){return `${ru||localName(sr)||'Перевод недоступен'} / ${sr}`;}
+const fallbackWords=shoppingLexicon().flatMap(entry=>entry.terms.filter(t=>t.length>=3).map(term=>({term,ru:entry.query}))).sort((a,b)=>b.term.length-a.term.length);
+const fallbackIndex=new Map();for(const entry of fallbackWords){const letter=entry.term[0];if(!fallbackIndex.has(letter))fallbackIndex.set(letter,[]);fallbackIndex.get(letter).push(entry);}
+const fallbackPhrases=[[/keks\s+jaffa\s+kola[čc]\s+donat/gi,'Пончик JAFFA'],[/choco cream/gi,'с шоколадным кремом'],[/triple choco/gi,'тройной шоколад'],[/sa [sš]e[cć]erom/gi,'с сахаром'],[/sa kajsija punjenjem/gi,'с абрикосовой начинкой'],[/sa punj\.? od kajsije/gi,'с абрикосовой начинкой'],[/sa vocnim punjenjem/gi,'с фруктовой начинкой'],[/coko mrvicama/gi,'шоколадной крошкой']];
+export function fallbackName(name){
+ let text=String(name),count=0;const phrases=[];for(const [pattern,ru] of fallbackPhrases)text=text.replace(pattern,()=>{count++;phrases.push(ru);return '\uE000'+(phrases.length-1)+'\uE001';});
+ const water=/(?:^| )(?:voda|water)(?: |$)/.test(normalize(name));
+ text=text.replace(/[A-Za-zÀ-žА-Яа-яЁёЂђЈјЉљЊњЋћЏџ]+/g,word=>{const key=normalize(word);const exact=local.get(key);if(exact){count++;return exact;}if(water&&key==='donat')return word;const found=(fallbackIndex.get(key[0])||[]).find(x=>key===x.term||x.term.length>=4&&key.startsWith(x.term));if(!found)return ({sa:'с',od:'из',bez:'без',list:'лист',koren:'корень',seckan:'нарезанный',rezani:'нарезанная',suseni:'сушёный',punjenjem:'начинкой'}[key]||word);count++;return found.ru;});
+ if(!count)return null;
+ text=text.replace(/\uE000(\d+)\uE001/g,(_,index)=>phrases[Number(index)]);
+ text=text.replace(/(\d(?:[.,]\d+)?)\s*(kg|ml|gr|g|l)\b/gi,(_,n,u)=>n+' '+({kg:'кг',ml:'мл',gr:'г',g:'г',l:'л'}[u.toLowerCase()]));
+ return text.charAt(0).toUpperCase()+text.slice(1);
+}
+export function bilingual(ru,sr){return `${ru||localName(sr)||fallbackName(sr)||'Перевод недоступен'} / ${sr}`;}
 export function briefName(text,max=180){const parts=String(text).split(' / '),short=s=>s.length<=max/2?s:s.slice(0,Math.floor(max/3))+'…'+s.slice(-Math.floor(max/6));return parts.length===2?parts.map(short).join(' / '):short(String(text));}
 export function validTranslation(ru,sr){
  if(typeof ru!=='string'||!ru.trim()||ru.length>500||/[<>\x00-\x1f]/.test(ru))return false;
  const numbers=s=>String(s).replace(/,/g,'.').match(/\d+(?:\.\d+)?/g)||[];
- return numbers(sr).every(n=>numbers(ru).includes(n));
+ const before=packageMeasure(sr),after=packageMeasure(ru);
+ return numbers(sr).every(n=>numbers(ru).includes(n))&&(!before?!after:after&&before.kind===after.kind&&before.amount===after.amount);
 }
 export async function productNames(store,fetch,offers,now=Date.now()){
  try{return await cachedNames(store,fetch,offers,now);}catch{return new Map(offers.map(o=>[o.name,bilingual(null,o.name)]));}
@@ -18,6 +32,7 @@ async function cachedNames(store,fetch,offers,now){
  const unique=[...new Map(offers.filter(o=>typeof o.name==='string'&&o.name.length<=300).map(o=>[o.name,o])).values()],result=new Map();
  const translate=async offer=>{
   const name=offer.name,cached=await store.db.get('SELECT ru,expires FROM sd_product_names WHERE name=:name',{':name':name});
+  if(cached?.ru&&!validTranslation(cached.ru,name)){await store.db.run('UPDATE sd_product_names SET ru=NULL,expires=0 WHERE name=:name AND ru=:ru',{':name':name,':ru':cached.ru});cached.ru=null;cached.expires=0;}
   if(cached?.ru&&cached.expires>now){result.set(name,bilingual(cached.ru,name));return;}
   const simple=localName(name);if(simple){result.set(name,bilingual(simple,name));return;}
   result.set(name,bilingual(cached?.ru,name));if(typeof fetch!=='function')return;

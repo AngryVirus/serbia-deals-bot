@@ -35,3 +35,17 @@ export function filterLabels(filters={}){
  if(filters.pack){const n=filters.pack.amount;labels.push(filters.pack.kind==='volume'?(n>=1000?(n/1000)+' л':n+' мл'):(n>=1000?(n/1000)+' кг':n+' г'));}
  if(filters.fat)labels.push(filters.fat+'%');if(filters.socket)labels.push(filters.socket);return labels;
 }
+
+// Saved choices can fall outside the current sample of public catalogue rows.
+// Keep them explicit instead of silently dropping them when editing a basket.
+export function restoreRefinement(draft,filters={}){
+ const labels={type:'Вид',brand:'Бренд',pack:'Упаковка',fat:'Жирность',socket:'Цоколь'};
+ for(const [key,value] of Object.entries(filters)){
+  if(!labels[key])continue;
+  let facet=draft.facets.find(f=>f.key===key);if(!facet){facet={key,label:labels[key],values:[]};draft.facets.push(facet);}
+  let index=facet.values.findIndex(v=>JSON.stringify(v.value)===JSON.stringify(value));
+  if(index<0){const label=filterLabels({[key]:value})[0];if(!label)continue;if(facet.values.length>=24)facet.values.pop();facet.values.push({label,value});index=facet.values.length-1;}
+  draft.selected[key]=index;
+ }
+ return draft;
+}

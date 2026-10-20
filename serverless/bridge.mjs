@@ -83,13 +83,26 @@ import {basketNetworks} from '../lib/shopping-ui.js';
 import {assertBot} from '../lib/domain.js';
 export default async function(input,ctx){
  if(ctx?.ownerRun!==true)throw Error('Private probe only');await assertBot(api);
- const items=['энергетик','молоко','сливы','соус песто'].map((query,i)=>({uid:-2,id:'probe-'+i,query,product:null,name:null,quantity:1}));
- const virtualDb={run:async()=>({rowsAffected:0}),get:(...args)=>db.get(...args),all:(sql,params)=>sql.startsWith('SELECT * FROM sd_basket WHERE uid=')?Promise.resolve(items):db.all(sql,params)};
+ let items=['энергетик','молоко','сливы','соус песто'].map((query,i)=>({uid:-2,id:'probe-'+i,query,product:null,name:null,quantity:1,filters:'{}'}));
+ const virtualDb={run:async()=>({rowsAffected:0}),get:(...args)=>db.get(...args),all:(sql,params)=>sql.startsWith('SELECT b.*,COALESCE(f.payload,')?Promise.resolve(items):db.all(sql,params)};
  const report=await compareBasket(new Store(virtualDb),-2);
- return {items:items.length,plum_samples:(await new Store(virtualDb).basketCandidates('сливы')).map(r=>({store:r.source_name,name:JSON.parse(r.payload).name})),milk_samples:(await new Store(virtualDb).basketCandidates('молоко')).map(r=>({store:r.source_name,name:JSON.parse(r.payload).name})),networks:basketNetworks(report).map(s=>({name:s.chain,found:s.found,items:s.items.map(i=>({query:i.name,price:i.total,variant:i.variant})),missing:s.missing}))};
+ items=[{uid:-2,id:'filtered',query:'молоко',product:null,name:null,quantity:2,filters:JSON.stringify({type:['milkplain'],pack:{kind:'volume',amount:1000}})}];const filtered=await compareBasket(new Store(virtualDb),-2);
+ return {items:report.items.length,filtered_networks:basketNetworks(filtered).map(s=>({name:s.chain,found:s.found,variant:s.items[0]?.variant,unit_price:s.items[0]?.unitPrice})),plum_samples:(await new Store(virtualDb).basketCandidates('сливы')).map(r=>({store:r.source_name,name:JSON.parse(r.payload).name})),milk_samples:(await new Store(virtualDb).basketCandidates('молоко')).map(r=>({store:r.source_name,name:JSON.parse(r.payload).name})),networks:basketNetworks(report).map(s=>({name:s.chain,found:s.found,items:s.items.map(i=>({query:i.name,price:i.total,variant:i.variant,unit_price:i.unitPrice})),missing:s.missing}))};
 }`;
   try{result.basket={ok:true,...(await client.runFunction(token,'endpoints/basket_probe',{...Object.fromEntries(['lib/domain','lib/store','lib/basket','lib/shopping-ui','lib/product-names'].map(name=>[name,sources[name]])),'endpoints/basket_probe':basketProbe}, {},{ownerRun:true})).result};}
   catch(error){const detail=String(error.message||'').toLowerCase();result.basket={ok:false,hints:['time','limit','memory','syntax'].filter(word=>detail.includes(word))};}
+  const languageProbe=`import {api,db,fetch} from 'sdk';
+import {Store} from '../lib/store.js';
+import {assertBot,unitPrice} from '../lib/domain.js';
+import {productNames,bilingual,validTranslation} from '../lib/product-names.js';
+export default async function(input,ctx){
+ if(ctx?.ownerRun!==true)throw Error('Private probe only');await assertBot(api);const store=new Store(db),queries=[];
+ for(const query of ['пончик','петрушка','Donat Mg']){const rows=await store.search(query),networks=await store.searchChains(query);queries.push({query,networks:networks.length,examples:rows.slice(0,2).map(r=>{const o=JSON.parse(r.payload);return {name:o.name,unit_price:unitPrice(o)?.label||null};})});}
+ const name='KEKS JAFFA KOLAČ DONAT CHOCO CREAM 75G',names=await productNames(store,fetch,[{name,brand:'JAFFA'}]);
+ return {queries,translation:names.get(name),fallback:bilingual(null,name),rejects_wrong_unit:!validTranslation('Пончик 75 л','Donut 75g')};
+}`;
+  try{result.language={ok:true,...(await client.runFunction(token,'endpoints/language_probe',{...Object.fromEntries(['lib/domain','lib/store','lib/product-names'].map(name=>[name,sources[name]])),'endpoints/language_probe':languageProbe},{},{ownerRun:true})).result};}
+  catch(error){const detail=String(error.message||'').toLowerCase();result.language={ok:false,hints:['time','limit','memory','syntax'].filter(word=>detail.includes(word))};}
   const handlerProbe=`import {api,db,InputFile} from 'sdk';
 import {Bot} from '../lib/bot.js';
 import {OWNER_ID,assertBot} from '../lib/domain.js';
