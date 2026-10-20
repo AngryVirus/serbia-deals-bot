@@ -1,5 +1,5 @@
 import {basketSummary,basketNetworks} from './shopping-ui.js';
-import {productNames,bilingual} from './product-names.js';
+import {productNames,bilingual,briefName} from './product-names.js';
 import {adminRoute} from './admin.js';
 import {roleOf,banned,snapshot,trackUser,lockUser,unlockUser} from './moderation-state.js';
 import {deliverNotice} from './moderation-notices.js';
@@ -52,7 +52,7 @@ export class Bot{
    const shown=rows.slice(0,3),offers=shown.map(row=>JSON.parse(row.payload)),names=await this.names(offers),buttons=shown.map((row,index)=>[button(`${offset+index+1} · ${money(row.min_price)} · Выбрать`,'offer:'+offers[index].id)]);
    const nav=[];if(offset)nav.push(button('⬅️',`chainsel:${rev}:${source}:${Math.max(0,offset-3)}`));if(rows.length>3)nav.push(button('➡️',`chainsel:${rev}:${source}:${offset+3}`));if(nav.length)buttons.push(nav);
    buttons.push([button('⬅️ Магазины','chains'),button('🔎 Поиск','search')],...(this.user.cartTarget?[[button('🛒 Корзина','basket')]]:[]));
-   const text=`<b>${safe(rows[0].source_name)}</b>\nПоиск: ${safe(query)}\n\n`+shown.map((row,index)=>`<b>${offset+index+1}. ${safe(names.get(offers[index].name)||bilingual(null,offers[index].name))}</b>\nЦена: ${money(row.min_price)}${row.min_price===row.max_price?'':' — '+money(row.max_price)}`).join('\n\n');
+   const text=`<b>${safe(rows[0].source_name)}</b>\nПоиск: ${safe(query)}\n\n`+shown.map((row,index)=>`<b>${offset+index+1}. ${safe(briefName(names.get(offers[index].name)||bilingual(null,offers[index].name)))}</b>\nЦена: ${money(row.min_price)}${row.min_price===row.max_price?'':' — '+money(row.max_price)}`).join('\n\n');
    return this.panel(text,buttons);
 
   }catch(error){if(/Введите название/.test(error.message))return this.panel('<b>Уточните запрос</b>\n\nВведите название короче 120 символов.',BACK);throw error;}
@@ -81,7 +81,7 @@ export class Bot{
   rows.push([button('➕ Добавить товары','basketinput')]);
   for(const [i,item] of shown.entries())rows.push([button(`${page*5+i+1} · Изменить × ${item.quantity}`,'cartitem:'+item.id)]);
   const nav=[];if(page)nav.push(button('⬅️ Назад','basket:'+((page-1)*5)));if(items.length>(page+1)*5)nav.push(button('Далее ➡️','basket:'+((page+1)*5)));if(nav.length)rows.push(nav);
-  const text=items.length?`<b>Моя корзина · ${items.length} из 30</b>\n\n`+shown.map((x,i)=>`${page*5+i+1}. ${safe((x.product?names.get(x.name)||bilingual(null,x.name):x.query).slice(0,180))} × ${x.quantity}`).join('\n')+(items.length>5?`\n\nСтраница ${page+1} из ${Math.ceil(items.length/5)}`:'')+'\n\nСравнение по названию. Уточните упаковки для точности.':'<b>Ваша корзина пока пуста</b>\n\nДобавьте список:\nогурцы, курица, молоко × 2';
+  const text=items.length?`<b>Моя корзина · ${items.length} из 30</b>\n\n`+shown.map((x,i)=>`${page*5+i+1}. ${safe(briefName(x.product?names.get(x.name)||bilingual(null,x.name):x.query))} × ${x.quantity}`).join('\n')+(items.length>5?`\n\nСтраница ${page+1} из ${Math.ceil(items.length/5)}`:'')+'\n\nСравнение по названию. Уточните упаковки для точности.':'<b>Ваша корзина пока пуста</b>\n\nДобавьте список:\nогурцы, курица, молоко × 2';
   return this.panel(text,[...rows,...BACK]);
  }
  async basketItem(id){
@@ -103,14 +103,14 @@ export class Bot{
   const shop=source==='split'?report.split:networks.find(x=>x.source===source);if(!shop?.items?.length)return this.comparison();
   const start=Math.min(offset,Math.floor((shop.items.length-1)/5)*5),shown=shop.items.slice(start,start+5),names=await this.names(shown);
   const title=source==='split'?'Покупки в разных магазинах':shop.chain||shop.name;
-  const text=`<b>${safe(title)}</b>\n\n`+shown.map(i=>`${safe(names.get(i.name)||bilingual(null,i.name))}\n× ${i.quantity} · ${money(i.total)}${source==='split'?' · '+safe(i.store):''}`).join('\n\n')+`\n\n<b>Итого:</b> ${money(shop.total)}`+(shop.found&&shop.found<report.items.length?`\nТолько ${shop.found} из ${report.items.length} товаров`:'')+(shop.items.length>5?`\nСтраница ${Math.floor(start/5)+1} из ${Math.ceil(shop.items.length/5)}`:'')+(report.estimated?'\n\nПроверьте вид товара и упаковку.':'')+(source==='split'?'\nСтоимость поездок не включена.':'');
+  const text=`<b>${safe(title)}</b>\n\n`+shown.map(i=>`${safe(briefName(names.get(i.name)||bilingual(null,i.name)))}\n× ${i.quantity} · ${money(i.total)}${source==='split'?' · '+safe(i.store):''}`).join('\n\n')+`\n\n<b>Итого:</b> ${money(shop.total)}`+(shop.found&&shop.found<report.items.length?`\nТолько ${shop.found} из ${report.items.length} товаров`:'')+(shop.items.length>5?`\nСтраница ${Math.floor(start/5)+1} из ${Math.ceil(shop.items.length/5)}`:'')+(report.estimated?'\n\nПроверьте вид товара и упаковку.':'')+(source==='split'?'\nСтоимость поездок не включена.':'');
   const prefix=source==='split'?'basketsplit:':'basketshop:'+source+':',nav=[];if(start)nav.push(button('⬅️',prefix+(start-5)));if(shop.items.length>start+5)nav.push(button('➡️',prefix+(start+5)));if(nav.length)rows.push(nav);
   return this.panel(text,[...rows,[button('⬅️ Сравнение','basketcompare'),button('🛒 Корзина','basket')]]);
  }
  async watches(offset=0){
   const all=await this.store.watches(this.uid),start=Math.min(offset,Math.floor(Math.max(0,all.length-1)/5)*5),shown=all.slice(start,start+5),names=await this.names(shown),buttons=shown.map((r,i)=>[button('✖ Убрать '+(start+i+1),'remove:'+r.product)]),nav=[];
   if(start)nav.push(button('⬅️','watches:'+(start-5)));if(all.length>start+5)nav.push(button('➡️','watches:'+(start+5)));if(nav.length)buttons.push(nav);
-  return this.panel('<b>Отслеживаемые товары</b>\n\n'+(shown.length?shown.map((r,i)=>`${start+i+1}. ${safe(names.get(r.name)||bilingual(null,r.name))}`).join('\n\n'):'Откройте товар → «Следить».'),[...buttons,[button('⬅️ Уведомления','notifications')]]);
+  return this.panel('<b>Отслеживаемые товары</b>\n\n'+(shown.length?shown.map((r,i)=>`${start+i+1}. ${safe(briefName(names.get(r.name)||bilingual(null,r.name)))}`).join('\n\n'):'Откройте товар → «Следить».'),[...buttons,[button('⬅️ Уведомления','notifications')]]);
  }
  async notifications(){const rows=await this.store.watches(this.uid);return this.panel('<b>Снижение цены</b>\n\n'+(this.user.enabled?'Уведомления включены.':'Уведомления выключены.')+`\nОтслеживаемых товаров: ${rows.length}\n\n`+(rows.length?'Сообщим о снижении цены.':'Откройте товар → «Следить».'),[[button(this.user.enabled?'🔕 Выключить уведомления':'🔔 Включить уведомления',this.user.enabled?'notify:off':'notify:on')],[button('📋 Отслеживаемые товары','watches')],...BACK]);}
  async help(){
@@ -139,7 +139,7 @@ export class Bot{
   const action=cb?.data||'',text=update.message?.text?.trim();
   if(action==='home'||['/start','/menu','/cancel'].includes(text)){await this.store.patch(uid,{pending:null,cartTarget:null,adminInput:null,adminDraft:null});return this.home();}
   if(await adminRoute(this,action,text))return;
-  if(action&&!action.startsWith('admin'))await this.store.patch(uid,{adminInput:null,adminDraft:null});
+  if(action&&!action.startsWith('admin'))await this.store.patch(uid,{adminInput:null,adminDraft:null,pending:null});
   if(action==='search'){await this.store.patch(uid,{cartTarget:null});return this.prompt();}
   if(action==='basket')return this.basket();
   if(/^basket:(0|5|10|15|20|25)$/.test(action))return this.basket(Number(action.slice(7)));

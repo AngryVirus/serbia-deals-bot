@@ -3,6 +3,7 @@ const local=new Map(Object.entries({krastavac:'Огурец',paradajz:'Поми�
 const latin=value=>String(value).toLowerCase().normalize('NFKD').replace(/\p{M}/gu,'').replace(/đ/g,'dj');
 export function localName(name){return local.get(latin(name).trim())||null;}
 export function bilingual(ru,sr){return `${ru||localName(sr)||'Перевод недоступен'} / ${sr}`;}
+export function briefName(text,max=180){const parts=String(text).split(' / '),short=s=>s.length<=max/2?s:s.slice(0,Math.floor(max/3))+'…'+s.slice(-Math.floor(max/6));return parts.length===2?parts.map(short).join(' / '):short(String(text));}
 export function validTranslation(ru,sr){
  if(typeof ru!=='string'||!ru.trim()||ru.length>500||/[<>\x00-\x1f]/.test(ru))return false;
  const numbers=s=>String(s).replace(/,/g,'.').match(/\d+(?:\.\d+)?/g)||[];

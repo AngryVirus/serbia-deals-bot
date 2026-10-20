@@ -1,4 +1,4 @@
-import { requireValue,currentPrice,money,safe,cutoff,day } from './domain.js';
+import { requireValue,currentPrice,cutoff,day } from './domain.js';
 
 export async function initBasket(db){await db.run(`CREATE TABLE IF NOT EXISTS sd_basket(uid INTEGER NOT NULL,id TEXT NOT NULL,query TEXT NOT NULL,product TEXT,name TEXT,quantity INTEGER NOT NULL,PRIMARY KEY(uid,id))`);}
 
@@ -66,27 +66,4 @@ export async function compareBasket(store,uid){
  stores.sort((a,b)=>(b.found===items.length)-(a.found===items.length)||b.found-a.found||a.total-b.total);
  if(versions!==null)requireValue(versions===JSON.stringify((await store.sources()).map(s=>[s.id,s.current_gen])),'Прайсы обновились во время расчёта. Повторите сравнение.');
  return {items,pending,estimated:pending.length>0,stores,split:{complete:missing.length===0,total:cheapest.reduce((n,x)=>n+x.total,0),items:cheapest,missing}};
-}
-
-export function basketReport(result){
- if(!result.items.length)return '<b>Корзина пока пустая</b>\n\nДобавьте товары из поиска или отправьте список.';
- if(result.pending.length)return estimatedReport(result);
- const grouped=bestNetworks(result.stores),complete=grouped.filter(s=>s.found===result.items.length);
- let text='<b>Сравнение корзины</b>\n\nКоличество — упаковки или штуки выбранного товара.\n\n';
- text+=complete.length?'<b>Вся корзина в одной сети</b>\n'+complete.slice(0,4).map(s=>`${safe(s.name.slice(0,60))} — ${money(s.total)}`).join('\n'):'<b>Полная корзина в одной сети не найдена.</b>';
- const partial=grouped.filter(s=>s.found!==result.items.length).slice(0,3);
- if(partial.length)text+='\n\n<b>Неполные корзины</b>\n'+partial.map(s=>`${safe(s.name.slice(0,60))}: найдено ${s.found} из ${result.items.length}; сумма найденного ${money(s.total)}. Не найдено: ${s.missing.slice(0,3).map(x=>safe(x.slice(0,45))).join(', ')}${s.missing.length>3?' и ещё '+(s.missing.length-3):''}`).join('\n');
- if(result.split?.complete)text+='\n\n<b>Покупки в разных сетях</b>\n'+result.split.items.slice(0,8).map(i=>`${safe(i.name.slice(0,55))} × ${i.quantity}: ${money(i.total)} · ${safe(i.store.slice(0,40))}`).join('\n')+(result.split.items.length>8?'\nИ ещё '+(result.split.items.length-8)+' позиций.':'')+'\nИтого за всю корзину: '+money(result.split.total)+'\nДоставка и поездки не включены.';
- else if(result.split)text+='\n\nБез свежей цены: '+result.split.missing.slice(0,4).map(x=>safe(x.slice(0,50))).join(', ');
- return text+'\n\nРасчёт по опубликованным прайсам сетей. Наличие и цены конкретного филиала не подтверждены.';
-}
-
-function bestNetworks(stores){const seen=new Set();return stores.filter(s=>{const key=s.source||s.name;if(seen.has(key))return false;seen.add(key);return true;});}
-function estimatedReport(result){
- const choices=bestNetworks(result.stores).slice(0,3);
- if(!choices.length)return '<b>Для списка пока нет предложений</b>\n\nНе удалось подобрать: '+result.items.slice(0,8).map(i=>safe(i.name||i.query)).join(', ')+'.\n\nУточните названия в корзине. Можно вводить по одному товару на строку или через запятую.';
- let text='<b>Подбор для вашего списка</b>\n\nПредварительная сумма: невыбранные позиции подобраны по названию из самых дешёвых найденных вариантов. Вид товара и упаковки могут различаться — проверьте список перед покупкой.\n\n';
- for(const store of choices){text+=`<b>${safe(store.chain||store.name)}</b> · ${safe(store.name)}\nНайдено ${store.found} из ${result.items.length}: ${money(store.total)}\n`+store.items.slice(0,4).map(i=>`${safe(i.name.slice(0,75))} × ${i.quantity} — ${money(i.total)}`).join('\n')+(store.items.length>4?'\nИ ещё '+(store.items.length-4)+' позиций.':'')+(store.missing.length?'\nНе найдено: '+store.missing.slice(0,3).map(n=>safe(n.slice(0,45))).join(', '):'')+'\n\n';}
- if(!choices.some(s=>s.found===result.items.length)&&result.split?.complete)text+='<b>Весь список в разных сетях</b> — '+money(result.split.total)+'\n\n';
- return text+'Для точного сравнения одинаковых товаров откройте корзину и выберите подходящие позиции. Адреса филиалов и наличие в прайсах не подтверждены.';
 }
