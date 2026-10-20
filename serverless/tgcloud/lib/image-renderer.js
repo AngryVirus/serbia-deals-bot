@@ -1,8 +1,8 @@
 // Pure JavaScript PNG renderer: no network, DOM, Node, Canvas, or runtime packages.
-import { zlibSync, unzlibSync } from './image-codec.js';
+import { zlibSync, unzlibSync, jpegSync } from './image-codec.js';
 import { HEADER } from './image-header.js';
 import { FONTS, FONT_DATA } from './image-fonts.js';
-export const IMAGE_VERSION='serbia-deals-v2';
+export const IMAGE_VERSION='serbia-deals-v3';
 const W=960, BG=[251,246,236], INK=[22,45,67], MUTED=[100,117,129], BLUE=[44,106,160];
 export function fromBase64(value) {
  const alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/',out=[];let bits=0,n=0;
@@ -65,7 +65,7 @@ const concat=parts=>{const out=new Uint8Array(parts.reduce((n,p)=>n+p.length,0))
 function chunk(type,data){const name=new Uint8Array([...type].map(c=>c.charCodeAt(0))),body=concat([name,data]);let crc=0xffffffff;for(const n of body)crc=crcTable[(crc^n)&255]^(crc>>>8);return concat([u32(data.length),body,u32((crc^0xffffffff)>>>0)]);}
 function png(rgb,height){const stride=W*3,scan=new Uint8Array((stride+1)*height);for(let y=0;y<height;y++){const start=y*(stride+1);scan[start]=1;for(let x=0;x<stride;x++)scan[start+1+x]=(rgb[y*stride+x]-(x>=3?rgb[y*stride+x-3]:0)+256)&255;}
  return concat([new Uint8Array([137,80,78,71,13,10,26,10]),chunk('IHDR',concat([u32(W),u32(height),new Uint8Array([8,2,0,0,0])])),chunk('IDAT',zlibSync(scan,{level:3})),chunk('IEND',new Uint8Array())]);}
-export function renderImage(html) {
+export function renderImage(html,{format='png'}={}) {
  assets();const doc=imageDocument(html),layout=[];let y=236;
  const titles=wrap(doc.title,'title',W-112);for(const line of titles){layout.push({text:line,face:'title',x:56,y,color:INK});y+=54;}
  y+=12;const ruleY=y;y+=22;
@@ -89,5 +89,5 @@ export function renderImage(html) {
  for(let y=0;y<210;y++)for(let x=0;x<W;x++){const originalY=Math.min(HEADER.height-1,y+30),i=headerPixels[originalY*W+x]*3;const alpha=Math.min(1,(210-y)/38);rgb.set(HEADER.palette.slice(i,i+3).map((c,k)=>Math.round(c*alpha+BG[k]*(1-alpha))),(y*W+x)*3);}
  rect(56,ruleY,100,4,[184,51,63]);rect(156,ruleY,100,4,BLUE);rect(256,ruleY,W-312,2,[226,219,207]);
  for(const line of layout){if(line.icon){drawIcon(pixel,line.icon,line.x,line.y);continue;}let x=line.x;const check=line.text.startsWith('✓') || line.text.startsWith('Выбрано:');if(check)rect(48,line.y-2,W-96,50,[225,237,242]);for(const c of line.text){const [w,h,left,top,advance,offset]=glyph(c,line.face);for(let yy=0;yy<h;yy++)for(let xx=0;xx<w;xx++){const a=fontPixels[offset+yy*w+xx];if(a)pixel(x+left+xx,line.y+top+yy,line.color,a);}x+=advance;}}
- return {bytes:png(rgb,height),width:W,height,title:doc.title,icons:layout.filter(l=>l.icon).length};
+ return {bytes:format==='jpeg'?jpegSync(rgb,W,height):png(rgb,height),format,width:W,height,title:doc.title,icons:layout.filter(l=>l.icon).length};
 }

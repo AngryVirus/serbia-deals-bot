@@ -77,7 +77,7 @@ export class Store{
   const id='search:'+uid,result=await this.db.run(`INSERT INTO sd_rates(id,n,expires) VALUES(:id,1,:end) ON CONFLICT(id) DO UPDATE SET n=CASE WHEN expires<=:now THEN 1 ELSE n+1 END,expires=CASE WHEN expires<=:now THEN :end ELSE expires END WHERE expires<=:now OR n<20`,{':id':id,':end':now+60000,':now':now});
   if(result.rowsAffected===1)return 0;const row=await this.db.get('SELECT expires FROM sd_rates WHERE id=:id',{':id':id});return Math.max(1,Math.ceil((row.expires-now)/1000));
  }
- async searchPlan(query,now=Date.now(),source=null,filters={}){
+ async searchPlan(query,now=Date.now(),source=null,filters={},projection='full'){
   const groups=queryGroups(query),params={':today':day(now),':cutoff':cutoff(now),':offset':0};
   const exact=token=>['so','sir','med','luk','sok','cola','kola','pivo','vino'].includes(token)||/^(?:e\d+|gu\d+|g\d+|\d+(?:w|lm|k|kg|g|ml|l)|\d{8,14})$/.test(token);
   const range=(alias,key,token)=>exact(token)?`${alias}.term=:${key}`:`(${alias}.term>=:${key} AND ${alias}.term<:${key}end)`;
@@ -93,14 +93,15 @@ export class Store{
   const compact=COMPACT_TITLE;
   if(filters.pack&&['volume','weight'].includes(filters.pack.kind)&&Number.isInteger(filters.pack.amount)&&filters.pack.amount>0&&filters.pack.amount<=100000){const n=filters.pack.amount,forms=filters.pack.kind==='volume'?[n+'ml',(n/1000)+'l',(n/10)+'cl']:[n+'g',n+'gr',n+'гр',(n/1000)+'kg'];refinement+=' AND ('+forms.map((f,i)=>{params[':pack'+i]='*[^0-9.]'+f+'[^a-z0-9]*';return compact+' GLOB :pack'+i;}).join(' OR ')+')';}
   if(typeof filters.fat==='string'&&/^\d+(?:\.\d+)?$/.test(filters.fat)){params[':fat']='*[^0-9.]'+filters.fat+'%*';refinement+=' AND '+compact+' GLOB :fat';}
-  return {params,sql:`SELECT DISTINCT o.id,o.product,o.source AS source_id,o.payload,s.name AS source_name,s.url AS source_url,s.checked AS downloaded,${PRICE} AS price FROM sd_terms a CROSS JOIN sd_offers o CROSS JOIN sd_sources s WHERE o.rowid=a.offer AND s.id=o.source AND s.current_gen=o.gen AND o.date>=:cutoff AND o.date<=:today AND (${anchors}) ${bulbQuery(query)?"AND json_extract(o.payload,'$.traits.kind')='bulb'":''} ${energyQuery(query)?'AND '+ENERGY:''} ${freshProduceQuery(query)?'AND '+FRESH_PRODUCE:''} ${plumQuery(query)?'AND '+PLUM_FOOD+" AND (lower(trim(json_extract(o.payload,'$.unit'))) NOT IN ('l','lit','ml','cl','litar') OR json_extract(o.payload,'$.unit') IS NULL OR "+hasTerm("e.term GLOB '[0-9]*g' OR e.term GLOB '[0-9]*gr'")+")":''} ${groceryQuery(query)?'AND '+GROCERY_FOOD:''} ${donutQuery(query)?'AND '+DONUT_FOOD:''} ${parsleyQuery(query)?'AND '+PARSLEY_FOOD:''} ${pestoQuery(query)?'AND '+PESTO_SAUCE:''} ${milkQuery(query)?'AND '+MILK_FOOD:''} ${plainMilkQuery(query)?'AND '+PLAIN_MILK:''} ${relatedChickenQuery(query)?'AND '+CHICKEN_FOOD:''} ${freshMeatQuery(query)?'AND '+FRESH_MEAT:''} ${oilQuery(query)?'AND '+PLAIN_OIL:''} ${butterQuery(query)?'AND '+PLAIN_BUTTER:''} ${clauses.length>1?'AND '+clauses.slice(1).join(' AND '):''} ${volumeClause} ${refinement} ${source?'AND o.source=:source':''}`};
+  const columns=projection==='networks'?`o.id,o.source AS source_id,s.name AS source_name,${PRICE} AS price`:`o.id,o.product,o.source AS source_id,o.payload,s.name AS source_name,s.url AS source_url,s.checked AS downloaded,${PRICE} AS price`;
+  return {params,sql:`SELECT DISTINCT ${columns} FROM sd_terms a CROSS JOIN sd_offers o CROSS JOIN sd_sources s WHERE o.rowid=a.offer AND s.id=o.source AND s.current_gen=o.gen AND o.date>=:cutoff AND o.date<=:today AND (${anchors}) ${bulbQuery(query)?"AND json_extract(o.payload,'$.traits.kind')='bulb'":''} ${energyQuery(query)?'AND '+ENERGY:''} ${freshProduceQuery(query)?'AND '+FRESH_PRODUCE:''} ${plumQuery(query)?'AND '+PLUM_FOOD+" AND (lower(trim(json_extract(o.payload,'$.unit'))) NOT IN ('l','lit','ml','cl','litar') OR json_extract(o.payload,'$.unit') IS NULL OR "+hasTerm("e.term GLOB '[0-9]*g' OR e.term GLOB '[0-9]*gr'")+")":''} ${groceryQuery(query)?'AND '+GROCERY_FOOD:''} ${donutQuery(query)?'AND '+DONUT_FOOD:''} ${parsleyQuery(query)?'AND '+PARSLEY_FOOD:''} ${pestoQuery(query)?'AND '+PESTO_SAUCE:''} ${milkQuery(query)?'AND '+MILK_FOOD:''} ${plainMilkQuery(query)?'AND '+PLAIN_MILK:''} ${relatedChickenQuery(query)?'AND '+CHICKEN_FOOD:''} ${freshMeatQuery(query)?'AND '+FRESH_MEAT:''} ${oilQuery(query)?'AND '+PLAIN_OIL:''} ${butterQuery(query)?'AND '+PLAIN_BUTTER:''} ${clauses.length>1?'AND '+clauses.slice(1).join(' AND '):''} ${volumeClause} ${refinement} ${source?'AND o.source=:source':''}`};
  }
  async search(query,offset=0,now=Date.now()){
   const plan=await this.searchPlan(query,now);plan.params[':offset']=Math.min(1000,Math.max(0,offset));
   return this.db.all(plan.sql+' ORDER BY price,o.id LIMIT 6 OFFSET :offset',plan.params);
  }
  async searchChains(query,now=Date.now(),filters={}){
-  const plan=await this.searchPlan(query,now,null,filters);
+  const plan=await this.searchPlan(query,now,null,filters,'networks');
   return this.db.all(`WITH matches AS (${plan.sql}) SELECT source_id,source_name,MIN(price) AS min_price,MAX(price) AS max_price,COUNT(*) AS offers FROM matches GROUP BY source_id,source_name ORDER BY min_price,source_name LIMIT 100`,plan.params);
  }
  async searchChain(query,source,offset=0,now=Date.now(),filters={}){

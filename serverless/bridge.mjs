@@ -117,7 +117,7 @@ export default async function(input,ctx){
  const repeatStart=Date.now(),store=new Store(measured);await store.init();const repeatMs=Date.now()-repeatStart,repeatCalls={...counts};
  for(const k of Object.keys(counts))counts[k]=0;
  const namesStart=Date.now();await productNames(store,null,[{name:'KEKS JAFFA KOLAČ DONAT CHOCO CREAM 75G'},{name:'LED sijalica E27 9W 806lm'},{name:'Energetski napitak Red Bull 0,25l'}]);
- return {identity_ms:identityMs,init_ms:initMs,init_calls:initCalls,repeat_init_ms:repeatMs,repeat_init_calls:repeatCalls,cached_names_ms:Date.now()-namesStart,cached_names_calls:counts};
+ return {identity_ms:identityMs,init_ms:initMs,init_calls:initCalls,repeat_init_ms:repeatMs,repeat_init_calls:repeatCalls,cached_names_ms:Date.now()-namesStart,cached_names_calls:{...counts},observed_screens:await Promise.all(['networks','products','card','other'].map(async screen=>({screen,timing:await store.meta('ui_latency:'+screen)})))};
 }`;
   try{result.performance=(await client.runFunction(token,'endpoints/speed_probe',{...Object.fromEntries(['lib/domain','lib/store','lib/product-names'].map(name=>[name,sources[name]])),'endpoints/speed_probe':speedProbe},{},{ownerRun:true})).result;}
   catch{result.performance={ok:false};}
