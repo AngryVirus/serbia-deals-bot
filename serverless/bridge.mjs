@@ -76,6 +76,27 @@ export default async function(input,ctx){
 }`;
   try{result.search={ok:true,...(await client.runFunction(token,'endpoints/search_probe',{'lib/domain':sources['lib/domain'],'lib/store':sources['lib/store'],'endpoints/search_probe':searchProbe},{},{ownerRun:true})).result};}
   catch(error){const detail=String(error.message||'').toLowerCase();result.search={ok:false,status:Number.isInteger(error.status)?error.status:null,hints:['time','limit','memory','syntax'].filter(word=>detail.includes(word))};}
+  const handlerProbe=`import {api,db,InputFile} from 'sdk';
+import {Bot} from '../lib/bot.js';
+import {OWNER_ID,assertBot} from '../lib/domain.js';
+export default async function(input,ctx){
+ if(ctx?.ownerRun!==true)throw Error('Private probe only');await assertBot(api);
+ let phase='begin',panels=0,profileSql=0;
+ const now=Date.now(),lease=await db.get('SELECT expires FROM sd_locks WHERE id=:uid',{':uid':OWNER_ID});
+ const active=await db.get("SELECT value FROM sd_meta WHERE key='active'");
+ const fakeDb={
+  run:async(sql,params={})=>{phase=sql.startsWith('UPDATE sd_users SET payload=')?'profile_patch':sql.includes('sd_locks')?'lease':sql.includes('sd_updates')?'update_claim':'write';
+   if(sql.startsWith('UPDATE sd_users SET payload=')){const expression=sql.slice(sql.indexOf('payload=')+8,sql.lastIndexOf(' WHERE'));await db.get('SELECT '+expression+' AS payload FROM sd_users WHERE id=:uid',params);profileSql++;}
+   return {rowsAffected:1};},
+  get:async(sql,params)=>{phase='read';return db.get(sql,params);},
+  all:async(sql,params)=>{phase='read';return db.all(sql,params);}
+ };
+ const fakeApi={getMe:()=>api.getMe(),answerCallbackQuery:async()=>{},deleteMessage:async()=>{},sendMessage:async()=>{panels++;return {message_id:1};},sendPhoto:async()=>{panels++;return {message_id:1};},editMessageText:async p=>{panels++;return {message_id:p.message_id};},editMessageMedia:async p=>{panels++;return {message_id:p.message_id};}};
+ try{await new Bot({db:fakeDb,api:fakeApi,InputFile}).handle({message:{message_id:2147000000,chat:{id:OWNER_ID,type:'private'},from:{id:OWNER_ID,first_name:'Owner'},text:'/start'}});return {ok:true,panels,profile_sql:profileSql,active:active?JSON.parse(active.value):null,lease_remaining:Math.max(0,(lease?.expires||0)-now)};}
+ catch(error){const message=String(error.message||'').toLowerCase();return {ok:false,phase,panels,profile_sql:profileSql,hints:['sqlite','json','path','limit','argument','parameter','syntax','function','invalid','input','bind','column','table'].filter(word=>message.includes(word)),active:active?JSON.parse(active.value):null,lease_remaining:Math.max(0,(lease?.expires||0)-now)};}
+}`;
+  try{result.handler=(await client.runFunction(token,'endpoints/handler_probe',{...sources,'endpoints/handler_probe':handlerProbe},{},{ownerRun:true})).result;}
+  catch(error){const detail=String(error.message||'').toLowerCase();result.handler={ok:false,status:Number.isInteger(error.status)?error.status:null,hints:['time','limit','memory','syntax'].filter(word=>detail.includes(word))};}
  }else if(input.command==='remote'){const r=await client.getFiles(token);result={revision:r.revision,canonical_modules:r.canonical_modules};}
  else if(input.command==='deploy'){
   const remote=await client.getFiles(token);
