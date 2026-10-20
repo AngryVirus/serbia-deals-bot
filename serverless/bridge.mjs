@@ -54,7 +54,7 @@ export default async function(input,ctx){
  const refinementChecks=[];
  for(const query of ['энергетик','мясо','молоко','кофе','шампунь','лампочка']){
   const samples=await bot.store.refinementSamples(query),draft=buildRefinement(query,samples.map(r=>JSON.parse(r.payload)),'probe');
-  const check={query,samples:samples.length,facets:draft?.facets.map(f=>f.key)||[]};
+  const check={query,samples:samples.length,facets:draft?.facets.map(f=>f.key)||[]};if(query==='энергетик')check.weight_options=draft?.facets.find(f=>f.key==='pack')?.values.filter(v=>v.value.kind==='weight').length||0;
   if(draft){bot.user={};await bot.refine(draft);for(const facet of draft.facets)if(facet.key==='brand')draft.selected[facet.key]=0;const narrowed=await bot.store.refinementSamples(query,Date.now(),refinementFilters(draft)),dependent=buildRefinement(query,narrowed.map(r=>JSON.parse(r.payload)),'dependent',Date.now(),true),pack=dependent?.facets.find(f=>f.key==='pack');if(pack){const original=draft.facets.find(f=>f.key==='pack');if(original){original.values=pack.values;draft.selected.pack=0;}}const filtered=await bot.store.searchChains(query,Date.now(),refinementFilters(draft));check.filtered_networks=filtered.length;}
   refinementChecks.push(check);
  }
@@ -70,7 +70,7 @@ import {Store} from '../lib/store.js';
 import {assertBot} from '../lib/domain.js';
 export default async function(input,ctx){
  if(ctx?.ownerRun!==true)throw Error('Private probe only');await assertBot(api);const store=new Store(db),queries=[];
- for(const query of ['молотый кофе','кофе в зернах','куриное филе','зелёный чай','Энергетик монстр 0.5']){const rows=await store.search(query);queries.push({query,matches:rows.length});}
+ for(const query of ['молотый кофе','кофе в зернах','куриное филе','зелёный чай','Энергетик монстр 0.5']){const rows=await store.search(query),check={query,matches:rows.length};if(query==='Энергетик монстр 0.5'){const chains=await store.searchChains(query);check.networks=chains.length;check.products=chains.length?(await store.searchChain(query,chains[0].source_id)).length:0;}queries.push(check);}
  const patchProbe=await db.get("SELECT json_patch(json_remove(:payload,'$.searchFilters'),:fields) AS value",{':payload':JSON.stringify({query:'probe',searchFilters:{brand:'Old'}}),':fields':JSON.stringify({searchFilters:{}})});const topLevelReplace=JSON.parse(patchProbe.value).searchFilters.brand===undefined;
  return {top_level_replace:topLevelReplace,queries};
 }`;
