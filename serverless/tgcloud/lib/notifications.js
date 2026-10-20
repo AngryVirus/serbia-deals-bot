@@ -1,5 +1,6 @@
+import {productNames,bilingual} from './product-names.js';
 import {banned,lockUser,unlockUser} from './moderation-state.js';
-import { safe,money,day } from './domain.js';
+import { safe,money } from './domain.js';
 export async function prepareNotifications(store){
  const after=await store.meta('watch_cursor')||0;
  const watches=await store.db.all(`SELECT w.rowid AS cursor,w.* FROM sd_watches w JOIN sd_users u ON u.id=w.uid WHERE w.rowid>:after AND u.enabled=1 AND u.blocked=0 AND NOT EXISTS(SELECT 1 FROM sd_admin_records b WHERE b.kind='ban' AND b.key=CAST(u.id AS TEXT) AND json_extract(b.payload,'$.active')=1) ORDER BY w.rowid LIMIT 30`,{':after':after});
@@ -29,8 +30,8 @@ export async function deliverNotifications(store,api){
   try{
    const fresh=await store.cheapest(row.product);
    if(!fresh||fresh.price>row.price){await store.db.run("UPDATE sd_queue SET state='expired' WHERE id=:id",{':id':row.id});continue;}
-   const offer=JSON.parse(fresh.payload);
-   const message=await api.sendMessage({chat_id:row.uid,text:`<b>Цена снизилась</b>\n${safe(offer.name)}\n${safe(offer.format)}: <b>${money(fresh.price)}</b>\nПрайс: ${offer.date}\nПолучено: ${day(fresh.downloaded)}\n${safe(fresh.source_url)}`,parse_mode:'HTML',link_preview_options:{is_disabled:true}});
+   const offer=JSON.parse(fresh.payload),names=await productNames(store,null,[JSON.parse(fresh.payload)]);
+   const message=await api.sendMessage({chat_id:row.uid,text:`<b>Цена снизилась</b>\n${safe(names.get(offer.name)||bilingual(null,offer.name))}\n${safe(offer.format)}: <b>${money(fresh.price)}</b>\nПрайс: ${offer.date}`,parse_mode:'HTML',link_preview_options:{is_disabled:true}});
    if(!Number.isSafeInteger(message?.message_id))throw Error('Unconfirmed send');
    await store.db.run("UPDATE sd_queue SET state='sent' WHERE id=:id",{':id':row.id});sent++;
   }catch(error){

@@ -12,7 +12,7 @@ try{
  let result;
  if(input.command==='run'){
   // Bulk ingestion never resends image/font assets to the management gateway.
-  const names=['lib/domain','lib/moderation-state','lib/basket','lib/store','lib/ingest','lib/notifications','lib/health','lib/manage','lib/image-codec','endpoints/manage'];
+  const names=['lib/domain','lib/product-names','lib/moderation-state','lib/basket','lib/store','lib/ingest','lib/notifications','lib/health','lib/manage','lib/image-codec','endpoints/manage'];
   const selected=Object.fromEntries(names.map(name=>[name,sources[name]]));
   result=(await client.runFunction(token,'endpoints/manage',selected,input.args,{ownerRun:true})).result;
  }else if(input.command==='moderation'){
@@ -23,12 +23,13 @@ try{
   const routing=await client.getWebhook(token),remote=await client.getFiles(token);
   const text=String(routing.last_error_message||'');
   result={revision:remote.revision,routing:{in_sync:routing.in_sync,pending:routing.pending_update_count,last_error_date:routing.last_error_date||null,error_hints:['500','502','503','timeout','failed','error','limit','memory'].filter(word=>text.toLowerCase().includes(word))}};
-  const probe=`import {api,db,InputFile} from 'sdk';
+  const probe=`import {api,db,fetch,InputFile} from 'sdk';
 import {Bot} from '../lib/bot.js';
 import {assertBot,OWNER_ID} from '../lib/domain.js';
 import {Store} from '../lib/store.js';
 import {adminRoute} from '../lib/admin.js';
 import {cartItems} from '../lib/basket.js';
+import {productNames} from '../lib/product-names.js';
 export default async function(input,ctx){
  if(ctx?.ownerRun!==true)throw Error('Private probe only');
  await assertBot(api);
@@ -41,10 +42,17 @@ export default async function(input,ctx){
  const adminPhotos=photoCalls-home.photoCalls,adminTexts=textCalls-home.textCalls;
  bot.user={};await adminRoute(bot,'admin:sources');bot.user={};await adminRoute(bot,'admin:sources:1');
  const sourcePhotos=photoCalls-home.photoCalls-adminPhotos,sourceTexts=textCalls-home.textCalls-adminTexts;
- const beforePhotos=photoCalls,beforeTexts=textCalls;
+ const beforePhotos=photoCalls,beforeTexts=textCalls;bot.store.rate=async()=>0;
  bot.user={};await bot.prompt();bot.user={};await bot.basket();bot.user={};await bot.notifications();
  const items=await cartItems(bot.store,OWNER_ID);if(items.length){bot.user={};await bot.basketItem(items[0].id);}
- return {...home,admin_photo_calls:adminPhotos,admin_text_calls:adminTexts,source_photo_calls:sourcePhotos,source_text_calls:sourceTexts,shopping_photo_calls:photoCalls-beforePhotos,shopping_text_calls:textCalls-beforeTexts,elapsed_ms:Date.now()-started};
+ const translationRequests=[];const translationFetch=async(...args)=>{try{const response=await fetch(...args);translationRequests.push({status:response.status,ok:Boolean(response.ok)});return response;}catch(error){const message=String(error.message||'').toLowerCase();translationRequests.push({failed:true,hints:['timeout','argument','options','allowed','host','denied','network','fetch','disabled','unsupported','function','undefined','not defined','invalid','http','budget','limit','quota','proxy','dns','resolve','certificate','ssl','tls','connect','owner','sandbox','safe','method','scope'].filter(word=>message.includes(word))});throw error;}};
+ const chains=await bot.store.searchChains('огурцы');
+ bot.user={};await bot.search('огурцы');
+ if(chains.length){bot.user={};await bot.search('огурцы',0,chains[0].source_id);const offers=await bot.store.searchChain('огурцы',chains[0].source_id,0);if(offers.length){bot.user={};await bot.card(JSON.parse(offers[0].payload).id);}}
+ bot.user={};await bot.comparison();
+ const names=await productNames(bot.store,translationFetch,[{name:'LED sijalica E27 9W 806lm'},{name:'Energetski napitak Red Bull 0,25l',brand:'Red Bull'}]);
+ const translated=[...names.values()].filter(name=>!name.startsWith('Перевод недоступен')).length;
+ return {translations:{checked:names.size,translated,requests:translationRequests},...home,admin_photo_calls:adminPhotos,admin_text_calls:adminTexts,source_photo_calls:sourcePhotos,source_text_calls:sourceTexts,shopping_photo_calls:photoCalls-beforePhotos,shopping_text_calls:textCalls-beforeTexts,elapsed_ms:Date.now()-started};
 }`;
   try{result.ui={ok:true,...(await client.runFunction(token,'endpoints/ui_probe',{...sources,'endpoints/ui_probe':probe},{},{ownerRun:true})).result};}
   catch(error){const detail=String(error.message||'')+' '+JSON.stringify(error.parameters||{});result.ui={ok:false,status:Number.isInteger(error.status)?error.status:null,hints:['time','limit','memory','source','size','module','parse','syntax','inputfile','function','png','invalid','cpu','heap','execution'].filter(word=>detail.toLowerCase().includes(word))};}
