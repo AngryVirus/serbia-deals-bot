@@ -78,16 +78,17 @@ export default async function(input,ctx){
   catch(error){const detail=String(error.message||'').toLowerCase();result.search={ok:false,status:Number.isInteger(error.status)?error.status:null,hints:['time','limit','memory','syntax'].filter(word=>detail.includes(word))};}
   const basketProbe=`import {api,db} from 'sdk';
 import {Store} from '../lib/store.js';
-import {compareBasket} from '../lib/basket.js';
+import {compareBasket,saveBasketFilters,initBasket} from '../lib/basket.js';
 import {basketNetworks} from '../lib/shopping-ui.js';
 import {assertBot} from '../lib/domain.js';
 export default async function(input,ctx){
  if(ctx?.ownerRun!==true)throw Error('Private probe only');await assertBot(api);
+ await initBasket(db);if((await db.get('SELECT COUNT(*) AS n FROM sd_basket WHERE uid=-2')).n)throw Error('Probe identity occupied');const saveGuard=!await saveBasketFilters(new Store(db),-2,'syntax-probe',{type:['milkplain']});
  let items=['энергетик','молоко','сливы','соус песто'].map((query,i)=>({uid:-2,id:'probe-'+i,query,product:null,name:null,quantity:1,filters:'{}'}));
  const virtualDb={run:async()=>({rowsAffected:0}),get:(...args)=>db.get(...args),all:(sql,params)=>sql.startsWith('SELECT b.*,COALESCE(f.payload,')?Promise.resolve(items):db.all(sql,params)};
  const report=await compareBasket(new Store(virtualDb),-2);
  items=[{uid:-2,id:'filtered',query:'молоко',product:null,name:null,quantity:2,filters:JSON.stringify({type:['milkplain'],pack:{kind:'volume',amount:1000}})}];const filtered=await compareBasket(new Store(virtualDb),-2);
- return {items:report.items.length,filtered_networks:basketNetworks(filtered).map(s=>({name:s.chain,found:s.found,variant:s.items[0]?.variant,unit_price:s.items[0]?.unitPrice})),plum_samples:(await new Store(virtualDb).basketCandidates('сливы')).map(r=>({store:r.source_name,name:JSON.parse(r.payload).name})),milk_samples:(await new Store(virtualDb).basketCandidates('молоко')).map(r=>({store:r.source_name,name:JSON.parse(r.payload).name})),networks:basketNetworks(report).map(s=>({name:s.chain,found:s.found,items:s.items.map(i=>({query:i.name,price:i.total,variant:i.variant,unit_price:i.unitPrice})),missing:s.missing}))};
+ return {items:report.items.length,save_without_row_rejected:saveGuard,filtered_networks:basketNetworks(filtered).map(s=>({name:s.chain,found:s.found,variant:s.items[0]?.variant,unit_price:s.items[0]?.unitPrice})),plum_samples:(await new Store(virtualDb).basketCandidates('сливы')).map(r=>({store:r.source_name,name:JSON.parse(r.payload).name})),milk_samples:(await new Store(virtualDb).basketCandidates('молоко')).map(r=>({store:r.source_name,name:JSON.parse(r.payload).name})),networks:basketNetworks(report).map(s=>({name:s.chain,found:s.found,items:s.items.map(i=>({query:i.name,price:i.total,variant:i.variant,unit_price:i.unitPrice})),missing:s.missing}))};
 }`;
   try{result.basket={ok:true,...(await client.runFunction(token,'endpoints/basket_probe',{...Object.fromEntries(['lib/domain','lib/store','lib/basket','lib/shopping-ui','lib/product-names'].map(name=>[name,sources[name]])),'endpoints/basket_probe':basketProbe}, {},{ownerRun:true})).result};}
   catch(error){const detail=String(error.message||'').toLowerCase();result.basket={ok:false,hints:['time','limit','memory','syntax'].filter(word=>detail.includes(word))};}
