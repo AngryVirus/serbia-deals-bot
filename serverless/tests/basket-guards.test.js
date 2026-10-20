@@ -48,3 +48,7 @@ test('Serbian chicken inflections find the same raw cuts as Russian without sugg
  const f=await fixture();await publish(f,[offer(1,{name:'Pileci file 500g',terms:['pileci','file','500g']}),offer(2,{name:'Pileca krila',terms:['pileca','krila']}),offer(3,{name:'Grill piletina 80g',terms:['grill','piletina','80g'],regular:1})]);
  for(const q of ['курица','piletina','пилетина','pilece']){const rows=await f.store.search(q);assert.equal(rows.length,2,q);assert(!rows.some(r=>JSON.parse(r.payload).name.includes('Grill')));}assert.equal((await f.store.search('grill piletina')).length,1);
 });
+test('a failed search query responds clearly without exposing SQL or retrying uncertain message delivery',async()=>{
+ const f=await fixture(),all=f.db.all;f.db.all=(sql,p)=>{if(sql.includes('FROM sd_terms a'))throw Error('private SQLite failure');return all(sql,p);};await new Bot(f).handle(message(5,'огурцы'));assert(f.sent.at(-1).text.includes('Поиск временно недоступен'));assert(!f.sent.at(-1).text.includes('SQLite'));assert(f.sent.at(-1).reply_markup.inline_keyboard.flat().some(b=>b.callback_data==='search'));
+ const g=await fixture();await publish(g,[offer()]);let calls=0;g.api.sendMessage=async()=>{calls++;throw Error('timeout');};await assert.rejects(new Bot(g).handle(message(5,'лампочка E27')),/timeout/);assert.equal(calls,1);
+});

@@ -35,7 +35,9 @@ export class Bot{
    if(bulbQuery(query)&&!/(?:e14|e27|gu10|g9|g4|h4|h7)/i.test(query)&&!this.allowAll){
     await this.store.patch(this.uid,{query,pending:null});return this.panel('<b>Какая лампочка нужна?</b>\n\nЦоколь помогает подобрать подходящие варианты. Остальные характеристики будут в названии и карточке.',[[button('E27','socket:E27'),button('E14','socket:E14'),button('GU10','socket:GU10')],[button('Показать все варианты','socket:all')],...BACK]);
    }
-   const rev=Math.random().toString(36).slice(2,9),rows=source?await this.store.searchChain(query,source,offset):await this.store.searchChains(query);
+   const rev=Math.random().toString(36).slice(2,9);let rows;
+   try{rows=source?await this.store.searchChain(query,source,offset):await this.store.searchChains(query);}
+   catch(error){if(/Введите название/.test(error.message))throw error;return this.panel('<b>Поиск временно недоступен</b>\n\nНе удалось получить цены. Попробуйте ещё раз немного позже. Ваша корзина сохранена.',[[button('🔎 Повторить поиск','search')],[button('🛒 Моя корзина','basket')],...BACK]);}
    await this.store.patch(this.uid,{query,offset,searchSource:source,searchRev:rev,pending:null});this.user={...this.user,query,offset,searchSource:source,searchRev:rev};
    if(!rows.length){const health=await this.store.catalogHealth();return this.panel(health.fresh?'<b>Предложений пока нет</b>\n\nПопробуйте другое название или меньше уточнений. Поиск проверяет свежие прайсы '+health.fresh+' сетей.':'<b>Свежие цены пока недоступны</b>\n\nНе удалось получить действующие прайсы. Попробуйте позже. Ваша корзина сохранена.',[[button('🔎 Другой поиск','search')],[button('🛒 Моя корзина','basket')],...BACK]);}
    if(!source){
