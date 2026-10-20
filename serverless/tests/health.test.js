@@ -39,3 +39,6 @@ test('an enabled source that never published is monitored while unrelated candid
 test('collector roster is recorded only for enabled collection, not overwritten by ad hoc imports',async()=>{
  const f=await fixture(),{manage}=await import('../tgcloud/lib/manage.js'),ctx={ownerRun:true};const required={id:'d'.repeat(24),name:'Required'},adhoc={id:'e'.repeat(24),name:'One-off'};await manage({operation:'register_sources',rows:[required],expected:true},ctx,f);await manage({operation:'register_sources',rows:[adhoc],expected:false},ctx,f);assert.deepEqual(await f.store.meta('expected_sources'),[required.id]);
 });
+test('health lease keeps warning/recovery sends ordered without blocking the owner menu lease',async()=>{
+ const f=await fixture(),{lockUser,unlockUser}=await import('../tgcloud/lib/moderation-state.js');await f.store.setMeta('last_collection',Date.now()-37*3600000);let release,started;const gate=new Promise(r=>release=r),ready=new Promise(r=>started=r);f.api.sendMessage=async()=>{started();await gate;return {message_id:1};};const running=checkHealth(f.store,f.api);await ready;assert.equal((await checkHealth(f.store,f.api)).busy,true);assert(await lockUser(f.store,OWNER_ID,'owner-menu'));await unlockUser(f.store,OWNER_ID,'owner-menu');release();await running;assert.equal(await f.db.get('SELECT id FROM sd_locks WHERE id=-1'),undefined);
+});

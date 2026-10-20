@@ -1,10 +1,16 @@
+import {lockUser,unlockUser} from './moderation-state.js';
 import {OWNER_ID,cutoff,day,positive} from './domain.js';
 export function sourceHealth(source,now=Date.now()){
  const active=Boolean(source.current_gen||source.active),valid=/^\d{4}-\d{2}-\d{2}$/.test(source.date||'')&&source.date<=day(now),fresh=active&&valid&&source.date>=cutoff(now);
  return {active,fresh,label:!active?'Прайс ещё не загружен':!fresh?'Нет свежего прайса':source.status==='unavailable'?'Прайс доступен; последнее обновление не удалось':'Свежий прайс доступен'};
 }
 const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+// Negative lease IDs are reserved for workers; Telegram user IDs are positive.
 export async function checkHealth(store,api,now=Date.now()){
+ const key='health:'+now+':'+Math.random();if(!await lockUser(store,-1,key,now))return {busy:true};
+ try{return await inspectHealth(store,api,now);}finally{await unlockUser(store,-1,key);}
+}
+async function inspectHealth(store,api,now){
  if(await store.meta('active')!==true)return {paused:true};
  const last=await store.meta('last_collection'),sources=await store.sources(),expected=await store.meta('expected_sources')||[],staleSources=sources.filter(s=>{const status=sourceHealth(s,now);return (status.active||expected.includes(s.id))&&!status.fresh;});
  const errors=await store.db.get("SELECT COUNT(*) AS count FROM sd_queue WHERE state IN ('blocked','uncertain','sending') AND created>=:cutoff",{':cutoff':now-86400000});
