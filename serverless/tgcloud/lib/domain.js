@@ -33,13 +33,26 @@ const shoppingWords=[
  ['батареек','baterij'],['губка губки','sundjer spuzv'],['пакет пакеты','kes vrec'],['туалетная туалетную','toalet'],
  ['маринованные маринованный солёные соленые солёный соленый','kisel marin paster'],
  ['консервированные консервированный','konzerv'],
+ ['piletina pileci pileca pilece','pile pilet'],
  ['ред','red'],['булл бул','bull'],['кола колу','cola kola'],['монстр','monster']
 ];
+const phrases=[
+ ['сливочное масло','maslac'],['сливочного масла','maslac'],
+ ['подсолнечное масло','suncokret ulje'],['подсолнечного масла','suncokret ulje'],
+ ['оливковое масло','maslin ulje'],['оливкового масла','maslin ulje'],
+ ['минеральная вода','mineral voda'],['минеральной воды','mineral voda'],
+ ['газированная вода','gaziran voda'],['газированной воды','gaziran voda'],
+ ['зубная паста','pasta zub'],['зубную пасту','pasta zub'],
+ ['влажные салфетки','vlazn maramic'],['влажных салфеток','vlazn maramic'],
+ ['корм для кошек','hrana mack'],['корм для котов','hrana mack'],['корм для собак','hrana ps']
+].flatMap(([from,to])=>{const tokens=normalize(from).split(' '),target=normalize(to);return tokens.length===2?[[tokens.join(' '),target],[[...tokens].reverse().join(' '),target]]:[[tokens.join(' '),target]];});
 const aliases=Object.fromEntries([...Object.entries(words),...shoppingWords.flatMap(([forms,terms])=>forms.split(' ').map(form=>[form,terms.split(' ')]))].map(([key,value])=>[normalize(key),value]));
 const energyTokens=new Set(shoppingWords.find(([forms])=>forms.startsWith('энергетик '))[0].split(' ').map(normalize));
 export const energyQuery=query=>normalize(query).split(' ').some(t=>energyTokens.has(t));
 export function queryGroups(query){
- const original=String(query),tokens=normalize(query).split(' ').filter(Boolean);
+ const original=String(query);let translated=' '+normalize(query)+' ';
+ for(const [from,to] of phrases)translated=translated.replaceAll(' '+from+' ',' '+to+' ');
+ const tokens=translated.trim().split(' ').filter(Boolean);
  requireValue(tokens.length>0&&tokens.length<=8&&original.length<=120,'Введите название короче 120 символов.');
  const brandText=tokens.map(t=>(aliases[t]?.length===1?aliases[t][0]:t)).join(' '),redBull=/(?:^| )red ?bull?(?: |$)/.test(brandText);
  const energy=energyQuery(query),groups=[];
@@ -55,8 +68,9 @@ export function queryGroups(query){
  }
  return groups;
 }
-export const freshProduceQuery=query=>!/(марин|сол[её]н|консерв|паста|соус|суп|сок|сметан|kisel|marin|paster|konzerv)/i.test(String(query))&&queryGroups(query).some(group=>group.some(word=>['krastav','paradajz','rajcic'].includes(word)));
-export const freshMeatQuery=query=>!/(фарш|паштет|колбас|сосиск|копч|готов|суп|соус|корм)/i.test(String(query))&&queryGroups(query).some(group=>group.some(word=>['pile','pilet','goved','junec','svinj','curet'].includes(word)));
+export const freshProduceQuery=query=>!/(марин|сол[её]н|консерв|паста|соус|суп|сок|сметан|kisel|marin|paster|konzerv)/i.test(String(query))&&!/(kisel|marin|paster|konzerv|pasta|sos|supa|sok|pavlak)/.test(normalize(query))&&queryGroups(query).some(group=>group.some(word=>/^(krastav|paradajz|rajcic)/.test(word)));
+export const freshMeatQuery=query=>!/(фарш|паштет|колбас|сосиск|копч|готов|суп|соус|корм)/i.test(String(query))&&!/(pastet|kobasic|salam|virsl|dimlj|supa|sos|hrana|mleven|mljeven|gril|rostilj|pecen|pohov|panir)/.test(normalize(query))&&queryGroups(query).some(group=>group.some(word=>/^(pile|goved|junec|svinj|curet)/.test(word)));
+export const oilQuery=query=>queryGroups(query).some(group=>group.length===1&&group[0]==='ulje')&&!/(motor|menjac|sapun|sampon|tun|sardin|grisin|riba|sos|pasta)/.test(normalize(query));
 export const bulbQuery=query=>queryGroups(query).some(group=>group.some(word=>/^sijalic|^zarulj|^bulbs?$/.test(word)));
 export function day(now=Date.now()){const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Belgrade',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);const get=k=>parts.find(x=>x.type===k).value;return get('year')+'-'+get('month')+'-'+get('day');}
 export const cutoff=now=>new Date(Date.parse(day(now)+'T12:00:00Z')-2*86400000).toISOString().slice(0,10);

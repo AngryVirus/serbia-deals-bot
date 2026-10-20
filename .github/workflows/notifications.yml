@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   notify:
-    if: vars.SERBIA_DEALS_COLLECTION_ENABLED == 'true'
+    if: vars.SERBIA_DEALS_COLLECTION_ENABLED != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
