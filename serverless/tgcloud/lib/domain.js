@@ -49,6 +49,8 @@ export function queryGroups(query){
   if(energy&&['напиток','напитки','напитка'].map(normalize).includes(token))continue;
   if(redBull&&['redbull','редбулл','редбул'].map(normalize).includes(token)){groups.push(['red','redbull'],['bull','redbull']);continue;}
   const group=aliases[token]||[token];
+  if(group.includes('beli')&&group.includes('cesnjak')){groups.push(['beli','cesnjak'],['luk','cesnjak']);continue;}
+  if(['фарш','фарша'].map(normalize).includes(token)){groups.push(group,['mes','junec','goved','svinj','pile','curet']);continue;}
   groups.push(redBull&&group.some(t=>t==='red'||t==='bull')?[...group,'redbull']:group);
  }
  return groups;

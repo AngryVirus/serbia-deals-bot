@@ -36,7 +36,7 @@ export class Store{
  }
  async search(query,offset=0,now=Date.now()){
   const groups=queryGroups(query),params={':today':day(now),':cutoff':cutoff(now),':offset':Math.min(1000,Math.max(0,offset))};
-  const exact=token=>/^(?:e\d+|gu\d+|g\d+|\d+(?:w|lm|k|kg|g|ml|l)|\d{8,14})$/.test(token);
+  const exact=token=>['so','sir','med','luk','sok','cola','kola','pivo','vino'].includes(token)||/^(?:e\d+|gu\d+|g\d+|\d+(?:w|lm|k|kg|g|ml|l)|\d{8,14})$/.test(token);
   const range=(alias,key,token)=>exact(token)?`${alias}.term=:${key}`:`(${alias}.term>=:${key} AND ${alias}.term<:${key}end)`;
   const clauses=groups.map((group,i)=>{const ranges=group.map((token,j)=>{const key='g'+i+'_'+j;params[':'+key]=token;params[':'+key+'end']=token+'\uffff';return range('t',key,token);});return `EXISTS(SELECT 1 FROM sd_terms t WHERE t.offer=o.rowid AND (${ranges.join(' OR ')}))`;});
   const anchors=groups[0].map((token,j)=>range('a','g0_'+j,token)).join(' OR ');
