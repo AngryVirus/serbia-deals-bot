@@ -23,10 +23,11 @@ Settings → Branches → Add branch protection rule, шаблон `main`:
 ## 2. Отдельный ключ Telegram Serverless
 
 Подключите **@SerbiaDealsBot** к Telegram Serverless через его собственные настройки.
+Путь получения ключа проверен в исходном коде установленного официального CLI:
+**@BotFather → ваш бот → Serverless → CLI Access → Access token**.
 Официальный CLI `@tgcloud/cli` использует ключ формата `app<id>:…`.
 Обычный HTTP Bot API token от BotFather не подходит для этого интерфейса.
-Интерфейс получения ключа необходимо проверить в актуальных настройках Telegram;
-его расположение не угадываем. Документация SDK:
+Документация SDK:
 https://core.telegram.org/bots/serverless
 
 В GitHub: Settings → Secrets and variables → Actions → New repository secret:
