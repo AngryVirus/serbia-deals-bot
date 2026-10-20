@@ -34,7 +34,7 @@ export async function decide(store,actor,draft,now=Date.now()){
  if(draft.kind==='role'){
   if(!mayRole(actorRole,actor.id,currentRole,draft.uid,draft.next)||draft.next===currentRole)throw Error('Недостаточно прав для изменения этой роли.');
   if(draft.next!=='user'&&await banned(store,draft.uid))throw Error('Сначала снимите блокировку пользователя.');
-  if(!await store.user(draft.uid))throw Error('Сначала попросите пользователя открыть бота.');
+  if(draft.next!=='user'&&!await store.user(draft.uid))throw Error('Сначала попросите пользователя открыть бота.');
  }else{
   if(!mayBan(actorRole,actor.id,currentRole,draft.uid)||!draft.active&&rank(actorRole)<2)throw Error('Недостаточно прав для этого действия.');
   if(Boolean(old?.active)===draft.active)throw Error('Это состояние уже установлено.');
