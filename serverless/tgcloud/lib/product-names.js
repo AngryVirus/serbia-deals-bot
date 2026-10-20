@@ -24,14 +24,18 @@ export function validTranslation(ru,sr){
  return numbers(sr).every(n=>numbers(ru).includes(n))&&(!before?!after:after&&before.kind===after.kind&&before.amount===after.amount);
 }
 export async function productNames(store,fetch,offers,now=Date.now()){
+ if(!offers.length)return new Map();
  try{return await cachedNames(store,fetch,offers,now);}catch{return new Map(offers.map(o=>[o.name,bilingual(null,o.name)]));}
 }
 async function cachedNames(store,fetch,offers,now){
- await store.db.run('CREATE TABLE IF NOT EXISTS sd_product_names(name TEXT PRIMARY KEY,ru TEXT,expires INTEGER NOT NULL DEFAULT 0,lease INTEGER NOT NULL DEFAULT 0)');
- await store.db.run('DELETE FROM sd_product_names WHERE name IN (SELECT name FROM sd_product_names WHERE lease<:now AND (expires<:old OR (SELECT COUNT(*) FROM sd_product_names)>=3000) ORDER BY expires LIMIT 100)',{':old':now-30*86400000,':now':now});
+ if(!store.db.schemaReady)await store.db.run('CREATE TABLE IF NOT EXISTS sd_product_names(name TEXT PRIMARY KEY,ru TEXT,expires INTEGER NOT NULL DEFAULT 0,lease INTEGER NOT NULL DEFAULT 0)');
  const unique=[...new Map(offers.filter(o=>typeof o.name==='string'&&o.name.length<=300).map(o=>[o.name,o])).values()],result=new Map();
+ if(!unique.length)return result;
+ const cachedRows=await store.db.all('SELECT name,ru,expires FROM sd_product_names WHERE name IN (SELECT value FROM json_each(:names))',{':names':JSON.stringify(unique.map(o=>o.name))});
+ const cache=new Map(cachedRows.map(row=>[row.name,row]));
+ if(typeof fetch==='function'&&unique.some(o=>!localName(o.name)&&!(cache.get(o.name)?.ru&&cache.get(o.name).expires>now)))await store.db.run('DELETE FROM sd_product_names WHERE name IN (SELECT name FROM sd_product_names WHERE lease<:now AND (expires<:old OR (SELECT COUNT(*) FROM sd_product_names)>=3000) ORDER BY expires LIMIT 100)',{':old':now-30*86400000,':now':now});
  const translate=async offer=>{
-  const name=offer.name,cached=await store.db.get('SELECT ru,expires FROM sd_product_names WHERE name=:name',{':name':name});
+  const name=offer.name,cached=cache.get(name);
   if(cached?.ru&&!validTranslation(cached.ru,name)){await store.db.run('UPDATE sd_product_names SET ru=NULL,expires=0 WHERE name=:name AND ru=:ru',{':name':name,':ru':cached.ru});cached.ru=null;cached.expires=0;}
   if(cached?.ru&&cached.expires>now){result.set(name,bilingual(cached.ru,name));return;}
   const simple=localName(name);if(simple){result.set(name,bilingual(simple,name));return;}

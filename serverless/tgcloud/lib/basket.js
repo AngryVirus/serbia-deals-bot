@@ -13,7 +13,12 @@ export function basketVariant(offer){
  return parts.join(' · ');
 }
 
-export async function initBasket(db){await db.run(`CREATE TABLE IF NOT EXISTS sd_basket(uid INTEGER NOT NULL,id TEXT NOT NULL,query TEXT NOT NULL,product TEXT,name TEXT,quantity INTEGER NOT NULL,PRIMARY KEY(uid,id))`);await db.run(`CREATE TABLE IF NOT EXISTS sd_basket_filters(uid INTEGER NOT NULL,id TEXT NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(uid,id))`);}
+const basketSchemas=new WeakMap();
+export async function initBasket(db){
+ if(basketSchemas.has(db))return basketSchemas.get(db);
+ const task=(async()=>{await db.run(`CREATE TABLE IF NOT EXISTS sd_basket(uid INTEGER NOT NULL,id TEXT NOT NULL,query TEXT NOT NULL,product TEXT,name TEXT,quantity INTEGER NOT NULL,PRIMARY KEY(uid,id))`);await db.run(`CREATE TABLE IF NOT EXISTS sd_basket_filters(uid INTEGER NOT NULL,id TEXT NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(uid,id))`);})();
+ basketSchemas.set(db,task);try{await task;}catch(error){basketSchemas.delete(db);throw error;}
+}
 export async function saveBasketFilters(store,uid,id,filters){
  await initBasket(store.db);
  const clean={};
@@ -78,11 +83,16 @@ export async function expandPendingList(store,uid,id){
  await store.db.run('DELETE FROM sd_basket WHERE uid=:uid AND id=:id AND product IS NULL AND query=:query',{':uid':uid,':id':id,':query':item.query});return true;
 }
 
-export async function compareBasket(store,uid){
+export async function compareBasket(store,uid,now=Date.now()){
  const items=(await cartItems(store,uid)).flatMap(item=>item.product?[item]:parseList(item.query).map((parsed,index)=>({...item,id:index?item.id+'s'+index:item.id,query:parsed.query,quantity:Math.min(99,item.quantity*parsed.quantity)}))),pending=items.filter(x=>!x.product);
  requireValue(items.length<=30,'Слишком много товаров в списке. Разделите его на корзины до 30 позиций.');
  if(!items.length)return {items,pending,stores:[],split:null};
- const versions=pending.length?JSON.stringify((await store.sources()).map(s=>[s.id,s.current_gen])):null;
+ const versions=JSON.stringify((await store.sources()).map(s=>[s.id,s.current_gen,s.name]));
+ const fingerprint=JSON.stringify([day(now),items,versions]);
+ // Cache is disposable, per-user, and tied to every selected criterion and the
+ // exact published catalogue. Storage failure must not block a fresh calculation.
+ try{const cached=await store.db.get('SELECT payload FROM sd_basket_reports WHERE uid=:uid AND fingerprint=:fingerprint AND expires>:now',{':uid':uid,':fingerprint':fingerprint,':now':now});if(cached)return JSON.parse(cached.payload);}catch{}
+
  const matrices=new Map(),cheapest=[],missing=[];
  // Resolve every item against one SQLite statement snapshot. A concurrent
  // source publication cannot mix old and new generations inside this basket.
@@ -103,6 +113,9 @@ export async function compareBasket(store,uid){
  }
  const stores=[...matrices.values()].map(s=>({source:s.source,chain:s.chain,name:s.name,found:s.items.size,total:[...s.items.values()].reduce((n,x)=>n+x.total,0),missing:items.filter(x=>!s.items.has(x.id)).map(x=>x.name||x.query),items:[...s.items.values()]}));
  stores.sort((a,b)=>(b.found===items.length)-(a.found===items.length)||b.found-a.found||a.total-b.total);
- if(versions!==null)requireValue(versions===JSON.stringify((await store.sources()).map(s=>[s.id,s.current_gen])),'Прайсы обновились во время расчёта. Повторите сравнение.');
- return {items,pending,estimated:pending.length>0,stores,split:{complete:missing.length===0,total:cheapest.reduce((n,x)=>n+x.total,0),items:cheapest,missing}};
+ requireValue(versions===JSON.stringify((await store.sources()).map(s=>[s.id,s.current_gen,s.name])),'Прайсы обновились во время расчёта. Повторите сравнение.');
+ const report={items,pending,estimated:pending.length>0,stores,split:{complete:missing.length===0,total:cheapest.reduce((n,x)=>n+x.total,0),items:cheapest,missing}};
+ const payload=JSON.stringify(report);
+ if(payload.length<=60000)try{await store.db.run('INSERT INTO sd_basket_reports(uid,fingerprint,payload,expires) SELECT :uid,:fingerprint,:payload,:expires WHERE EXISTS(SELECT 1 FROM sd_basket_reports WHERE uid=:uid) OR (SELECT COUNT(*) FROM sd_basket_reports)<200 ON CONFLICT(uid) DO UPDATE SET fingerprint=excluded.fingerprint,payload=excluded.payload,expires=excluded.expires',{':uid':uid,':fingerprint':fingerprint,':payload':payload,':expires':now+60000});}catch{}
+ return report;
 }
