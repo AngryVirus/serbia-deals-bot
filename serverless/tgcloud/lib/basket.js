@@ -1,17 +1,41 @@
-import { requireValue,currentPrice,cutoff,day,normalize,unitPrice,packageMeasure } from './domain.js';
+import { requireValue,currentPrice,cutoff,day,normalize,unitPrice,packageMeasure,volumeQuery,weightQuery,milkQuery,relatedChickenQuery,queryGroups } from './domain.js';
 
 // Describe the public offer behind an estimate without confirming it as the
 // user's choice or sending private basket input to a translation service.
 export function basketVariant(offer){
  const name=String(offer.name||''),text=normalize(name),pack=packageMeasure(name),parts=[];
  if(/(?:^| )(?:mleko|mlijeko)(?: |$)/.test(text)){
-  parts.push(/(?:^| )kis[a-z]*(?: |$)/.test(text)?'кисломолочное':/(?:^| )cokolad[a-z]*(?: |$)/.test(text)?'шоколадное':'молоко');
+  const kind=comparisonClass(offer);parts.push(kind==='питьевое молоко'?'молоко':kind==='шоколадное молоко'?'шоколадное':kind);
  }
  else if(/(?:^| )sljiv[a-z]*(?: |$)/.test(text))parts.push(/(?:^| )(?:suv[a-z]*|susen[a-z]*)(?: |$)/.test(text)?'чернослив':'сливы');
  else if(/(?:^| )pile[a-z]*(?: |$)/.test(text)){const choices=[[/jetr|src/,'субпродукты'],[/kobasic|salam|virsl/,'колбаса'],[/cips|flips|kokic|popcorn|noodl/,'со вкусом курицы'],[/file/,'филе'],[/kril/,'крылья'],[/batak|karabatak/,'бёдра'],[/grud|prs|belo/,'грудка']];const type=choices.find(([pattern])=>pattern.test(text));if(type)parts.push(type[1]);}
  if(pack)parts.push(pack.amount>=1000?(pack.amount/1000)+(pack.kind==='volume'?' л':' кг'):pack.amount+(pack.kind==='volume'?' мл':' г'));
  return parts.join(' · ');
 }
+
+export function amountLabel(amount,kind){return amount>=1000?(amount/1000)+(kind==='volume'?' л':' кг'):amount+(kind==='volume'?' мл':' г');}
+// In a shopping list an explicit amount is the requested total. A directly
+// selected catalogue SKU continues to mean packs, never its title's volume.
+export function basketDemand(item){
+ if(item.product&&item.query===item.name)return null;
+ const pack=packageMeasure(item.query),m=volumeQuery(item.query)||weightQuery(item.query);
+ if(!pack||!m||pack.amount!==(m.ml||m.grams)||!unitPrice({name:item.query},100))return null;
+ const query=item.query.replace(m.text,' ').replace(/\s+/g,' ').trim();if(!query)return null;
+ const amount=pack.amount*(item.quantity||1);if(!Number.isSafeInteger(amount)||amount>10000000)return null;
+ return {kind:pack.kind,amount,query,label:amountLabel(amount,pack.kind)};
+}
+export const basketQuery=item=>basketDemand(item)?.query||item.query;
+export function comparisonClass(offer){
+ const t=normalize(offer.name);
+ if(/(?:^| )(?:mleko|mlijeko)(?: |$)/.test(t))return /kisel|(?:^| )kis(?: |$)/.test(t)?'кисломолочное':/cokolad|(?:^| )(?:cok|coko|choco|kakao)[a-z]*(?: |$)/.test(t)?'шоколадное молоко':/(?:^| )(?:badem|kokos|soj|ovsen|pirinc)[a-z]*(?: |$)/.test(t)?'растительный напиток':/prah|suvo|susen|kondenz|formul|pocet/.test(t)?'специальное молоко':'питьевое молоко';
+ if(/(?:^| )pile[a-z]*(?: |$)/.test(t))return /cips|flips|kokic|popcorn|noodl|kubet|smok/.test(t)?'снеки со вкусом курицы':/pastet/.test(t)?'паштет':/kobasic|salam|virsl|sunk|parizer/.test(t)?'колбаса':/jetr|src|bubac|bubreg|zelud/.test(t)?'субпродукты':/file|grud|prs|belo/.test(t)?'филе и грудка':/kril/.test(t)?'крылья':/batak|karabatak/.test(t)?'бёдра':'курица, другие части';
+ if(/(?:^| )(?:kafa|coffee)(?: |$)/.test(t))return /kapsul/.test(t)?'кофе в капсулах':/instant|rastvor/.test(t)?'растворимый кофе':/mleven|mljeven/.test(t)?'молотый кофе':/zrno|zrn/.test(t)?'кофе в зёрнах':'кофе, другой вид';
+ if(/(?:^| )(?:goved[a-z]*|junec[a-z]*|junet[a-z]*)(?: |$)/.test(t))return 'говядина';
+ if(/(?:^| )svinj[a-z]*(?: |$)/.test(t))return 'свинина';
+ if(/(?:^| )curet[a-z]*(?: |$)/.test(t))return 'индейка';
+ return 'товар';
+}
+const detailedQuery=query=>milkQuery(query)||relatedChickenQuery(query)||queryGroups(query).some(g=>g.some(t=>/^(kafa|coffee|meso|goved|junec|svinj|curet)/.test(t)));
 
 const basketSchemas=new WeakMap();
 export async function initBasket(db){
@@ -52,7 +76,7 @@ export async function addOffer(store,uid,offer,target=null){
  await initBasket(store.db);
  if(target){
   const item=await store.db.get(`SELECT b.query,COALESCE(f.payload,'{}') AS filters FROM sd_basket b LEFT JOIN sd_basket_filters f ON f.uid=b.uid AND f.id=b.id WHERE b.uid=:uid AND b.id=:id AND b.product IS NULL`,{':uid':uid,':id':target});if(!item)return false;
-  const filters=JSON.parse(item.filters);if(Object.keys(filters).length&&!await store.matchesOffer(item.query,offer.id,filters))return false;
+  const filters=JSON.parse(item.filters),need=basketDemand(item);if(need&&packageMeasure(offer.name)?.kind!==need.kind)return false;if(Object.keys(filters).length&&!await store.matchesOffer(basketQuery(item),offer.id,filters))return false;
   const result=await store.db.run(`UPDATE sd_basket SET product=:product,name=:name WHERE uid=:uid AND id=:id AND product IS NULL AND COALESCE((SELECT payload FROM sd_basket_filters WHERE uid=:uid AND id=:id),'{}')=:filters`,{':uid':uid,':id':target,':product':offer.product,':name':offer.name,':filters':item.filters});return result.rowsAffected===1;
  }
  const id='p'+offer.id;
@@ -86,35 +110,42 @@ export async function expandPendingList(store,uid,id){
 export async function compareBasket(store,uid,now=Date.now()){
  const items=(await cartItems(store,uid)).flatMap(item=>item.product?[item]:parseList(item.query).map((parsed,index)=>({...item,id:index?item.id+'s'+index:item.id,query:parsed.query,quantity:Math.min(99,item.quantity*parsed.quantity)}))),pending=items.filter(x=>!x.product);
  requireValue(items.length<=30,'Слишком много товаров в списке. Разделите его на корзины до 30 позиций.');
- if(!items.length)return {items,pending,stores:[],split:null};
+ if(!items.length)return {items,pending,stores:[],split:null,unresolved:[]};
  const versions=JSON.stringify((await store.sources()).map(s=>[s.id,s.current_gen,s.name]));
- const fingerprint=JSON.stringify([day(now),items,versions]);
- // Cache is disposable, per-user, and tied to every selected criterion and the
- // exact published catalogue. Storage failure must not block a fresh calculation.
+ const fingerprint=JSON.stringify(['comparable-v2',day(now),items,versions]);
  try{const cached=await store.db.get('SELECT payload FROM sd_basket_reports WHERE uid=:uid AND fingerprint=:fingerprint AND expires>:now',{':uid':uid,':fingerprint':fingerprint,':now':now});if(cached)return JSON.parse(cached.payload);}catch{}
-
- const matrices=new Map(),cheapest=[],missing=[];
- // Resolve every item against one SQLite statement snapshot. A concurrent
- // source publication cannot mix old and new generations inside this basket.
- const allRows=await store.db.all(`SELECT o.payload,s.name AS source_name,b.id AS cart_id FROM sd_basket b JOIN sd_offers o ON o.product=b.product JOIN sd_sources s ON s.id=o.source AND s.current_gen=o.gen WHERE b.uid=:uid AND o.date>=:cutoff AND o.date<=:today LIMIT 6001`,{':uid':uid,':cutoff':cutoff(Date.now()),':today':day()});
+ const matrices=new Map(),cheapest=[],missing=[],unresolved=[];
+ const allRows=items.some(i=>i.product)?await store.db.all(`SELECT o.payload,s.name AS source_name,b.id AS cart_id FROM sd_basket b JOIN sd_offers o ON o.product=b.product JOIN sd_sources s ON s.id=o.source AND s.current_gen=o.gen WHERE b.uid=:uid AND o.date>=:cutoff AND o.date<=:today LIMIT 6001`,{':uid':uid,':cutoff':cutoff(now),':today':day(now)}):[];
  requireValue(allRows.length<=6000,'Слишком много предложений для одной корзины. Уточните товары.');
  for(const item of items){
-  const rows=item.product?allRows.filter(row=>row.cart_id===item.id):await store.basketCandidates(item.query,Date.now(),item.filters||{});
-  requireValue(rows.length<=100,'Слишком много вариантов. Уточните товары в списке.');
-  let best=null;
-  for(const row of rows){
-   const offer=JSON.parse(row.payload),price=currentPrice(offer),key=offer.source+'|'+offer.format;
-   if(!matrices.has(key))matrices.set(key,{source:offer.source,chain:row.source_name,name:offer.format,items:new Map()});
+  const need=basketDemand(item),query=basketQuery(item),detailed=!item.product&&(!!need||detailedQuery(query));
+  const rows=item.product?allRows.filter(row=>row.cart_id===item.id):await store.basketCandidates(query,now,item.filters||{},detailed);
+  requireValue(rows.length<=(detailed?1000:100),'Слишком много вариантов. Уточните товары в списке.');
+  const offers=rows.map(row=>({...row,offer:JSON.parse(row.payload)}));
+  const eligible=need?offers.filter(r=>packageMeasure(r.offer.name)?.kind===need.kind):offers;
+  const classes=new Set(eligible.map(r=>comparisonClass(r.offer))),packs=new Set(eligible.map(r=>{const m=packageMeasure(r.offer.name);return m?m.kind+':'+m.amount:'unknown';}));
+  const ambiguous=!item.product&&(classes.size>1||!need&&!item.filters?.pack&&packs.size>1);
+  let best=null,quoted=0;
+  for(const {offer,source_name} of offers){
+   const price=currentPrice(offer,day(now)),pack=packageMeasure(offer.name),key=offer.source+'|'+offer.format;
+   const quantity=need?(pack?.kind===need.kind?Math.ceil(need.amount/pack.amount):0):item.quantity;
+   if(!quantity||quantity>10000||!Number.isSafeInteger(quantity*price))continue;
+   quoted++;
+   if(!matrices.has(key))matrices.set(key,{source:offer.source,chain:source_name,name:offer.format,items:new Map()});
+   const candidate={id:item.id,name:item.product?item.name||offer.name:item.query,offerName:offer.name,product:offer.product,estimated:!item.product,match:item.product?'exact':'alternative',ambiguous,choices:ambiguous?[...classes].slice(0,8):[],variant:basketVariant(offer),unitPrice:unitPrice(offer,price)?.label||null,source:offer.source,quantity,price,total:price*quantity,...(need?{demand:need.label,pack:amountLabel(pack.amount,pack.kind),supplied:amountLabel(pack.amount*quantity,pack.kind)}:{})};
    const found=matrices.get(key).items.get(item.id);
-   if(!found||price<found.price)matrices.get(key).items.set(item.id,{id:item.id,name:item.product?item.name||offer.name:item.query,estimated:!item.product,variant:basketVariant(offer),unitPrice:unitPrice(offer,price)?.label||null,source:offer.source,quantity:item.quantity,price,total:price*item.quantity});
-   if(!best||price<best.price)best={id:item.id,name:item.product?item.name||offer.name:item.query,estimated:!item.product,variant:basketVariant(offer),unitPrice:unitPrice(offer,price)?.label||null,source:offer.source,quantity:item.quantity,price,total:price*item.quantity,store:offer.format,date:offer.date};
+   if(!found||candidate.total<found.total||candidate.total===found.total&&offer.id<found.offerId)matrices.get(key).items.set(item.id,{...candidate,offerId:offer.id});
+   if(!best||candidate.total<best.total)best={...candidate,store:offer.format,date:offer.date};
   }
-  if(best)cheapest.push(best);else missing.push(item.name||item.query);
+  if(best&&!ambiguous)cheapest.push(best);else missing.push(item.name||item.query);
+  if(ambiguous||need&&!quoted)unresolved.push({id:item.id,query:item.query,reason:ambiguous?'Выберите вид или упаковку':'Нет проверенного размера упаковки',choices:[...classes].slice(0,8)});
  }
- const stores=[...matrices.values()].map(s=>({source:s.source,chain:s.chain,name:s.name,found:s.items.size,total:[...s.items.values()].reduce((n,x)=>n+x.total,0),missing:items.filter(x=>!s.items.has(x.id)).map(x=>x.name||x.query),items:[...s.items.values()]}));
- stores.sort((a,b)=>(b.found===items.length)-(a.found===items.length)||b.found-a.found||a.total-b.total);
+ const stores=[...matrices.values()].map(s=>{const rows=[...s.items.values()],ready=rows.filter(i=>!i.ambiguous);return {source:s.source,chain:s.chain,name:s.name,found:rows.length,ready:ready.length,complete:ready.length===items.length,total:ready.reduce((n,x)=>n+x.total,0),missing:items.filter(x=>!s.items.has(x.id)||s.items.get(x.id).ambiguous).map(x=>x.name||x.query),items:rows};});
+ stores.sort((a,b)=>Number(b.complete)-Number(a.complete)||b.ready-a.ready||a.total-b.total||a.name.localeCompare(b.name));
  requireValue(versions===JSON.stringify((await store.sources()).map(s=>[s.id,s.current_gen,s.name])),'Прайсы обновились во время расчёта. Повторите сравнение.');
- const report={items,pending,estimated:pending.length>0,stores,split:{complete:missing.length===0,total:cheapest.reduce((n,x)=>n+x.total,0),items:cheapest,missing}};
+ const split={complete:missing.length===0,total:cheapest.reduce((n,x)=>n+x.total,0),items:cheapest,missing,networks:new Set(cheapest.map(i=>i.source)).size};
+ const bestSingle=stores.find(s=>s.complete)||null,savings=!pending.length&&split.complete&&bestSingle?Math.max(0,bestSingle.total-split.total):null;
+ const report={items,pending,estimated:pending.length>0,stores,split,unresolved,bestSingle:bestSingle?{source:bestSingle.source,name:bestSingle.chain,total:bestSingle.total}:null,savings};
  const payload=JSON.stringify(report);
  if(payload.length<=60000)try{await store.db.run('INSERT INTO sd_basket_reports(uid,fingerprint,payload,expires) SELECT :uid,:fingerprint,:payload,:expires WHERE EXISTS(SELECT 1 FROM sd_basket_reports WHERE uid=:uid) OR (SELECT COUNT(*) FROM sd_basket_reports)<200 ON CONFLICT(uid) DO UPDATE SET fingerprint=excluded.fingerprint,payload=excluded.payload,expires=excluded.expires',{':uid':uid,':fingerprint':fingerprint,':payload':payload,':expires':now+60000});}catch{}
  return report;

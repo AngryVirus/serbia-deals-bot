@@ -35,7 +35,7 @@ test('partial basket names missing positions and complete estimates use from on 
  const f=await fixture();await publish(f,[offer()]);await new Bot(f).handle(message(5,'/start'));
  await addList(f.store,5,'лампочка, <нет товара>',900);
  await new Bot(f).handle(callback(5,'basketshop:'+source+':0'));
- const panel=f.sent.at(-1);assert(panel.text.includes('Только 1 из 2 товаров'));assert(panel.text.includes('Не найдено: &lt;нет товара&gt;'));
+ const panel=f.sent.at(-1);assert(panel.text.includes('Рассчитано 1 из 2 товаров'));assert(panel.text.includes('Не найдено или нужно уточнить: &lt;нет товара&gt;'));
  await f.db.run('DELETE FROM sd_basket WHERE uid=5 AND id=:id',{':id':'900-1'});
  await new Bot(f).handle(callback(5,'basketcompare'));
  let split=f.sent.at(-1).reply_markup.inline_keyboard.flat().find(b=>b.callback_data==='basketsplit:0');assert(split.text.includes('· от '));

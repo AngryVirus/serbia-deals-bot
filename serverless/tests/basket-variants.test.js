@@ -33,9 +33,9 @@ test('milk refinement applies to basket selection, retains quantity and offers a
 test('estimate records the actual package behind its price without confirming a product or translating private input',async()=>{
  const f=await fixture();const rows=milks();rows[1].regular=100;await publish(f,rows);await new Bot(f).handle(message(5,'/start'));await addList(f.store,5,'молоко',900);
  let requests=0;f.fetch=async()=>{requests++;throw Error('No external test requests');};
- const report=await compareBasket(f.store,5);assert.equal(report.stores[0].items[0].variant,'кисломолочное · 180 г');assert.equal(report.stores[0].items[0].name,'молоко');
- await new Bot(f).handle(callback(5,'basketcompare'));assert(f.sent.at(-1).text.includes('кисломолочное · 180 г'));
- await new Bot(f).handle(callback(5,'basketshop:'+source+':0'));assert(f.sent.at(-1).text.includes('кисломолочное · 180 г'));assert.equal(requests,0);assert.equal((await cartItems(f.store,5))[0].product,null);
+ const report=await compareBasket(f.store,5);assert.equal(report.stores[0].items[0].variant,'кисломолочное · 180 г');assert.equal(report.stores[0].items[0].name,'молоко');assert.equal(report.stores[0].items[0].ambiguous,true);assert.equal(report.stores[0].total,0);
+ await new Bot(f).handle(callback(5,'basketcompare'));assert(f.sent.at(-1).text.includes('выберите вид или упаковку'));
+ await new Bot(f).handle(callback(5,'basketshop:'+source+':0'));assert(f.sent.at(-1).text.includes('кисломолочное'));assert.equal(requests,0);assert.equal((await cartItems(f.store,5))[0].product,null);
 });
 test('package hints preserve stock-code boundaries and never invent a missing size',()=>{
  assert.equal(basketVariant({name:'Energy drink SK24 250 ml'}),'250 мл');

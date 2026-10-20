@@ -111,8 +111,12 @@ export class Store{
  async refinementSamples(query,now=Date.now(),filters={}){
   const plan=await this.searchPlan(query,now,null,filters);return this.db.all(plan.sql+' LIMIT 120',plan.params);
  }
- async basketCandidates(query,now=Date.now(),filters={}){
+ async basketCandidates(query,now=Date.now(),filters={},detailed=false){
   const plan=await this.searchPlan(query,now,null,filters);
+  if(detailed){
+   const rows=[];for(let offset=0;offset<=1000;offset+=200){const page=await this.db.all(`WITH matches AS (${plan.sql}) SELECT payload,source_name FROM matches ORDER BY id LIMIT 200 OFFSET :page`,{...plan.params,':page':offset});rows.push(...page);if(page.length<200||rows.length>1000)break;}
+   return rows;
+  }
   return this.db.all(`WITH matches AS (${plan.sql}), ranked AS (SELECT *,ROW_NUMBER() OVER(PARTITION BY source_id,json_extract(payload,'$.format') ORDER BY price,id) AS position FROM matches) SELECT payload,source_name FROM ranked WHERE position=1 LIMIT 101`,plan.params);
  }
  async matchesOffer(query,id,filters={}){const plan=await this.searchPlan(query,Date.now(),null,filters);plan.params[':chosen']=id;return Boolean(await this.db.get(plan.sql+' AND o.id=:chosen LIMIT 1',plan.params));}
