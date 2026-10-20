@@ -4,7 +4,7 @@ on:
     inputs:
       action:
         type: choice
-        options: [check, stage, collect, activate, pause, notify, diagnose, commands]
+        options: [check, stage, collect, activate, pause, notify, diagnose, commands, recover_menu]
         default: check
       sources:
         description: enabled, all, or dataset aliases/IDs separated by commas
@@ -50,6 +50,6 @@ jobs:
                 python3 -m collector.operations stage
               fi
               ;;
-            check|activate|pause|notify|diagnose|commands) python3 -m collector.operations "$OPERATION" ;;
+            check|activate|pause|notify|diagnose|commands|recover_menu) python3 -m collector.operations "$OPERATION" ;;
             *) exit 1 ;;
           esac

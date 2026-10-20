@@ -19,6 +19,20 @@ try{
   const names=['lib/domain','lib/store','lib/moderation-state','lib/moderation-notices','lib/image-codec','lib/image-fonts','lib/image-header','lib/image-renderer','endpoints/moderation'];
   const selected=Object.fromEntries(names.map(name=>[name,sources[name]]));
   result=(await client.runFunction(token,'endpoints/moderation',selected,input.args,{ownerRun:true})).result;
+ }else if(input.command==='recover_menu'){
+  const recovery=`import {api,db,InputFile} from 'sdk';
+import {Bot} from '../lib/bot.js';
+import {Store} from '../lib/store.js';
+import {OWNER_ID,assertBot} from '../lib/domain.js';
+import {lockUser,unlockUser} from '../lib/moderation-state.js';
+export default async function(input,ctx){
+ if(ctx?.ownerRun!==true)throw Error('Private recovery only');await assertBot(api);const store=new Store(db);await store.init();if(await store.meta('active')!==true)return {active:false};
+ const key='menu-recovery:'+Date.now();if(!await lockUser(store,OWNER_ID,key))return {busy:true};
+ try{const user=await store.user(OWNER_ID);if(!user)return {profile_missing:true};const bot=new Bot({db,api,InputFile});bot.uid=OWNER_ID;bot.user=user;await bot.home();return {menu_delivered:true};}
+ catch(error){const detail=String(error.description||error.message||'').toLowerCase();return {menu_delivered:false,code:Number(error.code||error.error_code)||null,hints:['photo','file','media','caption','parse','chat','blocked','timeout','limit','not found','not modified','permission','invalid','upload','size'].filter(word=>detail.includes(word))};}
+ finally{await unlockUser(store,OWNER_ID,key);}
+}`;
+  result=(await client.runFunction(token,'endpoints/recovery',{...sources,'endpoints/recovery':recovery},{},{ownerRun:true})).result;
  }else if(input.command==='diagnose'){
   const routing=await client.getWebhook(token),remote=await client.getFiles(token);
   const text=String(routing.last_error_message||'');
