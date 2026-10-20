@@ -26,6 +26,15 @@ export async function addOffer(store,uid,offer,target=null){
  requireValue(result.rowsAffected===1||await store.db.get('SELECT 1 AS present FROM sd_basket WHERE uid=:uid AND id=:id',{':uid':uid,':id':id}),'В корзине может быть до 30 позиций.');return true;
 }
 
+// Rotate the row ID atomically: buttons from the previous selection must never
+// change the replacement. Keep the original query and quantity for a new search.
+export async function resetProduct(store,uid,id){
+ await initBasket(store.db);
+ const next='r'+(await store.db.get('SELECT lower(hex(randomblob(8))) AS id')).id;
+ const result=await store.db.run('UPDATE sd_basket SET id=:next,product=NULL,name=NULL WHERE uid=:uid AND id=:id AND product IS NOT NULL',{':uid':uid,':id':id,':next':next});
+ return result.rowsAffected===1?next:null;
+}
+
 export async function cartItems(store,uid){await initBasket(store.db);return store.db.all('SELECT * FROM sd_basket WHERE uid=:uid ORDER BY id LIMIT 30',{':uid':uid});}
 
 export async function expandPendingList(store,uid,id){
