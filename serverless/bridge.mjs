@@ -30,7 +30,7 @@ export default async function(input,ctx){
  const bot=new Bot({db:{},api:stub,InputFile});bot.uid=OWNER_ID;bot.user={};bot.store.patch=async()=>{};
  const started=Date.now();await bot.home();return {photoCalls,textCalls,elapsed_ms:Date.now()-started};
 }`;
-  try{result.ui={ok:true,...(await client.runFunction(token,'endpoints/__ui_probe',{...sources,'endpoints/__ui_probe':probe},{},{ownerRun:true})).result};}
+  try{result.ui={ok:true,...(await client.runFunction(token,'endpoints/ui_probe',{...sources,'endpoints/ui_probe':probe},{},{ownerRun:true})).result};}
   catch(error){const detail=String(error.message||'')+' '+JSON.stringify(error.parameters||{});result.ui={ok:false,status:Number.isInteger(error.status)?error.status:null,hints:['time','limit','memory','source','size','module','parse','syntax','inputfile','function','png','invalid','cpu','heap','execution'].filter(word=>detail.toLowerCase().includes(word))};}
  }else if(input.command==='remote'){const r=await client.getFiles(token);result={revision:r.revision,canonical_modules:r.canonical_modules};}
  else if(input.command==='deploy'){
