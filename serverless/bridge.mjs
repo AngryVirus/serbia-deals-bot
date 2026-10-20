@@ -26,8 +26,10 @@ try{
  else throw Error('Unsupported command');
  process.stdout.write(JSON.stringify({ok:true,result}));
 }catch(error){
- const message=String(error.description||error.message||'');
+ const message=String(error.description||error.message||'')+' '+JSON.stringify(error.parameters||{});
  const categories=[['sqlite_full',/SQLITE_FULL|database or disk is full|storage.{0,30}(quota|limit)/i],['pragma_restricted',/pragma/i],['execution_limit',/time.{0,20}(limit|out)|execution.{0,20}(limit|budget)|memory.{0,20}limit/i],['sql_error',/SQLITE_|SQL error|syntax error|no such (table|column)/i],['source_lease',/Source (busy|lease expired)|Publication lost lease/],['revision_review',/explicit revision review/]];
  const category=categories.find(([,pattern])=>pattern.test(message))?.[0]||'unclassified';
- process.stdout.write(JSON.stringify({ok:false,status:Number.isInteger(error.status)?error.status:null,retry_after:Number(error.parameters?.retry_after)||null,category,reason:'Management operation failed; private output withheld'}));process.exitCode=1;
+ const vocabulary=['database','quota','limit','size','disk','full','memory','timeout','execution','sql','sqlite','pragma','authorized','denied','syntax','column','table','request','payload','argument','module','invalid','unsupported','function','rate','maximum','rows','bytes','budget','read','only','statement','failed'];
+ const hints=vocabulary.filter(word=>new RegExp('\\b'+word+'\\b','i').test(message));
+ process.stdout.write(JSON.stringify({ok:false,status:Number.isInteger(error.status)?error.status:null,retry_after:Number(error.parameters?.retry_after)||null,category,hints,reason:'Management operation failed; private output withheld'}));process.exitCode=1;
 }
