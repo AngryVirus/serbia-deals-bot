@@ -12,9 +12,13 @@ try{
  let result;
  if(input.command==='run'){
   // Bulk ingestion never resends image/font assets to the management gateway.
-  const names=['lib/domain','lib/basket','lib/store','lib/ingest','lib/notifications','lib/manage','lib/image-codec','endpoints/manage'];
+  const names=['lib/domain','lib/moderation-state','lib/basket','lib/store','lib/ingest','lib/notifications','lib/manage','lib/image-codec','endpoints/manage'];
   const selected=Object.fromEntries(names.map(name=>[name,sources[name]]));
   result=(await client.runFunction(token,'endpoints/manage',selected,input.args,{ownerRun:true})).result;
+ }else if(input.command==='moderation'){
+  const names=['lib/domain','lib/store','lib/moderation-state','lib/moderation-notices','lib/image-codec','lib/image-fonts','lib/image-header','lib/image-renderer','endpoints/moderation'];
+  const selected=Object.fromEntries(names.map(name=>[name,sources[name]]));
+  result=(await client.runFunction(token,'endpoints/moderation',selected,input.args,{ownerRun:true})).result;
  }else if(input.command==='diagnose'){
   const routing=await client.getWebhook(token),remote=await client.getFiles(token);
   const text=String(routing.last_error_message||'');

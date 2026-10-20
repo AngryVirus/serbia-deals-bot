@@ -10,6 +10,7 @@ export async function manage(input,ctx,{db,api}){
  const store=new Store(db);await store.init();
  const operation=input?.operation;
  if(operation==='init'){if(await store.meta('active')===null)await store.setMeta('active',false);return {ready:true,active:await store.meta('active')};}
+ if(operation==='notices_due'){const row=await store.db.get("SELECT COUNT(*) AS count FROM sd_admin_records r JOIN sd_users u ON CAST(u.id AS TEXT)=r.key WHERE r.kind IN ('ban','role') AND json_extract(r.payload,'$.notice')='pending' AND COALESCE(json_extract(r.payload,'$.retry'),0)<=:now",{':now':Date.now()});return {due:row.count};}
  if(operation==='status'){
   const sources=await store.sources(),queue=await db.all('SELECT state,COUNT(*) AS count FROM sd_queue GROUP BY state');
   let offers=0;
