@@ -36,7 +36,7 @@ export default async function(input,ctx){
  const bot=new Bot({db:{},api:stub,InputFile});bot.uid=OWNER_ID;bot.user={};bot.store.patch=async()=>{};
  const started=Date.now();await bot.home();const home={photoCalls,textCalls};
  bot.store=new Store(db);await bot.store.init();bot.store.patch=async()=>{};
- await adminRoute(bot,'admin');await adminRoute(bot,'admin:stats');
+ bot.user={};await adminRoute(bot,'admin');bot.user={};await adminRoute(bot,'admin:stats');
  return {...home,admin_photo_calls:photoCalls-home.photoCalls,admin_text_calls:textCalls-home.textCalls,elapsed_ms:Date.now()-started};
 }`;
   try{result.ui={ok:true,...(await client.runFunction(token,'endpoints/ui_probe',{...sources,'endpoints/ui_probe':probe},{},{ownerRun:true})).result};}
