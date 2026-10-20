@@ -55,7 +55,7 @@ export default async function(input,ctx){
  for(const query of ['энергетик','мясо','молоко','кофе','шампунь','лампочка']){
   const samples=await bot.store.refinementSamples(query),draft=buildRefinement(query,samples.map(r=>JSON.parse(r.payload)),'probe');
   const check={query,samples:samples.length,facets:draft?.facets.map(f=>f.key)||[]};
-  if(draft){bot.user={};await bot.refine(draft);for(const facet of draft.facets)if(['brand','pack'].includes(facet.key))draft.selected[facet.key]=0;const filtered=await bot.store.searchChains(query,Date.now(),refinementFilters(draft));check.filtered_networks=filtered.length;}
+  if(draft){bot.user={};await bot.refine(draft);for(const facet of draft.facets)if(facet.key==='brand')draft.selected[facet.key]=0;const narrowed=await bot.store.refinementSamples(query,Date.now(),refinementFilters(draft)),dependent=buildRefinement(query,narrowed.map(r=>JSON.parse(r.payload)),'dependent',Date.now(),true),pack=dependent?.facets.find(f=>f.key==='pack');if(pack){const original=draft.facets.find(f=>f.key==='pack');if(original){original.values=pack.values;draft.selected.pack=0;}}const filtered=await bot.store.searchChains(query,Date.now(),refinementFilters(draft));check.filtered_networks=filtered.length;}
   refinementChecks.push(check);
  }
  const names=await productNames(bot.store,translationFetch,[{name:'LED sijalica E27 9W 806lm'},{name:'Energetski napitak Red Bull 0,25l',brand:'Red Bull'}]);

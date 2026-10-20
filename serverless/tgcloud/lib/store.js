@@ -71,8 +71,8 @@ export class Store{
   const plan=await this.searchPlan(query,now,source,filters);plan.params[':offset']=Math.min(1000,Math.max(0,offset));
   return this.db.all(`WITH matches AS (${plan.sql}), ranked AS (SELECT *,ROW_NUMBER() OVER(PARTITION BY product ORDER BY price,id) AS position,MIN(price) OVER(PARTITION BY product) AS min_price,MAX(price) OVER(PARTITION BY product) AS max_price FROM matches) SELECT * FROM ranked WHERE position=1 ORDER BY price,id LIMIT 6 OFFSET :offset`,plan.params);
  }
- async refinementSamples(query,now=Date.now()){
-  const plan=await this.searchPlan(query,now);return this.db.all(plan.sql+' LIMIT 120',plan.params);
+ async refinementSamples(query,now=Date.now(),filters={}){
+  const plan=await this.searchPlan(query,now,null,filters);return this.db.all(plan.sql+' LIMIT 120',plan.params);
  }
  async basketCandidates(query,now=Date.now()){
   const plan=await this.searchPlan(query,now);

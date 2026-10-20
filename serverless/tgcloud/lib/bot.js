@@ -38,7 +38,7 @@ export class Bot{
   if(facet){
    for(let i=page*6;i<Math.min(facet.values.length,page*6+6);i++)rows.push([button((draft.selected[key]===i?'✓ ':'')+facet.values[i].label,`ref:${draft.token}:${key}:${i}`)]);
    rows.push([button('Любой вариант',`ref:${draft.token}:${key}:any`)]);const nav=[];if(page)nav.push(button('⬅️',`ref:${draft.token}:${key}:page${page-1}`));if(facet.values.length>(page+1)*6)nav.push(button('➡️',`ref:${draft.token}:${key}:page${page+1}`));if(nav.length)rows.push(nav);
-   return this.panel(`<b>${safe(facet.label)}</b>\n\n${safe(draft.query)}\n\nВыберите вариант или оставьте любой.`,[...rows,[button('⬅️ К уточнениям',`ref:${draft.token}:back`)]]);
+   return this.panel(`<b>${safe(facet.label)}</b>\n\n${safe(draft.query)}\n\n${facet.values.length?'Выберите вариант или оставьте любой.':'С этими уточнениями вариантов нет. Оставьте любой вариант.'}`,[...rows,[button('⬅️ К уточнениям',`ref:${draft.token}:back`)]]);
   }
   const selected=Object.keys(draft.selected).length;
   const text='<b>Уточнить товар?</b>\n\n'+safe(draft.query)+'\n\n'+draft.facets.map(f=>`${safe(f.label)}: ${safe(f.values[draft.selected[f.key]]?.label||'любой вариант')}`).join('\n')+'\n\nНеобязательно: без выбора покажем все варианты.';
@@ -51,7 +51,7 @@ export class Bot{
   try{
    if(!this.allowAll&&!source&&!offset){
     await this.store.patch(this.uid,{query,searchFilters:{},refinement:null,searchRev:null});this.user={...this.user,query,searchFilters:{},refinement:null,searchRev:null};
-    try{const samples=await this.store.refinementSamples(query),draft=buildRefinement(query,samples.map(r=>JSON.parse(r.payload)),Math.random().toString(36).slice(2,10));if(samples.length&&draft){await this.store.patch(this.uid,{refinement:draft,pending:null});this.user.refinement=draft;return this.refine(draft);}}catch{/* Ordinary search retains its own useful error response. */}
+    try{const samples=await this.store.refinementSamples(query),draft=buildRefinement(query,samples.map(r=>JSON.parse(r.payload)),Math.random().toString(36).slice(2,10));if(samples.length&&draft){if(this.reuseFilters)for(const facet of draft.facets){const index=facet.values.findIndex(v=>JSON.stringify(v.value)===JSON.stringify(this.reuseFilters[facet.key]));if(index>=0)draft.selected[facet.key]=index;}await this.store.patch(this.uid,{refinement:draft,pending:null});this.user.refinement=draft;return this.refine(draft);}}catch{/* Ordinary search retains its own useful error response. */}
    }
    if(bulbQuery(query)&&!/(?:e14|e27|gu10|g9|g4|h4|h7)/i.test(query)&&!this.allowAll){
     await this.store.patch(this.uid,{query,pending:null});return this.panel('<b>Какая лампочка нужна?</b>\n\nЦоколь помогает подобрать подходящие варианты. Остальные характеристики будут в названии и карточке.',[[button('E27','socket:E27'),button('E14','socket:E14'),button('GU10','socket:GU10')],[button('Показать все варианты','socket:all')],...BACK]);
@@ -164,13 +164,16 @@ export class Bot{
    if(parts.length===3&&['apply','all'].includes(parts[2])){const filters=parts[2]==='all'?{}:refinementFilters(draft);await this.store.patch(uid,{refinement:null,searchFilters:filters});this.user={...this.user,refinement:null,searchFilters:filters};this.allowAll=true;return this.search(draft.query);}
    if(parts.length===3&&parts[2]==='back')return this.refine(draft);
    const facet=draft.facets.find(f=>f.key===parts[2]),value=parts[3];if(!facet||parts.length!==4)return this.refine(draft);
-   if(value==='open')return this.refine(draft,facet.key);
+   if(value==='open'){
+    try{const filters=refinementFilters(draft);delete filters[facet.key];const samples=await this.store.refinementSamples(draft.query,Date.now(),filters),available=buildRefinement(draft.query,samples.map(r=>JSON.parse(r.payload)),draft.token,Date.now(),true),next=available?.facets.find(f=>f.key===facet.key),previous=facet.values[draft.selected[facet.key]]?.value;facet.values=next?.values||[];const index=facet.values.findIndex(v=>JSON.stringify(v.value)===JSON.stringify(previous));if(index<0)delete draft.selected[facet.key];else draft.selected[facet.key]=index;draft.token=Math.random().toString(36).slice(2,10);await this.store.patch(uid,{refinement:draft});}catch{/* Existing validated choices remain usable if a refresh fails. */}
+    return this.refine(draft,facet.key);
+   }
    if(/^page[0-3]$/.test(value))return this.refine(draft,facet.key,Number(value.slice(4)));
    if(value==='any')delete draft.selected[facet.key];else if(/^\d{1,2}$/.test(value)&&facet.values[Number(value)])draft.selected[facet.key]=Number(value);else return this.refine(draft);
-   await this.store.patch(uid,{refinement:draft});return this.refine(draft);
+   if(['brand','type'].includes(facet.key)){delete draft.selected.pack;delete draft.selected.fat;delete draft.selected.socket;}await this.store.patch(uid,{refinement:draft});return this.refine(draft);
   }
-  if(action==='refine:again'&&this.user.query)return this.search(this.user.query);
-  if(action==='search'){await this.store.patch(uid,{cartTarget:null});return this.prompt();}
+  if(action==='refine:again'&&this.user.query){this.reuseFilters=this.user.searchFilters||{};return this.search(this.user.query);}
+  if(action==='search'){await this.store.patch(uid,{cartTarget:null,refinement:null});return this.prompt();}
   if(action==='basket')return this.basket();
   if(/^basket:(0|5|10|15|20|25)$/.test(action))return this.basket(Number(action.slice(7)));
   if(/^cartitem:[a-z0-9-]{1,40}$/.test(action))return this.basketItem(action.slice(9));
