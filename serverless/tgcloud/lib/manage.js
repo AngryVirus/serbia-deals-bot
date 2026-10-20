@@ -9,7 +9,16 @@ export async function manage(input,ctx,{db,api}){
  const store=new Store(db);await store.init();
  const operation=input?.operation;
  if(operation==='init'){if(await store.meta('active')===null)await store.setMeta('active',false);return {ready:true,active:await store.meta('active')};}
- if(operation==='status'){const sources=await store.sources(),queue=await db.all('SELECT state,COUNT(*) AS count FROM sd_queue GROUP BY state');return {active:await store.meta('active'),sources,queue,last_collection:await store.meta('last_collection')};}
+ if(operation==='status'){
+  const sources=await store.sources(),queue=await db.all('SELECT state,COUNT(*) AS count FROM sd_queue GROUP BY state');
+  const catalog=await db.get('SELECT COUNT(*) AS offers FROM sd_offers o JOIN sd_sources s ON s.id=o.source AND s.current_gen=o.gen');
+  let storage=null;
+  try{
+   const pages=await db.get('PRAGMA page_count'),size=await db.get('PRAGMA page_size');
+   if(Number.isSafeInteger(pages?.page_count)&&Number.isSafeInteger(size?.page_size))storage={bytes:pages.page_count*size.page_size};
+  }catch{/* Some hosted SQLite environments restrict PRAGMA inspection. */}
+  return {active:await store.meta('active'),sources,queue,catalog,storage,last_collection:await store.meta('last_collection')};
+ }
  if(operation==='activate'){requireValue(input.confirm_username==='SerbiaDealsBot');await store.setMeta('active',true);return {active:true};}
  if(operation==='pause'){await store.setMeta('active',false);return {active:false};}
  if(operation==='register_sources'){
