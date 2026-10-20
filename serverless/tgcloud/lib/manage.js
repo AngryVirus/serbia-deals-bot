@@ -44,7 +44,7 @@ export async function manage(input,ctx,{db,api}){
  }
  if(operation==='basket_check'){
   const items=await cartItems(store,OWNER_ID),report=await compareBasket(store,OWNER_ID);
-  return {items:report.items.length,stored_rows:items.length,pending:report.pending.length,stores:report.stores.length,complete_stores:report.stores.filter(s=>s.found===report.items.length).length,split_complete:report.split?.complete??null};
+  return {items:report.items.length,stored_rows:items.length,pending:report.pending.length,stores:report.stores.length,complete_stores:report.stores.filter(s=>s.complete===true).length,needs_choice:report.unresolved?.length||0,split_complete:report.split?.complete??null};
  }
  if(operation==='search_check'){
   requireValue(typeof input.query==='string'&&input.query.length<=120);

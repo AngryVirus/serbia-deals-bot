@@ -52,3 +52,7 @@ test('candidate overflow and publication during calculation fail explicitly inst
 test('choosing a wrong dimension cannot confirm a measured shopping-list requirement',async()=>{
  const f=await fixture();await addList(f.store,5,'молоко 2 л',900);assert.equal(await addOffer(f.store,5,goods(1,'Kiselo mleko 180g',1000),'900-0'),false);assert.equal(await addOffer(f.store,5,goods(2,'Mleko',1000),'900-0'),false);assert.equal((await cartItems(f.store,5))[0].product,null);
 });
+
+test('owner diagnostics count only calculated complete baskets, not all found but incompatible items',async()=>{
+ const {manage}=await import('../tgcloud/lib/manage.js');const f=await fixture();await publish(f,[goods(1,'Mleko 1l',10000),goods(2,'Kiselo mleko 180g',1000)]);await addList(f.store,340780041,'молоко',900);const status=await manage({operation:'basket_check'},{ownerRun:true},f);assert.equal(status.complete_stores,0);assert.equal(status.needs_choice,1);
+});
