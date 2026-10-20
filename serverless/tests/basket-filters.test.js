@@ -37,3 +37,10 @@ test('removing a position or deleting an account also deletes its saved criteria
  await new Bot(f).handle(callback(5,'cartremove:900-0'));assert.equal((await f.db.get('SELECT COUNT(*) n FROM sd_basket_filters WHERE uid=5')).n,1);
  await new Bot(f).handle(callback(5,'delete:confirm'));assert.equal((await f.db.get('SELECT COUNT(*) n FROM sd_basket_filters WHERE uid=5')).n,0);
 });
+
+test('an existing basket schema upgrades without rewriting old rows or quantities',async()=>{
+ const f=await fixture();await f.db.run('CREATE TABLE sd_basket(uid INTEGER NOT NULL,id TEXT NOT NULL,query TEXT NOT NULL,product TEXT,name TEXT,quantity INTEGER NOT NULL,PRIMARY KEY(uid,id))');
+ await f.db.run('INSERT INTO sd_basket(uid,id,query,quantity) VALUES(5,:id,:query,3)',{':id':'old-1',':query':'молоко'});
+ const rows=await cartItems(f.store,5);assert.equal(rows.length,1);assert.equal(rows[0].id,'old-1');assert.equal(rows[0].query,'молоко');assert.equal(rows[0].quantity,3);assert.deepEqual(rows[0].filters,{});
+ await saveBasketFilters(f.store,5,'old-1',filters);assert.equal((await cartItems(f.store,5))[0].quantity,3);
+});
