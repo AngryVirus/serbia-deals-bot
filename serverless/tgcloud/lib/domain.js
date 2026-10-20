@@ -56,7 +56,7 @@ export function queryGroups(query){
  return groups;
 }
 export const freshProduceQuery=query=>!/(марин|сол[её]н|консерв|паста|соус|суп|сок|сметан|kisel|marin|paster|konzerv)/i.test(String(query))&&queryGroups(query).some(group=>group.some(word=>['krastav','paradajz','rajcic'].includes(word)));
-export const freshMeatQuery=query=>!/(фарш|паштет|колбас|сосиск|копч|готов|суп|соус)/i.test(String(query))&&queryGroups(query).some(group=>group.some(word=>['pile','pilet','goved','junec','svinj','curet'].includes(word)));
+export const freshMeatQuery=query=>!/(фарш|паштет|колбас|сосиск|копч|готов|суп|соус|корм)/i.test(String(query))&&queryGroups(query).some(group=>group.some(word=>['pile','pilet','goved','junec','svinj','curet'].includes(word)));
 export const bulbQuery=query=>queryGroups(query).some(group=>group.some(word=>/^sijalic|^zarulj|^bulbs?$/.test(word)));
 export function day(now=Date.now()){const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Belgrade',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);const get=k=>parts.find(x=>x.type===k).value;return get('year')+'-'+get('month')+'-'+get('day');}
 export const cutoff=now=>new Date(Date.parse(day(now)+'T12:00:00Z')-2*86400000).toISOString().slice(0,10);
