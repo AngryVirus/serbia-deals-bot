@@ -42,7 +42,7 @@ export class Bot{
     const shown=rows.slice(offset,offset+8),buttons=shown.map(row=>[button(`${row.source_name} · ${money(row.min_price)}${row.min_price===row.max_price?'':' – '+money(row.max_price)}`.slice(0,90),`chainsel:${rev}:${row.source_id}:0`)]);
     const nav=[];if(offset)nav.push(button('⬅️ Назад',`chains:${rev}:${Math.max(0,offset-8)}`));if(rows.length>offset+8)nav.push(button('Далее ➡️',`chains:${rev}:${offset+8}`));if(nav.length)buttons.push(nav);
     buttons.push([button('🔎 Изменить поиск','search')],...BACK);
-    return this.panel(`<b>Где купить: ${safe(query)}</b>\n\n`+shown.map(row=>`<b>${safe(row.source_name)}</b>\n${money(row.min_price)}${row.min_price===row.max_price?'':' — '+money(row.max_price)}`).join('\n\n')+'\n\nВыберите сеть, чтобы увидеть товары и цены. Диапазон учитывает разные варианты и упаковки. Адресов филиалов в этих прайсах нет.',buttons,false);
+    return this.panel(`<b>Где купить: ${safe(query)}</b>\n\n`+shown.map(row=>`<b>${safe(row.source_name)}</b>\n${money(row.min_price)}${row.min_price===row.max_price?'':' — '+money(row.max_price)}`).join('\n\n')+'\n\nВыберите сеть, чтобы увидеть товары и цены. Диапазон учитывает разные варианты и упаковки. Для нужного размера укажите вес или объём в запросе. Адресов филиалов в этих прайсах нет.',buttons,false);
    }
    const shown=rows.slice(0,5),buttons=shown.map((row,index)=>{const offer=JSON.parse(row.payload);return [button(`${offset+index+1}. ${money(row.min_price)} · ${offer.name}`.slice(0,90),'offer:'+offer.id)];});
    const nav=[];if(offset)nav.push(button('⬅️ Назад',`chainsel:${rev}:${source}:${Math.max(0,offset-5)}`));if(rows.length>5)nav.push(button('Далее ➡️',`chainsel:${rev}:${source}:${offset+5}`));if(nav.length)buttons.push(nav);
