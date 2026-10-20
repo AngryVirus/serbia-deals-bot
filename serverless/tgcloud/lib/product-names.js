@@ -22,7 +22,7 @@ export async function productNames(store,fetch,offers,now=Date.now()){
   try{
    const limit=await store.db.run(`INSERT INTO sd_rates(id,n,expires) VALUES('name_translation',1,:until) ON CONFLICT(id) DO UPDATE SET n=CASE WHEN expires<=:now THEN 1 ELSE n+1 END,expires=CASE WHEN expires<=:now THEN :until ELSE expires END WHERE expires<=:now OR n<120`,{':until':now+60000,':now':now});
    if(limit.rowsAffected!==1)return;
-   const response=await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=sr&tl=ru&dt=t&q='+encodeURIComponent(name),{timeout:5000});
+   const response=await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=sr&tl=ru&dt=t&q='+encodeURIComponent(name));
    if(!response.ok){if(response.status===429)await store.setMeta('name_translation_pause',now+15*60000);throw Error('Unavailable');}
    const data=await response.json();if(!Array.isArray(data?.[0]))throw Error('Invalid');
    let ru=data[0].map(part=>typeof part?.[0]==='string'?part[0]:'').join('').trim();

@@ -45,9 +45,10 @@ export default async function(input,ctx){
  const beforePhotos=photoCalls,beforeTexts=textCalls;
  bot.user={};await bot.prompt();bot.user={};await bot.basket();bot.user={};await bot.notifications();
  const items=await cartItems(bot.store,OWNER_ID);if(items.length){bot.user={};await bot.basketItem(items[0].id);}
- const names=await productNames(bot.store,fetch,[{name:'LED sijalica E27 9W 806lm'},{name:'Energetski napitak Red Bull 0,25l',brand:'Red Bull'}]);
+ const translationRequests=[];const translationFetch=async(...args)=>{try{const response=await fetch(...args);translationRequests.push({status:response.status,ok:Boolean(response.ok)});return response;}catch(error){const message=String(error.message||'').toLowerCase();translationRequests.push({failed:true,hints:['timeout','argument','options','allowed','host','denied','network','fetch'].filter(word=>message.includes(word))});throw error;}};
+ const names=await productNames(bot.store,translationFetch,[{name:'LED sijalica E27 9W 806lm'},{name:'Energetski napitak Red Bull 0,25l',brand:'Red Bull'}]);
  const translated=[...names.values()].filter(name=>!name.startsWith('Перевод недоступен')).length;
- return {translations:{checked:names.size,translated},...home,admin_photo_calls:adminPhotos,admin_text_calls:adminTexts,source_photo_calls:sourcePhotos,source_text_calls:sourceTexts,shopping_photo_calls:photoCalls-beforePhotos,shopping_text_calls:textCalls-beforeTexts,elapsed_ms:Date.now()-started};
+ return {translations:{checked:names.size,translated,requests:translationRequests},...home,admin_photo_calls:adminPhotos,admin_text_calls:adminTexts,source_photo_calls:sourcePhotos,source_text_calls:sourceTexts,shopping_photo_calls:photoCalls-beforePhotos,shopping_text_calls:textCalls-beforeTexts,elapsed_ms:Date.now()-started};
 }`;
   try{result.ui={ok:true,...(await client.runFunction(token,'endpoints/ui_probe',{...sources,'endpoints/ui_probe':probe},{},{ownerRun:true})).result};}
   catch(error){const detail=String(error.message||'')+' '+JSON.stringify(error.parameters||{});result.ui={ok:false,status:Number.isInteger(error.status)?error.status:null,hints:['time','limit','memory','source','size','module','parse','syntax','inputfile','function','png','invalid','cpu','heap','execution'].filter(word=>detail.toLowerCase().includes(word))};}
