@@ -5,7 +5,7 @@ from .cloud import call,invoke
 
 def main():
     parser=argparse.ArgumentParser()
-    parser.add_argument('action',choices=['stage','check','activate','pause','notify','health','diagnose','moderation'])
+    parser.add_argument('action',choices=['stage','check','activate','pause','notify','health','diagnose','moderation','commands'])
     parser.add_argument('--expected-revision',type=int)
     args=parser.parse_args()
     if args.action=='stage':
@@ -14,6 +14,9 @@ def main():
         result=call('deploy',expected_revision=args.expected_revision)
         print('Code staged:',result)
         print('Activation unchanged:',state['active'])
+        print('Telegram command menu:',invoke('configure_commands'))
+    elif args.action=='commands':
+        print('Telegram command menu:',invoke('configure_commands'))
     elif args.action=='check':
         print('Identity and schema:',invoke('init'),flush=True)
         result=invoke('status')
