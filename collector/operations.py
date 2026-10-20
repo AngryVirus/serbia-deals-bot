@@ -23,6 +23,8 @@ def main():
         for source in result['sources']:
             if source['active'] or source['status']!='pending':
                 print('Source:',source['name'],'status:',source['status'],'date:',source['date'])
+        for query in ['огурцы','энергетик','энергетик Red Bull']:
+            print('Search check:',invoke('search_check',query=query),flush=True)
     elif args.action=='activate':
         status=invoke('status')
         if not any(s.get('active') for s in status.get('sources',[])):

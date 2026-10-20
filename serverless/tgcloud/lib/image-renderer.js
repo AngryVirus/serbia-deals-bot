@@ -10,7 +10,7 @@ export function fromBase64(value) {
  return new Uint8Array(out);
 }
 let fontPixels,headerPixels;
-const assets=()=>{fontPixels ||= unzlibSync(fromBase64(FONT_DATA));headerPixels ||= unzlibSync(fromBase64(HEADER.indexed));};
+const assets=()=>{fontPixels ||= unzlibSync(fromBase64(FONT_DATA));headerPixels ||= unzlibSync(new Uint8Array(HEADER.compressed));};
 const utf8=s=>{const out=[];for(const c of s){const n=c.codePointAt(0);if(n<128)out.push(n);else if(n<2048)out.push(192|(n>>6),128|(n&63));else if(n<65536)out.push(224|(n>>12),128|((n>>6)&63),128|(n&63));else out.push(240|(n>>18),128|((n>>12)&63),128|((n>>6)&63),128|(n&63));}return out;};
 // SHA-256 avoids storing a user's rendered text in a cache key.
 export function imageHash(text) {
