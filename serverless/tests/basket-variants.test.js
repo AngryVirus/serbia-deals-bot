@@ -50,7 +50,8 @@ test('plums stay fruit even when spirits omit the word rakija and pastries menti
   milk(2,'0.03L NASLEDJE SLJIVA',['0','03l','nasledje','sljiva']),
   milk(3,'Strudla sljiva 190g',['strudla','sljiva','190g']),
   milk(4,'Kolac sa sljivama 1250g',['kolac','sa','sljivama','1250g']),
-  milk(5,'Suva sljiva 200g',['suva','sljiva','200g'])
+  milk(5,'Suva sljiva 200g',['suva','sljiva','200g']),
+  milk(6,'PECIVO PP PUZ SLJIVA 190G',['pecivo','pp','puz','sljiva','190g'])
  ]);
  assert.equal((await f.store.search('сливы')).length,2);
  assert.equal((await f.store.search('strudla sljiva')).length,1);
