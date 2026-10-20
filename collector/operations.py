@@ -27,6 +27,7 @@ def main():
             print('Search check:',invoke('search_check',query=query),flush=True)
     elif args.action=='diagnose':
         print('Safe runtime diagnostics:',call('diagnose'),flush=True)
+        print('Owner basket summary:',invoke('basket_check'),flush=True)
     elif args.action=='activate':
         status=invoke('status')
         if not any(s.get('active') for s in status.get('sources',[])):

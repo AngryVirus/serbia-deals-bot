@@ -1,4 +1,5 @@
 import { Store } from './store.js';
+import { cartItems,compareBasket } from './basket.js';
 import { OWNER_ID,assertBot,requireValue } from './domain.js';
 import { ingest } from './ingest.js';
 import { prepareNotifications,deliverNotifications } from './notifications.js';
@@ -24,6 +25,10 @@ export async function manage(input,ctx,{db,api}){
    if(Number.isSafeInteger(pages?.page_count)&&Number.isSafeInteger(size?.page_size))storage={bytes:pages.page_count*size.page_size};
   }catch{/* Some hosted SQLite environments restrict PRAGMA inspection. */}
   return {active:await store.meta('active'),sources,queue,catalog,storage,last_collection:await store.meta('last_collection')};
+ }
+ if(operation==='basket_check'){
+  const items=await cartItems(store,OWNER_ID),report=await compareBasket(store,OWNER_ID);
+  return {items:items.length,pending:report.pending.length,stores:report.stores.length,complete_stores:report.stores.filter(s=>s.found===items.length).length,split_complete:report.split?.complete??null};
  }
  if(operation==='search_check'){
   requireValue(typeof input.query==='string'&&input.query.length<=120);
