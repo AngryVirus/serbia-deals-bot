@@ -28,6 +28,7 @@ import {Bot} from '../lib/bot.js';
 import {assertBot,OWNER_ID} from '../lib/domain.js';
 import {Store} from '../lib/store.js';
 import {adminRoute} from '../lib/admin.js';
+import {cartItems} from '../lib/basket.js';
 export default async function(input,ctx){
  if(ctx?.ownerRun!==true)throw Error('Private probe only');
  await assertBot(api);
@@ -39,7 +40,11 @@ export default async function(input,ctx){
  bot.user={};await adminRoute(bot,'admin');bot.user={};await adminRoute(bot,'admin:stats');
  const adminPhotos=photoCalls-home.photoCalls,adminTexts=textCalls-home.textCalls;
  bot.user={};await adminRoute(bot,'admin:sources');bot.user={};await adminRoute(bot,'admin:sources:1');
- return {...home,admin_photo_calls:adminPhotos,admin_text_calls:adminTexts,source_photo_calls:photoCalls-home.photoCalls-adminPhotos,source_text_calls:textCalls-home.textCalls-adminTexts,elapsed_ms:Date.now()-started};
+ const sourcePhotos=photoCalls-home.photoCalls-adminPhotos,sourceTexts=textCalls-home.textCalls-adminTexts;
+ const beforePhotos=photoCalls,beforeTexts=textCalls;
+ bot.user={};await bot.prompt();bot.user={};await bot.basket();bot.user={};await bot.notifications();
+ const items=await cartItems(bot.store,OWNER_ID);if(items.length){bot.user={};await bot.basketItem(items[0].id);}
+ return {...home,admin_photo_calls:adminPhotos,admin_text_calls:adminTexts,source_photo_calls:sourcePhotos,source_text_calls:sourceTexts,shopping_photo_calls:photoCalls-beforePhotos,shopping_text_calls:textCalls-beforeTexts,elapsed_ms:Date.now()-started};
 }`;
   try{result.ui={ok:true,...(await client.runFunction(token,'endpoints/ui_probe',{...sources,'endpoints/ui_probe':probe},{},{ownerRun:true})).result};}
   catch(error){const detail=String(error.message||'')+' '+JSON.stringify(error.parameters||{});result.ui={ok:false,status:Number.isInteger(error.status)?error.status:null,hints:['time','limit','memory','source','size','module','parse','syntax','inputfile','function','png','invalid','cpu','heap','execution'].filter(word=>detail.toLowerCase().includes(word))};}
