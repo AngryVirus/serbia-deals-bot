@@ -5,7 +5,7 @@ from .cloud import call,invoke
 
 def main():
     parser=argparse.ArgumentParser()
-    parser.add_argument('action',choices=['stage','check','activate','pause','notify','health'])
+    parser.add_argument('action',choices=['stage','check','activate','pause','notify','health','diagnose'])
     parser.add_argument('--expected-revision',type=int)
     args=parser.parse_args()
     if args.action=='stage':
@@ -23,8 +23,11 @@ def main():
         for source in result['sources']:
             if source['active'] or source['status']!='pending':
                 print('Source:',source['name'],'status:',source['status'],'date:',source['date'])
-        for query in ['огурцы','энергетик','энергетик Red Bull']:
+        for query in ['огурцы','энергетик','энергетик Red Bull','курица']:
             print('Search check:',invoke('search_check',query=query),flush=True)
+    elif args.action=='diagnose':
+        print('Safe runtime diagnostics:',call('diagnose'),flush=True)
+        print('Owner basket summary:',invoke('basket_check'),flush=True)
     elif args.action=='activate':
         status=invoke('status')
         if not any(s.get('active') for s in status.get('sources',[])):

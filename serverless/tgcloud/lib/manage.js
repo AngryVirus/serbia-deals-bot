@@ -1,4 +1,5 @@
 import { Store } from './store.js';
+import { cartItems,compareBasket } from './basket.js';
 import { OWNER_ID,assertBot,requireValue } from './domain.js';
 import { ingest } from './ingest.js';
 import { prepareNotifications,deliverNotifications } from './notifications.js';
@@ -25,10 +26,14 @@ export async function manage(input,ctx,{db,api}){
   }catch{/* Some hosted SQLite environments restrict PRAGMA inspection. */}
   return {active:await store.meta('active'),sources,queue,catalog,storage,last_collection:await store.meta('last_collection')};
  }
+ if(operation==='basket_check'){
+  const items=await cartItems(store,OWNER_ID),report=await compareBasket(store,OWNER_ID);
+  return {items:report.items.length,stored_rows:items.length,pending:report.pending.length,stores:report.stores.length,complete_stores:report.stores.filter(s=>s.found===report.items.length).length,split_complete:report.split?.complete??null};
+ }
  if(operation==='search_check'){
   requireValue(typeof input.query==='string'&&input.query.length<=120);
-  const started=Date.now(),rows=await store.search(input.query);
-  return {query:input.query,returned:rows.length,elapsed_ms:Date.now()-started,sample:rows.slice(0,3).map(row=>({name:JSON.parse(row.payload).name,store:JSON.parse(row.payload).format,price:row.price}))};
+  const started=Date.now(),rows=await store.search(input.query),chains=await store.searchChains(input.query),inside=chains.length?await store.searchChain(input.query,chains[0].source_id):[];
+  return {query:input.query,returned:rows.length,networks:chains.map(c=>({name:c.source_name,min:c.min_price,max:c.max_price})),chain_products:inside.length,elapsed_ms:Date.now()-started,sample:rows.slice(0,3).map(row=>({name:JSON.parse(row.payload).name,store:JSON.parse(row.payload).format,price:row.price}))};
  }
  if(operation==='activate'){requireValue(input.confirm_username==='SerbiaDealsBot');await store.setMeta('active',true);return {active:true};}
  if(operation==='pause'){await store.setMeta('active',false);return {active:false};}

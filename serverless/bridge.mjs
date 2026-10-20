@@ -12,9 +12,26 @@ try{
  let result;
  if(input.command==='run'){
   // Bulk ingestion never resends image/font assets to the management gateway.
-  const names=['lib/domain','lib/store','lib/ingest','lib/notifications','lib/manage','lib/image-codec','endpoints/manage'];
+  const names=['lib/domain','lib/basket','lib/store','lib/ingest','lib/notifications','lib/manage','lib/image-codec','endpoints/manage'];
   const selected=Object.fromEntries(names.map(name=>[name,sources[name]]));
   result=(await client.runFunction(token,'endpoints/manage',selected,input.args,{ownerRun:true})).result;
+ }else if(input.command==='diagnose'){
+  const routing=await client.getWebhook(token),remote=await client.getFiles(token);
+  const text=String(routing.last_error_message||'');
+  result={revision:remote.revision,routing:{in_sync:routing.in_sync,pending:routing.pending_update_count,last_error_date:routing.last_error_date||null,error_hints:['500','502','503','timeout','failed','error','limit','memory'].filter(word=>text.toLowerCase().includes(word))}};
+  const probe=`import {api,InputFile} from 'sdk';
+import {Bot} from '../lib/bot.js';
+import {assertBot,OWNER_ID} from '../lib/domain.js';
+export default async function(input,ctx){
+ if(ctx?.ownerRun!==true)throw Error('Private probe only');
+ await assertBot(api);
+ let photoCalls=0,textCalls=0;
+ const stub={sendPhoto:async()=>{photoCalls++;return {message_id:1};},sendMessage:async()=>{textCalls++;return {message_id:1};}};
+ const bot=new Bot({db:{},api:stub,InputFile});bot.uid=OWNER_ID;bot.user={};bot.store.patch=async()=>{};
+ const started=Date.now();await bot.home();return {photoCalls,textCalls,elapsed_ms:Date.now()-started};
+}`;
+  try{result.ui={ok:true,...(await client.runFunction(token,'endpoints/ui_probe',{...sources,'endpoints/ui_probe':probe},{},{ownerRun:true})).result};}
+  catch(error){const detail=String(error.message||'')+' '+JSON.stringify(error.parameters||{});result.ui={ok:false,status:Number.isInteger(error.status)?error.status:null,hints:['time','limit','memory','source','size','module','parse','syntax','inputfile','function','png','invalid','cpu','heap','execution'].filter(word=>detail.toLowerCase().includes(word))};}
  }else if(input.command==='remote'){const r=await client.getFiles(token);result={revision:r.revision,canonical_modules:r.canonical_modules};}
  else if(input.command==='deploy'){
   const remote=await client.getFiles(token);
