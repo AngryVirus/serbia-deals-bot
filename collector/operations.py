@@ -1,0 +1,43 @@
+"""Explicit maintenance operations; activation is never a deploy side effect."""
+import argparse
+from .cloud import call,invoke
+
+
+def main():
+    parser=argparse.ArgumentParser()
+    parser.add_argument('action',choices=['stage','check','activate','pause','notify','health'])
+    parser.add_argument('--expected-revision',type=int)
+    args=parser.parse_args()
+    if args.action=='stage':
+        # Identity check executes against this bot's SDK before deployment.
+        state=invoke('init')
+        result=call('deploy',expected_revision=args.expected_revision)
+        print('Code staged:',result)
+        print('Activation unchanged:',state['active'])
+    elif args.action=='check':
+        result=invoke('status')
+        print('Active:',result['active'],'sources:',len(result['sources']))
+        print('Queue:',result['queue'])
+    elif args.action=='activate':
+        status=invoke('status')
+        if not any(s.get('active') for s in status.get('sources',[])):
+            raise RuntimeError('Collect at least one real price source before activation')
+        invoke('activate',confirm_username='SerbiaDealsBot')
+        result=call('sync')
+        if not result.get('in_sync'):raise RuntimeError('Routing not confirmed')
+        print('SerbiaDealsBot activated; webhook synchronized')
+    elif args.action=='pause':
+        invoke('pause');print('Bot paused')
+    elif args.action=='notify':
+        for _ in range(20):
+            result=invoke('prepare_notifications')
+            if not result.get('more'):break
+        for _ in range(12):
+            result=invoke('deliver_notifications')
+            print('Notification worker:',result)
+            if not result.get('sent'):break
+    else:
+        print('Independent health check:',invoke('health'))
+
+
+if __name__=='__main__':main()

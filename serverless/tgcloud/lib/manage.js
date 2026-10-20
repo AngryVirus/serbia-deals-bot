@@ -1,0 +1,48 @@
+import { Store } from './store.js';
+import { OWNER_ID,assertBot,requireValue } from './domain.js';
+import { ingest } from './ingest.js';
+import { prepareNotifications,deliverNotifications } from './notifications.js';
+import { unzlibSync } from './image-codec.js';
+export async function manage(input,ctx,{db,api}){
+ requireValue(ctx?.ownerRun===true,'Management requires authenticated owner run');
+ await assertBot(api);
+ const store=new Store(db);await store.init();
+ const operation=input?.operation;
+ if(operation==='init'){if(await store.meta('active')===null)await store.setMeta('active',false);return {ready:true,active:await store.meta('active')};}
+ if(operation==='status'){const sources=await store.sources(),queue=await db.all('SELECT state,COUNT(*) AS count FROM sd_queue GROUP BY state');return {active:await store.meta('active'),sources,queue,last_collection:await store.meta('last_collection')};}
+ if(operation==='activate'){requireValue(input.confirm_username==='SerbiaDealsBot');await store.setMeta('active',true);return {active:true};}
+ if(operation==='pause'){await store.setMeta('active',false);return {active:false};}
+ if(operation==='register_sources'){
+  requireValue(Array.isArray(input.rows)&&input.rows.length<=100);
+  for(const row of input.rows){requireValue(/^[a-f0-9]{24}$/.test(row.id)&&typeof row.name==='string'&&row.name.length<=160);await db.run(`INSERT INTO sd_sources(id,name,url) VALUES(:id,:name,:url) ON CONFLICT(id) DO UPDATE SET name=excluded.name,url=excluded.url`,{':id':row.id,':name':row.name,':url':`https://data.gov.rs/sr/datasets/${row.id}/`});}
+  return {registered:input.rows.length};
+ }
+ if(operation==='source_failure'){
+  requireValue(/^[a-f0-9]{24}$/.test(input.source||''));
+  await db.run("UPDATE sd_sources SET status='unavailable',checked=:now WHERE id=:source",{':source':input.source,':now':Date.now()});return {recorded:true};
+ }
+ if(operation==='chunk'&&input.packed){
+  requireValue(typeof input.packed==='string'&&input.packed.length<=110000&&/^[A-Za-z0-9+/]*={0,2}$/.test(input.packed));
+  const alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/',out=[];let bits=0,n=0;
+  for(const c of input.packed){const v=alphabet.indexOf(c);if(v<0)continue;bits=(bits<<6)|v;n+=6;if(n>=8){n-=8;out.push((bits>>>n)&255);}}
+  const raw=unzlibSync(new Uint8Array(out));requireValue(raw.length<1200000);
+  input={...input,rows:JSON.parse(decodeURIComponent(Array.from(raw,b=>'%'+b.toString(16).padStart(2,'0')).join('')))};
+ }
+ if(['begin','chunk','finish'].includes(operation))return ingest(store,input);
+ if(operation==='collection_complete'){requireValue(Number.isInteger(input.successful)&&input.successful>0);await store.setMeta('last_collection',Date.now());return {saved:true};}
+ if(operation==='prepare_notifications')return prepareNotifications(store);
+ if(operation==='deliver_notifications'){if(await store.meta('active')!==true)return {paused:true};return deliverNotifications(store,api);}
+ if(operation==='health'){
+  const last=await store.meta('last_collection');if(!last)return {uninitialized:true};
+  const stale=Date.now()-last>36*3600000;
+  const errors=await db.get("SELECT COUNT(*) AS count FROM sd_queue WHERE state IN ('blocked','uncertain','sending') AND created>=:cutoff",{':cutoff':Date.now()-86400000});
+  const problem=stale?'collection_stale':errors.count>=10?'delivery_errors':null;
+  await db.run("INSERT INTO sd_meta(key,value) VALUES('health_state','null') ON CONFLICT DO NOTHING");
+  const previous=await store.meta('health_state');
+  if(problem!==previous){const claim=await db.run("UPDATE sd_meta SET value=:next WHERE key='health_state' AND value=:previous",{':next':JSON.stringify(problem),':previous':JSON.stringify(previous)});const text=problem==='collection_stale'?'⚠️ SerbiaDealsBot: более 36 часов без подтверждённого успешного сбора.':problem==='delivery_errors'?'⚠️ SerbiaDealsBot: выросло число проблем доставки. Проверьте очередь.':previous?'✅ SerbiaDealsBot: работа восстановлена.':null;
+   if(claim.rowsAffected===1&&text)try{await api.sendMessage({chat_id:OWNER_ID,text});}catch{/* Claimed transition is not repeated after an ambiguous send. */}
+  }
+  return {stale,delivery_errors:errors.count,problem};
+ }
+ throw Error('Unsupported management operation');
+}

@@ -1,0 +1,414 @@
+[
+  {
+    "id": "68f10c2ce1b40f83414f6189",
+    "alias": "68f10c2ce1b40f83414f6189",
+    "name": "Podunavlje",
+    "hosts": [
+      "data.gov.rs",
+      "drive.google.com"
+    ]
+  },
+  {
+    "id": "6a96d3a0338fe94f9cc9a03f",
+    "alias": "6a96d3a0338fe94f9cc9a03f",
+    "name": "METRO Cash&Carry doo Beograd",
+    "hosts": [
+      "data.gov.rs"
+    ]
+  },
+  {
+    "id": "68f61917f9daecc02d803b84",
+    "alias": "lidl",
+    "name": "Lidl",
+    "hosts": [
+      "data.gov.rs",
+      "www.lidl.rs"
+    ]
+  },
+  {
+    "id": "6a95aa4568bb7d8ad44b1e7d",
+    "alias": "6a95aa4568bb7d8ad44b1e7d",
+    "name": "VP DIMA",
+    "hosts": [
+      "data.gov.rs",
+      "vpdima.rs"
+    ]
+  },
+  {
+    "id": "68f0ba5a5bd9994ca7303f3a",
+    "alias": "68f0ba5a5bd9994ca7303f3a",
+    "name": "EUROPROM DOO",
+    "hosts": [
+      "api.nitsolutions.rs",
+      "data.gov.rs"
+    ]
+  },
+  {
+    "id": "68f76ce9f9a700f329626af1",
+    "alias": "68f76ce9f9a700f329626af1",
+    "name": "Gomex DOO",
+    "hosts": [
+      "aswcene.gomex.rs",
+      "data.gov.rs"
+    ]
+  },
+  {
+    "id": "68f0d59ff413b4011f0f9e12",
+    "alias": "68f0d59ff413b4011f0f9e12",
+    "name": "Veropoulos doo",
+    "hosts": [
+      "data.gov.rs",
+      "lpfr.blob.core.windows.net"
+    ]
+  },
+  {
+    "id": "6a91d391dfc7b0e00c8ba69c",
+    "alias": "6a91d391dfc7b0e00c8ba69c",
+    "name": "Луки комерц Д.О.О.",
+    "hosts": [
+      "data.gov.rs",
+      "luki.co.rs"
+    ]
+  },
+  {
+    "id": "68f8cbfd1d835c729727825d",
+    "alias": "68f8cbfd1d835c729727825d",
+    "name": "Qvattro Company ",
+    "hosts": [
+      "data.gov.rs",
+      "prodavnicasunce.rs"
+    ]
+  },
+  {
+    "id": "68f73e230d9e360e4cf10781",
+    "alias": "68f73e230d9e360e4cf10781",
+    "name": "Beltorg DOO",
+    "hosts": [
+      "data.gov.rs"
+    ]
+  },
+  {
+    "id": "6a96d3b8dae37c041253526c",
+    "alias": "6a96d3b8dae37c041253526c",
+    "name": "Soulfood doo Beograd",
+    "hosts": [
+      "data.gov.rs"
+    ]
+  },
+  {
+    "id": "68f0d21516cc6e3ab2f67feb",
+    "alias": "68f0d21516cc6e3ab2f67feb",
+    "name": "Fortuna Market DOO",
+    "hosts": [
+      "data.gov.rs",
+      "lpfr.blob.core.windows.net"
+    ]
+  },
+  {
+    "id": "68f64811016706e99b09ebaa",
+    "alias": "68f64811016706e99b09ebaa",
+    "name": "Domaca trgovina doo",
+    "hosts": [
+      "data.gov.rs"
+    ]
+  },
+  {
+    "id": "6a96d0735e7226a81822c10a",
+    "alias": "6a96d0735e7226a81822c10a",
+    "name": "Proizvodno-trgovinsko preduzeće Euro Ša M doo Lipolist ",
+    "hosts": [
+      "data.gov.rs",
+      "eurosam.rs"
+    ]
+  },
+  {
+    "id": "6a95ed3adf0d645f96b6f3de",
+    "alias": "6a95ed3adf0d645f96b6f3de",
+    "name": "RIČ doo Prokuplje",
+    "hosts": [
+      "data.gov.rs"
+    ]
+  },
+  {
+    "id": "68f0bd4bc3bf9b275a23b63d",
+    "alias": "68f0bd4bc3bf9b275a23b63d",
+    "name": "BB Trade doo",
+    "hosts": [
+      "cenovnicisvi.persu.rs",
+      "data.gov.rs"
+    ]
+  },
+  {
+    "id": "68f63caac71fb2e0ef7e3008",
+    "alias": "68f63caac71fb2e0ef7e3008",
+    "name": "ROS PRODUKT SERVIS",
+    "hosts": [
+      "data.gov.rs"
+    ]
+  },
+  {
+    "id": "68f5d1099d6fcc3cc990878f",
+    "alias": "68f5d1099d6fcc3cc990878f",
+    "name": "Tekijanka doo Tekija",
+    "hosts": [
+      "data.gov.rs",
+      "lpfr.blob.core.windows.net"
+    ]
+  },
+  {
+    "id": "6a91479eb4a953ef65792ebb",
+    "alias": "6a91479eb4a953ef65792ebb",
+    "name": "Микромаркет НС доо",
+    "hosts": [
+      "data.gov.rs",
+      "mikromarket.rs"
+    ]
+  },
+  {
+    "id": "68f1494cd6490c4b117147a8",
+    "alias": "68f1494cd6490c4b117147a8",
+    "name": "Prima Nova doo",
+    "hosts": [
+      "data.gov.rs",
+      "primanova.rs"
+    ]
+  },
+  {
+    "id": "6a9693b2c9f1a56f4a0a58e3",
+    "alias": "6a9693b2c9f1a56f4a0a58e3",
+    "name": "Industrija mesa Matijević",
+    "hosts": [
+      "data.gov.rs",
+      "lpfr.blob.core.windows.net"
+    ]
+  },
+  {
+    "id": "68f61c62dc53a8c8410427f1",
+    "alias": "idea",
+    "name": "IDEA / Roda / Mercator",
+    "hosts": [
+      "data.gov.rs",
+      "ideacenovnici.blob.core.windows.net"
+    ]
+  },
+  {
+    "id": "68f1db0682d3fdfbdceeabcb",
+    "alias": "68f1db0682d3fdfbdceeabcb",
+    "name": "Leon Conditors DOO",
+    "hosts": [
+      "data.gov.rs",
+      "www.leon.co.rs"
+    ]
+  },
+  {
+    "id": "6a9582c4651dee3015336a5c",
+    "alias": "6a9582c4651dee3015336a5c",
+    "name": "dm drogerie markt",
+    "hosts": [
+      "data.gov.rs",
+      "www.dm.rs"
+    ]
+  },
+  {
+    "id": "68f0dc6db3f7fb17ff95ca18",
+    "alias": "68f0dc6db3f7fb17ff95ca18",
+    "name": "SENTA-PROMET DOO",
+    "hosts": [
+      "data.gov.rs",
+      "spmarketi.com"
+    ]
+  },
+  {
+    "id": "68f5fbaf18e768ba3e8ccc41",
+    "alias": "68f5fbaf18e768ba3e8ccc41",
+    "name": "Aman d.o.o.",
+    "hosts": [
+      "data.gov.rs",
+      "lpfr.blob.core.windows.net"
+    ]
+  },
+  {
+    "id": "6a995df0dd81fa516823b4d2",
+    "alias": "univerexport",
+    "name": "Univerexport",
+    "hosts": [
+      "data.gov.rs",
+      "ucloud.univerexport.rs"
+    ]
+  },
+  {
+    "id": "6ad4c219024e6f2e2b3576dd",
+    "alias": "6ad4c219024e6f2e2b3576dd",
+    "name": "Aksa d.o.o",
+    "hosts": [
+      "data.gov.rs"
+    ]
+  },
+  {
+    "id": "68f203a18b8ba3a1d826fa77",
+    "alias": "maxi",
+    "name": "Delhaize / Maxi",
+    "hosts": [
+      "data.gov.rs",
+      "tsmdelhaizeserbia.delhaize.rs"
+    ]
+  },
+  {
+    "id": "6ab64f4f3de7520f1f4b65a0",
+    "alias": "6ab64f4f3de7520f1f4b65a0",
+    "name": "Transkom 94",
+    "hosts": [
+      "data.gov.rs",
+      "transkom94.rs"
+    ]
+  },
+  {
+    "id": "6a966879df96e5f1eddf8d08",
+    "alias": "6a966879df96e5f1eddf8d08",
+    "name": "Земљорадничка задруга Трговина Трлић",
+    "hosts": [
+      "data.gov.rs",
+      "rd.melany.rs"
+    ]
+  },
+  {
+    "id": "6a95778e969fd18a398df81a",
+    "alias": "6a95778e969fd18a398df81a",
+    "name": "Привредно друштво за промет и услуге ЧУТУРА ПЛУС ДОО Прокупље",
+    "hosts": [
+      "data.gov.rs",
+      "lpfr.blob.core.windows.net"
+    ]
+  },
+  {
+    "id": "68f5e4299d6fcc3cc9908790",
+    "alias": "68f5e4299d6fcc3cc9908790",
+    "name": "Šumadija market d.o.o.",
+    "hosts": [
+      "data.gov.rs",
+      "sumadijamarket.rs"
+    ]
+  },
+  {
+    "id": "6a95a581ae8e3148428344fa",
+    "alias": "6a95a581ae8e3148428344fa",
+    "name": "TRGOVINSKO PREDUZEĆE MORAVA DOO,KRAGUJEVAC",
+    "hosts": [
+      "cene.tpmorava.rs",
+      "data.gov.rs"
+    ]
+  },
+  {
+    "id": "68f60e5795661d480090fcc7",
+    "alias": "68f60e5795661d480090fcc7",
+    "name": "CASH & CARRY PLUS DOO KULA",
+    "hosts": [
+      "data.gov.rs",
+      "pluscashandcarry.rs"
+    ]
+  },
+  {
+    "id": "68f1e9c9bf0b963346b3ec67",
+    "alias": "68f1e9c9bf0b963346b3ec67",
+    "name": "Medius d.o.o. Nova Pazova",
+    "hosts": [
+      "data.gov.rs"
+    ]
+  },
+  {
+    "id": "68f6247336713478b5f0b41e",
+    "alias": "68f6247336713478b5f0b41e",
+    "name": "Metalac Proleter društvo sa ograničenom odgovornošću Gornji Milanovac",
+    "hosts": [
+      "data.gov.rs",
+      "mojproleter.rs"
+    ]
+  },
+  {
+    "id": "6a95786c969fd18a398df81b",
+    "alias": "6a95786c969fd18a398df81b",
+    "name": "ДРУШТВО ЗА ПРОИЗВОДЊУ ТРГОВИНУ И УСЛУГЕ ЗАМ ДОО ИНЂИЈА",
+    "hosts": [
+      "data.gov.rs",
+      "lpfr.blob.core.windows.net"
+    ]
+  },
+  {
+    "id": "68f0cb4c473fd5be39741c8a",
+    "alias": "68f0cb4c473fd5be39741c8a",
+    "name": "Društvo za proizvodnju promet i usluge \"Vum\" d.o.o.",
+    "hosts": [
+      "data.gov.rs",
+      "vumdoo.com"
+    ]
+  },
+  {
+    "id": "69f46178dc8b5354213e7c52",
+    "alias": "okov",
+    "name": "Okov",
+    "hosts": [
+      "data.gov.rs",
+      "www.okov.rs"
+    ]
+  },
+  {
+    "id": "6a329a1969e6025495f2d2b6",
+    "alias": "6a329a1969e6025495f2d2b6",
+    "name": "Brico S",
+    "hosts": [
+      "data.gov.rs"
+    ]
+  },
+  {
+    "id": "6aa9250fba586a2c51afa7c1",
+    "alias": "6aa9250fba586a2c51afa7c1",
+    "name": "Uradi Sam",
+    "hosts": [
+      "data.gov.rs"
+    ]
+  },
+  {
+    "id": "6aaa6fed2c54dbbf6dd8eeee",
+    "alias": "6aaa6fed2c54dbbf6dd8eeee",
+    "name": "Lilly",
+    "hosts": [
+      "data.gov.rs",
+      "mis.lilly.rs"
+    ]
+  },
+  {
+    "id": "6a693202d31a9dd3073aaf73",
+    "alias": "6a693202d31a9dd3073aaf73",
+    "name": "Konovo",
+    "hosts": [
+      "data.gov.rs",
+      "konovo.rs"
+    ]
+  },
+  {
+    "id": "6ac551097075a913172daf83",
+    "alias": "6ac551097075a913172daf83",
+    "name": "Wooder",
+    "hosts": [
+      "data.gov.rs",
+      "wooder.rs"
+    ]
+  },
+  {
+    "id": "6acca84dc60236a1e2681a41",
+    "alias": "6acca84dc60236a1e2681a41",
+    "name": "Planeta Sport",
+    "hosts": [
+      "data.gov.rs",
+      "portal.planeta.services"
+    ]
+  },
+  {
+    "id": "6a60d14484911b479360e6c1",
+    "alias": "6a60d14484911b479360e6c1",
+    "name": "Laguna",
+    "hosts": [
+      "data.gov.rs"
+    ]
+  }
+]

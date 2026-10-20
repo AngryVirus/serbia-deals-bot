@@ -1,0 +1,16 @@
+{
+  "name": "serbia-deals-serverless",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  },
+  "devDependencies": {
+    "@tgcloud/cli": "0.2.0",
+    "pako": "2.1.0"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

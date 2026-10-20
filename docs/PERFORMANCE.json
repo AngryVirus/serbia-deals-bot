@@ -1,0 +1,15 @@
+{
+  "environment": "Local Node.js 24 SQLite; not Telegram Serverless",
+  "offers": 104091,
+  "import_ms": 17117,
+  "search_ms": 4,
+  "sqlite_bytes": 131309568,
+  "returned": 6,
+  "query": "лампочка E27",
+  "cheapest_bulb": {
+    "name": "Sijalica 40W E27 A55",
+    "price_cents": 5900,
+    "source": "okov"
+  },
+  "production_verified": false
+}

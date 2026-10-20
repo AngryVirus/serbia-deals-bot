@@ -1,0 +1,55 @@
+name: Serbia Deals maintenance
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        type: choice
+        options: [check, stage, collect, activate, pause, notify]
+        default: check
+      sources:
+        description: Dataset aliases/IDs, comma-separated, or all
+        default: all
+      expected_revision:
+        description: Reviewed remote revision for a subsequent code update
+        required: false
+permissions:
+  contents: read
+concurrency:
+  group: serbia-deals-maintenance
+  cancel-in-progress: false
+jobs:
+  cloud:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - run: npm ci --ignore-scripts --no-audit --no-fund --prefix serverless
+      - run: python3 -m unittest discover -s tests -q
+      - run: node --test serverless/tests/*.test.js
+      - name: Run explicit operation
+        env:
+          TGCLOUD_TOKEN: ${{ secrets.SERBIA_DEALS_CLOUD_TOKEN }}
+          OPERATION: ${{ inputs.action }}
+          SOURCE_SELECTION: ${{ inputs.sources }}
+          EXPECTED_REVISION: ${{ inputs.expected_revision }}
+        run: |
+          case "$OPERATION" in
+            collect) python3 -m collector.collect --publish --sources "$SOURCE_SELECTION" --budget 2100 ;;
+            stage)
+              if [ -n "$EXPECTED_REVISION" ]; then
+                python3 -m collector.operations stage --expected-revision "$EXPECTED_REVISION"
+              else
+                python3 -m collector.operations stage
+              fi
+              ;;
+            check|activate|pause|notify) python3 -m collector.operations "$OPERATION" ;;
+            *) exit 1 ;;
+          esac
