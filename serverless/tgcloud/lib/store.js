@@ -39,7 +39,14 @@ export class Store{
  async setMeta(key,value){await this.db.run('INSERT INTO sd_meta(key,value) VALUES(:key,:value) ON CONFLICT(key) DO UPDATE SET value=excluded.value',{':key':key,':value':JSON.stringify(value)});}
  async user(uid){const row=await this.db.get('SELECT * FROM sd_users WHERE id=:uid',{':uid':uid});return row?{...row,...JSON.parse(row.payload)}:null;}
  async ensure(uid){requireValue(positive(uid));await this.db.run('INSERT INTO sd_users(id,payload) VALUES(:uid,:payload) ON CONFLICT DO NOTHING',{':uid':uid,':payload':JSON.stringify({first_seen:Date.now(),first_day:day()})});return this.user(uid);}
- async patch(uid,fields){await this.db.run('UPDATE sd_users SET payload=json_patch(payload,:fields) WHERE id=:uid',{':uid':uid,':fields':JSON.stringify(fields)});}
+ async patch(uid,fields){
+  const keys=Object.keys(fields);if(!keys.length)return;
+  requireValue(keys.every(key=>/^[A-Za-z][A-Za-z0-9_]*$/.test(key)));
+  const params={':uid':uid,':fields':JSON.stringify(fields)},paths=keys.map((key,i)=>{params[':path'+i]='$.'+key;return ':path'+i;});
+  // Replace supplied top-level objects atomically; json_patch alone recursively
+  // merges empty objects and resurrects removed filter/draft selections.
+  await this.db.run(`UPDATE sd_users SET payload=json_patch(json_remove(payload,${paths.join(',')}),:fields) WHERE id=:uid`,params);
+ }
  async rate(uid,now=Date.now()){
   const id='search:'+uid,result=await this.db.run(`INSERT INTO sd_rates(id,n,expires) VALUES(:id,1,:end) ON CONFLICT(id) DO UPDATE SET n=CASE WHEN expires<=:now THEN 1 ELSE n+1 END,expires=CASE WHEN expires<=:now THEN :end ELSE expires END WHERE expires<=:now OR n<20`,{':id':id,':end':now+60000,':now':now});
   if(result.rowsAffected===1)return 0;const row=await this.db.get('SELECT expires FROM sd_rates WHERE id=:id',{':id':id});return Math.max(1,Math.ceil((row.expires-now)/1000));
