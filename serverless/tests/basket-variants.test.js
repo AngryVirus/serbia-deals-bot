@@ -10,16 +10,17 @@ const milks=()=>[
  milk(3,'Cokoladno mleko 250ml',['cokoladno','mleko','250ml']),
  milk(4,'Kokos mleko 1l',['kokos','mleko','1l']),
  milk(5,'Mleko u prahu 400g',['mleko','u','prahu','400g']),
- milk(6,'Mleko bez laktoze 1l',['mleko','bez','laktoze','1l'])
+ milk(6,'Mleko bez laktoze 1l',['mleko','bez','laktoze','1l']),
+ milk(7,'Mlijeko UHT 1l',['mlijeko','uht','1l'])
 ];
 const buttons=f=>f.sent.at(-1).reply_markup.inline_keyboard.flat();
 
 test('milk types narrow search without changing the unfiltered set or conflating sour milk and drinking milk',async()=>{
- const f=await fixture();await publish(f,milks());assert.equal((await f.store.search('молоко')).length,6);
+ const f=await fixture();await publish(f,milks());assert.equal((await f.store.searchChains('молоко'))[0].offers,7);
  for(const query of ['питьевое молоко','обычное молоко','молоко питьевое']){
-  const rows=await f.store.search(query);assert.equal(rows.length,2,query);assert(rows.every(r=>!JSON.parse(r.payload).name.includes('Kiselo')));
+  const rows=await f.store.search(query);assert.equal(rows.length,3,query);assert(rows.every(r=>!JSON.parse(r.payload).name.includes('Kiselo')));
  }
- const rows=await f.store.searchChain('молоко',source,0,Date.now(),{type:['milkplain'],pack:{kind:'volume',amount:1000}});assert.equal(rows.length,2);
+ const rows=await f.store.searchChain('молоко',source,0,Date.now(),{type:['milkplain'],pack:{kind:'volume',amount:1000}});assert.equal(rows.length,3);
  assert.equal((await f.store.search('кисломолочное молоко')).length,1);assert.equal((await f.store.search('шоколадное молоко')).length,1);
 });
 test('milk refinement applies to basket selection, retains quantity and offers a real no-filter path',async()=>{
