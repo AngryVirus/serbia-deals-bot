@@ -12,7 +12,7 @@ try{
  let result;
  if(input.command==='run'){
   // Bulk ingestion never resends image/font assets to the management gateway.
-  const names=['lib/domain','lib/moderation-state','lib/basket','lib/store','lib/ingest','lib/notifications','lib/manage','lib/image-codec','endpoints/manage'];
+  const names=['lib/domain','lib/moderation-state','lib/basket','lib/store','lib/ingest','lib/notifications','lib/health','lib/manage','lib/image-codec','endpoints/manage'];
   const selected=Object.fromEntries(names.map(name=>[name,sources[name]]));
   result=(await client.runFunction(token,'endpoints/manage',selected,input.args,{ownerRun:true})).result;
  }else if(input.command==='moderation'){
@@ -37,7 +37,9 @@ export default async function(input,ctx){
  const started=Date.now();await bot.home();const home={photoCalls,textCalls};
  bot.store=new Store(db);await bot.store.init();bot.store.patch=async()=>{};
  bot.user={};await adminRoute(bot,'admin');bot.user={};await adminRoute(bot,'admin:stats');
- return {...home,admin_photo_calls:photoCalls-home.photoCalls,admin_text_calls:textCalls-home.textCalls,elapsed_ms:Date.now()-started};
+ const adminPhotos=photoCalls-home.photoCalls,adminTexts=textCalls-home.textCalls;
+ bot.user={};await adminRoute(bot,'admin:sources');bot.user={};await adminRoute(bot,'admin:sources:1');
+ return {...home,admin_photo_calls:adminPhotos,admin_text_calls:adminTexts,source_photo_calls:photoCalls-home.photoCalls-adminPhotos,source_text_calls:textCalls-home.textCalls-adminTexts,elapsed_ms:Date.now()-started};
 }`;
   try{result.ui={ok:true,...(await client.runFunction(token,'endpoints/ui_probe',{...sources,'endpoints/ui_probe':probe},{},{ownerRun:true})).result};}
   catch(error){const detail=String(error.message||'')+' '+JSON.stringify(error.parameters||{});result.ui={ok:false,status:Number.isInteger(error.status)?error.status:null,hints:['time','limit','memory','source','size','module','parse','syntax','inputfile','function','png','invalid','cpu','heap','execution'].filter(word=>detail.toLowerCase().includes(word))};}

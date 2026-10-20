@@ -1,3 +1,12 @@
 {
-  "sources": ["lidl", "maxi", "okov", "gomex", "matijevic", "lilly"]
+  "sources": [
+    "lidl",
+    "maxi",
+    "okov",
+    "gomex",
+    "matijevic",
+    "lilly",
+    "metro",
+    "aman"
+  ]
 }

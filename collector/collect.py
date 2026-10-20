@@ -94,7 +94,7 @@ def main():
     except ValueError:
         raise SystemExit('Unknown or empty reviewed source selection') from None
     deadline=time.monotonic()+max(30,min(2400,args.budget));fetcher=Fetcher(deadline=deadline)
-    if args.publish:invoke('register_sources',rows=[{'id':s['id'],'name':s['name']} for s in sources])
+    if args.publish:invoke('register_sources',rows=[{'id':s['id'],'name':s['name']} for s in sources],expected=args.sources=='enabled')
     # Rotate the first source daily so slow/failing sources cannot starve the tail.
     if args.sources in {'all','enabled'}:
         offset=datetime.now(ZoneInfo('Europe/Belgrade')).toordinal()%len(sources)

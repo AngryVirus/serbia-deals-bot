@@ -68,9 +68,9 @@ export function queryGroups(query){
  }
  return groups;
 }
-export const freshProduceQuery=query=>!/(марин|сол[её]н|консерв|паста|соус|суп|сок|сметан|kisel|marin|paster|konzerv)/i.test(String(query))&&!/(kisel|marin|paster|konzerv|pasta|sos|supa|sok|pavlak)/.test(normalize(query))&&queryGroups(query).some(group=>group.some(word=>/^(krastav|paradajz|rajcic)/.test(word)));
-export const freshMeatQuery=query=>!/(фарш|паштет|колбас|сосиск|копч|готов|суп|соус|корм)/i.test(String(query))&&!/(pastet|kobasic|salam|virsl|dimlj|supa|sos|hrana|mleven|mljeven|gril|rostilj|pecen|pohov|panir)/.test(normalize(query))&&queryGroups(query).some(group=>group.some(word=>/^(pile|goved|junec|svinj|curet)/.test(word)));
-export const butterQuery=query=>queryGroups(query).some(group=>group.length===1&&group[0]==='maslac')&&!/(posud|noz|keks|biskvit|kikirik|kakao|pasta)/.test(normalize(query));
+export const freshProduceQuery=query=>!/(марин|сол[её]н|консерв|паста|соус|суп|сок|сметан|kisel|marin|paster|konzerv)/i.test(String(query))&&!/(kisel|marin|paster|konzerv|pasta|sos|supa|sok|pavl|perec)/.test(normalize(query))&&queryGroups(query).some(group=>group.some(word=>/^(krastav|paradajz|rajcic)/.test(word)));
+export const freshMeatQuery=query=>!/(фарш|паштет|колбас|сосиск|копч|готов|суп|соус|корм)/i.test(String(query))&&!/(pastet|kobasic|salam|virsl|dimlj|supa|sos|hrana|mleven|mljeven|gril|rostilj|pecen|pohov|panir|kubet|smok|smaz|kitekat|patelin|fryer|sampinjon|deligh|dog|cat)/.test(normalize(query))&&queryGroups(query).some(group=>group.some(word=>/^(pile|goved|junec|svinj|curet)/.test(word)));
+export const butterQuery=query=>queryGroups(query).some(group=>group.length===1&&group[0]==='maslac')&&!/(posud|noz|keks|biskvit|kikirik|kakao|pasta|kokic|popcorn|baget|peciv|kroasan|marg)/.test(normalize(query));
 export const oilQuery=query=>queryGroups(query).some(group=>group.length===1&&group[0]==='ulje')&&!/(motor|menjac|sapun|sampon|tun|sardin|grisin|riba|sos|pasta)/.test(normalize(query));
 export const bulbQuery=query=>queryGroups(query).some(group=>group.some(word=>/^sijalic|^zarulj|^bulbs?$/.test(word)));
 export function day(now=Date.now()){const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Belgrade',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);const get=k=>parts.find(x=>x.type===k).value;return get('year')+'-'+get('month')+'-'+get('day');}

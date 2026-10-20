@@ -10,7 +10,7 @@
   },
   {
     "id": "6a96d3a0338fe94f9cc9a03f",
-    "alias": "6a96d3a0338fe94f9cc9a03f",
+    "alias": "metro",
     "name": "METRO Cash&Carry doo Beograd",
     "hosts": [
       "data.gov.rs"
@@ -220,7 +220,7 @@
   },
   {
     "id": "68f5fbaf18e768ba3e8ccc41",
-    "alias": "68f5fbaf18e768ba3e8ccc41",
+    "alias": "aman",
     "name": "Aman d.o.o.",
     "hosts": [
       "data.gov.rs",
