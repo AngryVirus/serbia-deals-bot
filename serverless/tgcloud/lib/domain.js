@@ -94,6 +94,7 @@ export function queryGroups(query){
  return groups;
 }
 export const plumQuery=query=>queryGroups(query).some(group=>group.some(word=>/^sljiv/.test(word)))&&!/(?:^| )(?:rakij[a-z]*|sljivovic[a-z]*|paradajz|rajcic[a-z]*|dzem|pekmez|kasic[a-z]*|kasa|sok|caj|knedl[a-z]*|cokolad[a-z]*)(?: |$)/.test(normalize(query))&&!/раки|сливовиц|томат|помидор|джем|варень|каша|пюре|сок|чай|шоколад/i.test(String(query));
+export const milkQuery=query=>queryGroups(query).some(group=>group.some(word=>/^(mleko|mlijeko)$/.test(word)))&&!/(?:^| )(?:posud[a-z]*|lon[a-z]*|aparat[a-z]*|sapun|losion|telo|tijelo|ciscenj[a-z]*|sampon|kupk[a-z]*)(?: |$)/.test(normalize(query))&&!/посуд|кастрюл|кувшин|аппарат|мыло|лосьон|очищ|тела|шампунь/i.test(String(query));
 export const pestoQuery=query=>queryGroups(query).some(group=>group.includes('pesto'))&&!/(?:^| )(?:sir|pastet[a-z]*|rolnic[a-z]*|humus|hummus)(?: |$)/.test(normalize(query))&&!/сыр|паштет|рулет|хумус/i.test(String(query));
 export const freshProduceQuery=query=>!/(марин|сол[её]н|консерв|паста|соус|суп|сок|сметан|kisel|marin|paster|konzerv)/i.test(String(query))&&!/(kisel|marin|paster|konzerv|pasta|sos|supa|sok|pavl|perec)/.test(normalize(query))&&queryGroups(query).some(group=>group.some(word=>/^(krastav|paradajz|rajcic)/.test(word)));
 export const relatedChickenQuery=query=>!/(корм|hrana|whiskas|kitekat|pedigree)/i.test(String(query))&&queryGroups(query).some(g=>g.length<=2&&g.some(t=>/^(pile|pilet)/.test(t)));

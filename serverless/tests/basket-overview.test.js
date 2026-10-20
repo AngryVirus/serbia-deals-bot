@@ -50,3 +50,15 @@ test('pagination clamps stale pages after a basket is edited and all-missing que
  const f=await fixture();await new Bot(f).handle(message(5,'/start'));await addList(f.store,5,'сливы, соус песто',902);
  await new Bot(f).handle(callback(5,'basketoverview:98:25'));const text=f.sent.at(-1).text;assert(text.includes('✕ сливы'));assert(text.includes('✕ соус песто'));
 });
+
+test('grocery milk and plums do not match kitchen implements or cleansing milk',async()=>{
+ const f=await fixture();await publish(f,[
+  offer(1,{name:'Mleko 1l',terms:['mleko','1l']}),
+  offer(2,{name:'Posuda za mleko',terms:['posuda','za','mleko'],regular:1}),
+  offer(3,{name:'Mleko za telo',terms:['mleko','za','telo'],regular:1}),
+  offer(4,{name:'Sljiva 1kg',terms:['sljiva','1kg']}),
+  offer(5,{name:'Odstranjivac kostica za sljive',terms:['odstranjivac','kostica','za','sljive'],regular:1})
+ ]);
+ assert.equal((await f.store.search('молоко')).length,1);assert.equal((await f.store.search('сливы')).length,1);
+ assert.equal((await f.store.search('posuda za mleko')).length,1);
+});
