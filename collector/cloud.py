@@ -7,6 +7,11 @@ import time
 
 ROOT=Path(__file__).resolve().parents[1]/'serverless'
 LAST=0
+class ManagementError(RuntimeError):
+    def __init__(self,status,category):
+        self.status=status if isinstance(status,int) else None
+        self.category=category if category in {'sqlite_full','pragma_restricted','execution_limit','sql_error','source_lease','revision_review','unclassified'} else 'unclassified'
+        super().__init__(f'Management request failed (HTTP {self.status}; category={self.category}); private output withheld')
 
 
 def call(command='run', **fields):
@@ -27,7 +32,7 @@ def call(command='run', **fields):
                 if not isinstance(delay,(int,float)) or not 0<delay<=60:
                     raise RuntimeError('Management rate limit; retry in the next cycle')
                 time.sleep(delay);continue
-            raise RuntimeError('Management request failed; private output withheld')
+            raise ManagementError(output.get('status'),output.get('category'))
         return output['result']
 
 
