@@ -52,19 +52,30 @@ export default async function(input,ctx){
  if(chains.length){bot.user={};await bot.search('огурцы',0,chains[0].source_id);const offers=await bot.store.searchChain('огурцы',chains[0].source_id,0);if(offers.length){bot.user={};await bot.card(JSON.parse(offers[0].payload).id);}}
  bot.user={};await bot.comparison();
  const refinementChecks=[];
- for(const query of ['энергетик','мясо','молоко','кофе','шампунь','лампочка','молотый кофе','кофе в зернах','куриное филе','зелёный чай']){
+ for(const query of ['энергетик','мясо','молоко','кофе','шампунь','лампочка']){
   const samples=await bot.store.refinementSamples(query),draft=buildRefinement(query,samples.map(r=>JSON.parse(r.payload)),'probe');
   const check={query,samples:samples.length,facets:draft?.facets.map(f=>f.key)||[]};
   if(draft){bot.user={};await bot.refine(draft);for(const facet of draft.facets)if(facet.key==='brand')draft.selected[facet.key]=0;const narrowed=await bot.store.refinementSamples(query,Date.now(),refinementFilters(draft)),dependent=buildRefinement(query,narrowed.map(r=>JSON.parse(r.payload)),'dependent',Date.now(),true),pack=dependent?.facets.find(f=>f.key==='pack');if(pack){const original=draft.facets.find(f=>f.key==='pack');if(original){original.values=pack.values;draft.selected.pack=0;}}const filtered=await bot.store.searchChains(query,Date.now(),refinementFilters(draft));check.filtered_networks=filtered.length;}
   refinementChecks.push(check);
  }
- const patchProbe=await db.get("SELECT json_patch(json_remove(:payload,'$.searchFilters'),:fields) AS value",{':payload':JSON.stringify({query:'probe',searchFilters:{brand:'Old'}}),':fields':JSON.stringify({searchFilters:{}})});const topLevelReplace=JSON.parse(patchProbe.value).searchFilters.brand===undefined;
+
  const names=await productNames(bot.store,translationFetch,[{name:'LED sijalica E27 9W 806lm'},{name:'Energetski napitak Red Bull 0,25l',brand:'Red Bull'}]);
  const translated=[...names.values()].filter(name=>!name.startsWith('Перевод недоступен')).length;
- return {top_level_replace:topLevelReplace,refinements:refinementChecks,translations:{checked:names.size,translated,requests:translationRequests},...home,admin_photo_calls:adminPhotos,admin_text_calls:adminTexts,source_photo_calls:sourcePhotos,source_text_calls:sourceTexts,shopping_photo_calls:photoCalls-beforePhotos,shopping_text_calls:textCalls-beforeTexts,elapsed_ms:Date.now()-started};
+ return {refinements:refinementChecks,translations:{checked:names.size,translated,requests:translationRequests},...home,admin_photo_calls:adminPhotos,admin_text_calls:adminTexts,source_photo_calls:sourcePhotos,source_text_calls:sourceTexts,shopping_photo_calls:photoCalls-beforePhotos,shopping_text_calls:textCalls-beforeTexts,elapsed_ms:Date.now()-started};
 }`;
   try{result.ui={ok:true,...(await client.runFunction(token,'endpoints/ui_probe',{...sources,'endpoints/ui_probe':probe},{},{ownerRun:true})).result};}
   catch(error){const detail=String(error.message||'')+' '+JSON.stringify(error.parameters||{});result.ui={ok:false,status:Number.isInteger(error.status)?error.status:null,hints:['time','limit','memory','source','size','module','parse','syntax','inputfile','function','png','invalid','cpu','heap','execution'].filter(word=>detail.toLowerCase().includes(word))};}
+  const searchProbe=`import {api,db} from 'sdk';
+import {Store} from '../lib/store.js';
+import {assertBot} from '../lib/domain.js';
+export default async function(input,ctx){
+ if(ctx?.ownerRun!==true)throw Error('Private probe only');await assertBot(api);const store=new Store(db),queries=[];
+ for(const query of ['молотый кофе','кофе в зернах','куриное филе','зелёный чай']){const rows=await store.search(query);queries.push({query,matches:rows.length});}
+ const patchProbe=await db.get("SELECT json_patch(json_remove(:payload,'$.searchFilters'),:fields) AS value",{':payload':JSON.stringify({query:'probe',searchFilters:{brand:'Old'}}),':fields':JSON.stringify({searchFilters:{}})});const topLevelReplace=JSON.parse(patchProbe.value).searchFilters.brand===undefined;
+ return {top_level_replace:topLevelReplace,queries};
+}`;
+  try{result.search={ok:true,...(await client.runFunction(token,'endpoints/search_probe',{'lib/domain':sources['lib/domain'],'lib/store':sources['lib/store'],'endpoints/search_probe':searchProbe},{},{ownerRun:true})).result};}
+  catch(error){const detail=String(error.message||'').toLowerCase();result.search={ok:false,status:Number.isInteger(error.status)?error.status:null,hints:['time','limit','memory','syntax'].filter(word=>detail.includes(word))};}
  }else if(input.command==='remote'){const r=await client.getFiles(token);result={revision:r.revision,canonical_modules:r.canonical_modules};}
  else if(input.command==='deploy'){
   const remote=await client.getFiles(token);
