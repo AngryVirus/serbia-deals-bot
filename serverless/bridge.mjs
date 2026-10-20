@@ -54,7 +54,7 @@ export default async function(input,ctx){
  const refinementChecks=[];
  for(const query of ['энергетик','мясо','молоко','кофе','шампунь','лампочка']){
   const samples=await bot.store.refinementSamples(query),draft=buildRefinement(query,samples.map(r=>JSON.parse(r.payload)),'probe');
-  const check={query,samples:samples.length,facets:draft?.facets.map(f=>f.key)||[]};
+  const check={query,samples:samples.length,facets:draft?.facets.map(f=>f.key)||[]};if(query==='энергетик')check.weight_options=draft?.facets.find(f=>f.key==='pack')?.values.filter(v=>v.value.kind==='weight').length||0;
   if(draft){bot.user={};await bot.refine(draft);for(const facet of draft.facets)if(facet.key==='brand')draft.selected[facet.key]=0;const narrowed=await bot.store.refinementSamples(query,Date.now(),refinementFilters(draft)),dependent=buildRefinement(query,narrowed.map(r=>JSON.parse(r.payload)),'dependent',Date.now(),true),pack=dependent?.facets.find(f=>f.key==='pack');if(pack){const original=draft.facets.find(f=>f.key==='pack');if(original){original.values=pack.values;draft.selected.pack=0;}}const filtered=await bot.store.searchChains(query,Date.now(),refinementFilters(draft));check.filtered_networks=filtered.length;}
   refinementChecks.push(check);
  }
@@ -70,12 +70,33 @@ import {Store} from '../lib/store.js';
 import {assertBot} from '../lib/domain.js';
 export default async function(input,ctx){
  if(ctx?.ownerRun!==true)throw Error('Private probe only');await assertBot(api);const store=new Store(db),queries=[];
- for(const query of ['молотый кофе','кофе в зернах','куриное филе','зелёный чай']){const rows=await store.search(query);queries.push({query,matches:rows.length});}
+ for(const query of ['молотый кофе','кофе в зернах','куриное филе','зелёный чай','Энергетик монстр 0.5','курица']){const rows=await store.search(query),check={query,matches:rows.length};if(['Энергетик монстр 0.5','курица'].includes(query)){const chains=await store.searchChains(query);check.networks=chains.length;check.products=chains.length?(await store.searchChain(query,chains[0].source_id)).length:0;}queries.push(check);}
  const patchProbe=await db.get("SELECT json_patch(json_remove(:payload,'$.searchFilters'),:fields) AS value",{':payload':JSON.stringify({query:'probe',searchFilters:{brand:'Old'}}),':fields':JSON.stringify({searchFilters:{}})});const topLevelReplace=JSON.parse(patchProbe.value).searchFilters.brand===undefined;
  return {top_level_replace:topLevelReplace,queries};
 }`;
   try{result.search={ok:true,...(await client.runFunction(token,'endpoints/search_probe',{'lib/domain':sources['lib/domain'],'lib/store':sources['lib/store'],'endpoints/search_probe':searchProbe},{},{ownerRun:true})).result};}
   catch(error){const detail=String(error.message||'').toLowerCase();result.search={ok:false,status:Number.isInteger(error.status)?error.status:null,hints:['time','limit','memory','syntax'].filter(word=>detail.includes(word))};}
+  const handlerProbe=`import {api,db,InputFile} from 'sdk';
+import {Bot} from '../lib/bot.js';
+import {OWNER_ID,assertBot} from '../lib/domain.js';
+export default async function(input,ctx){
+ if(ctx?.ownerRun!==true)throw Error('Private probe only');await assertBot(api);
+ let phase='begin',panels=0,profileSql=0;
+ const now=Date.now(),lease=await db.get('SELECT expires FROM sd_locks WHERE id=:uid',{':uid':OWNER_ID});
+ const active=await db.get("SELECT value FROM sd_meta WHERE key='active'");
+ const fakeDb={
+  run:async(sql,params={})=>{phase=sql.startsWith('UPDATE sd_users SET payload=')?'profile_patch':sql.includes('sd_locks')?'lease':sql.includes('sd_updates')?'update_claim':'write';
+   if(sql.startsWith('UPDATE sd_users SET payload=')){const expression=sql.slice(sql.indexOf('payload=')+8,sql.lastIndexOf(' WHERE'));await db.get('SELECT '+expression+' AS payload FROM sd_users WHERE id=:uid',params);profileSql++;}
+   return {rowsAffected:1};},
+  get:async(sql,params)=>{phase='read';return db.get(sql,params);},
+  all:async(sql,params)=>{phase='read';return db.all(sql,params);}
+ };
+ const fakeApi={getMe:()=>api.getMe(),answerCallbackQuery:async()=>{},deleteMessage:async()=>{},sendMessage:async()=>{panels++;return {message_id:1};},sendPhoto:async()=>{panels++;return {message_id:1};},editMessageText:async p=>{panels++;return {message_id:p.message_id};},editMessageMedia:async p=>{panels++;return {message_id:p.message_id};}};
+ try{await new Bot({db:fakeDb,api:fakeApi,InputFile}).handle({message:{message_id:2147000000,chat:{id:OWNER_ID,type:'private'},from:{id:OWNER_ID,first_name:'Owner'},text:'/start'}});return {ok:true,panels,profile_sql:profileSql,active:active?JSON.parse(active.value):null,lease_remaining:Math.max(0,(lease?.expires||0)-now)};}
+ catch(error){const message=String(error.message||'').toLowerCase();return {ok:false,phase,panels,profile_sql:profileSql,hints:['sqlite','json','path','limit','argument','parameter','syntax','function','invalid','input','bind','column','table'].filter(word=>message.includes(word)),active:active?JSON.parse(active.value):null,lease_remaining:Math.max(0,(lease?.expires||0)-now)};}
+}`;
+  try{result.handler=(await client.runFunction(token,'endpoints/handler_probe',{...sources,'endpoints/handler_probe':handlerProbe},{},{ownerRun:true})).result;}
+  catch(error){const detail=String(error.message||'').toLowerCase();result.handler={ok:false,status:Number.isInteger(error.status)?error.status:null,hints:['time','limit','memory','syntax'].filter(word=>detail.includes(word))};}
  }else if(input.command==='remote'){const r=await client.getFiles(token);result={revision:r.revision,canonical_modules:r.canonical_modules};}
  else if(input.command==='deploy'){
   const remote=await client.getFiles(token);

@@ -13,22 +13,22 @@ const BACK=[[button('🏠 Меню','home')]];
 export class Bot{
  constructor(deps){Object.assign(this,deps);this.store=new Store(deps.db);}
  async panel(text,rows=BACK,visual=true){
-  const markup={inline_keyboard:rows};let message,photo,isPhoto=false;
+  const markup={inline_keyboard:rows},target=this.freshPanel?null:this.user.panel;let message,photo,isPhoto=false;
   if(visual&&this.InputFile)try{const image=renderImage(text);photo=new this.InputFile(image.bytes,'serbia-deals.png',{type:'image/png'});}catch{/* A failed visual must leave a usable text menu. */}
   if(photo){
-   if(this.user.panel)try{message=await this.api.editMessageMedia({chat_id:this.uid,message_id:this.user.panel,media:{type:'photo',media:photo,caption:''},reply_markup:markup});}catch(e){if(/message is not modified/i.test(e.description||e.message||''))return;if((e.code||e.error_code)!==400)throw e;}
+   if(target)try{message=await this.api.editMessageMedia({chat_id:this.uid,message_id:target,media:{type:'photo',media:photo,caption:''},reply_markup:markup});}catch(e){if(/message is not modified/i.test(e.description||e.message||''))return;if((e.code||e.error_code)!==400)throw e;}
    if(!message)try{message=await this.api.sendPhoto({chat_id:this.uid,photo,reply_markup:markup});}catch(e){if(![400,413].includes(e.code||e.error_code))throw e;}
    isPhoto=Boolean(message);
   }
   if(!message){
    const params={chat_id:this.uid,text,parse_mode:'HTML',reply_markup:markup,link_preview_options:{is_disabled:true}};
-   if(this.user.panel&&!this.user.photo)try{message=await this.api.editMessageText({...params,message_id:this.user.panel});}catch(e){if(/message is not modified/i.test(e.description||e.message||''))return;if((e.code||e.error_code)!==400)throw e;}
+   if(target&&!this.user.photo)try{message=await this.api.editMessageText({...params,message_id:target});}catch(e){if(/message is not modified/i.test(e.description||e.message||''))return;if((e.code||e.error_code)!==400)throw e;}
    if(!message)message=await this.api.sendMessage(params);
   }
   if(!positive(message?.message_id))throw Error('Unconfirmed panel');
   if(this.user.panel&&this.user.panel!==message.message_id)try{await this.api.deleteMessage({chat_id:this.uid,message_id:this.user.panel});}catch{}
   await this.store.patch(this.uid,{panel:message.message_id,photo:isPhoto});
-  this.user={...this.user,panel:message.message_id,photo:isPhoto};
+  this.user={...this.user,panel:message.message_id,photo:isPhoto};this.freshPanel=false;
  }
  async names(offers){return productNames(this.store,this.fetch,offers);}
  async home(){const rows=[[button('🔎 Найти товар','search'),button('🛒 Моя корзина','basket')],[button('🔔 Уведомления','notifications'),button('❓ Помощь','help')]];if((this.uid===OWNER_ID?'owner':await roleOf(this.store,this.uid))!=='user')rows.push([button('⚙️ Админка','admin')]);return this.panel('<b>Где дешевле? Сербия</b>\n\n<b>Поиск:</b> один товар\n<b>Корзина:</b> весь список покупок\n\nВыберите, что сравнить.',rows);}
@@ -125,9 +125,10 @@ export class Bot{
    return this.panel(basketSummary(report),[...rows,[button('🛒 Изменить корзину','basket')],...BACK]);
   }
   const shop=source==='split'?report.split:networks.find(x=>x.source===source);if(!shop?.items?.length)return this.comparison();
-  const start=Math.min(offset,Math.floor((shop.items.length-1)/5)*5),shown=shop.items.slice(start,start+5),names=await this.names(shown);
+  const start=Math.min(offset,Math.floor((shop.items.length-1)/5)*5),shown=shop.items.slice(start,start+5),names=await this.names(shown.filter(i=>!i.estimated));
   const title=source==='split'?'Покупки в разных магазинах':shop.chain||shop.name;
-  const text=`<b>${safe(title)}</b>\n\n`+shown.map(i=>`${safe(briefName(names.get(i.name)||bilingual(null,i.name)))}\n× ${i.quantity} · ${money(i.total)}${source==='split'?' · '+safe(i.store):''}`).join('\n\n')+`\n\n<b>Итого:</b> ${money(shop.total)}`+(shop.found&&shop.found<report.items.length?`\nТолько ${shop.found} из ${report.items.length} товаров`:'')+(shop.items.length>5?`\nСтраница ${Math.floor(start/5)+1} из ${Math.ceil(shop.items.length/5)}`:'')+(report.estimated?'\n\nПроверьте вид товара и упаковку.':'')+(source==='split'?'\nСтоимость поездок не включена.':'');
+  const text=`<b>${safe(title)}</b>\n\n`+shown.map(i=>`${safe(i.estimated?i.name:briefName(names.get(i.name)||bilingual(null,i.name)))}${i.estimated?' — выберите товар':''}\n× ${i.quantity} · ${i.estimated?'от ':''}${money(i.total)}${source==='split'?' · '+safe(i.store):''}`).join('\n\n')+`\n\n<b>${report.estimated?'Предварительно от:':'Итого:'}</b> ${money(shop.total)}`+(shop.found&&shop.found<report.items.length?`\nТолько ${shop.found} из ${report.items.length} товаров`:'')+(shop.items.length>5?`\nСтраница ${Math.floor(start/5)+1} из ${Math.ceil(shop.items.length/5)}`:'')+(report.estimated?'\n\nПроверьте вид товара и упаковку.':'')+(source==='split'?'\nСтоимость поездок не включена.':'');
+  for(const item of shown)if(item.estimated&&/^[a-z0-9-]{1,20}$/.test(item.id)&&/^[a-f0-9]{24}$/.test(item.source))rows.push([button('🔎 Выбрать: '+item.name.slice(0,35),`basketpick:${item.id}:${item.source}`)]);
   const prefix=source==='split'?'basketsplit:':'basketshop:'+source+':',nav=[];if(start)nav.push(button('⬅️',prefix+(start-5)));if(shop.items.length>start+5)nav.push(button('➡️',prefix+(start+5)));if(nav.length)rows.push(nav);
   return this.panel(text,[...rows,[button('⬅️ Сравнение','basketcompare'),button('🛒 Корзина','basket')]]);
  }
@@ -155,6 +156,8 @@ export class Bot{
    if(cb)try{await this.api.answerCallbackQuery({callback_query_id:cb.id});}catch{}
    this.user=await this.store.ensure(uid);await trackUser(this.store,cb?.from||msg.from);this.user=await this.store.user(uid);
    await deliverNotice(this.store,this.api,this.InputFile,'ban',uid,true,key);await deliverNotice(this.store,this.api,this.InputFile,'role',uid,true,key);
+   this.freshPanel=!cb;
+   if(cb){this.user.panel=msg.message_id;if(Array.isArray(msg.photo))this.user.photo=true;else if(typeof msg.text==='string')this.user.photo=false;}
    return await this.dispatch(update);
   }finally{await unlockUser(this.store,uid,key);await this.db.run('DELETE FROM sd_updates WHERE expires<:now',{':now':now});}
  }
@@ -192,6 +195,7 @@ export class Bot{
   if(action==='basketcompare')return this.comparison();
   if(/^basketshop:[a-f0-9]{24}:(0|5|10|15|20|25)$/.test(action)){const [,source,offset]=action.split(':');return this.comparison(source,Number(offset));}
   if(/^basketsplit:(0|5|10|15|20|25)$/.test(action))return this.comparison('split',Number(action.split(':')[1]));
+  if(/^basketpick:[a-z0-9-]{1,20}:[a-f0-9]{24}$/.test(action)){const [,id,source]=action.split(':'),item=(await cartItems(this.store,uid)).find(x=>x.id===id&&!x.product);if(!item)return this.basket();await this.store.patch(uid,{cartTarget:id,searchFilters:{},refinement:null});this.user={...this.user,cartTarget:id,searchFilters:{},refinement:null};this.allowAll=true;return this.search(item.query,0,source);}
   if(/^resolve:[a-z0-9-]{1,20}$/.test(action)){const item=(await cartItems(this.store,uid)).find(x=>x.id===action.slice(8)&&!x.product);if(item){if(await expandPendingList(this.store,uid,item.id))return this.basket();await this.store.patch(uid,{cartTarget:item.id});this.user.cartTarget=item.id;return this.search(item.query);}return this.basket();}
   if(/^basketadd:[a-f0-9]{32}:[a-z0-9-]{0,20}$/.test(action)){const [,id,target]=action.split(':'),found=await this.store.offer(id);if(found){try{const added=await addOffer(this.store,uid,JSON.parse(found.payload),target||null);if(!added){await this.store.patch(uid,{cartTarget:null});return this.panel('<b>Позиция корзины уже изменилась</b>\n\nЭта кнопка выбора устарела. Откройте корзину и выберите актуальную позицию.',[[button('🛒 Открыть корзину','basket')],...BACK]);}}catch(error){return this.panel(safe(error.message),[[button('🛒 Корзина','basket')],...BACK]);}}await this.store.patch(uid,{cartTarget:null});return this.basket();}
   if(/^cartremove:[a-z0-9-]{1,40}$/.test(action)){await cartItems(this.store,uid);await this.db.run('DELETE FROM sd_basket WHERE uid=:uid AND id=:id',{':uid':uid,':id':action.slice(11)});return this.basket();}

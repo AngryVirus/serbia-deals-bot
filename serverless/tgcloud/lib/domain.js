@@ -58,7 +58,9 @@ const aliases=Object.fromEntries([...Object.entries(words),...shoppingWords.flat
 const energyTokens=new Set(shoppingWords.find(([forms])=>forms.startsWith('энергетик '))[0].split(' ').map(normalize));
 export const energyQuery=query=>normalize(query).split(' ').some(t=>energyTokens.has(t));
 export function volumeQuery(query){
- const match=String(query).match(/(?<![\p{L}\p{N}.,])(\d+(?:[.,]\d+)?)\s*(ml|мл|cl|l|л)(?![\p{L}\p{N}])/iu);if(!match)return null;
+ let match=String(query).match(/(?<![\p{L}\p{N}.,])(\d+(?:[.,]\d+)?)\s*(ml|мл|cl|l|л)(?![\p{L}\p{N}])/iu);
+ if(!match&&energyQuery(query)){const decimal=String(query).match(/(?<![\p{L}\p{N}.,])([012][.,]\d{1,3})(?![\p{L}\p{N}.,])/u);if(decimal){const ml=Number(decimal[1].replace(',','.'))*1000;if(ml>=50&&ml<=2000)match=[decimal[0],decimal[1],'l'];}}
+ if(!match)return null;
  const factor=/^(ml|мл)$/i.test(match[2])?1:/^cl$/i.test(match[2])?10:1000,ml=Number(match[1].replace(',','.'))*factor;
  if(!Number.isInteger(ml)||ml<1||ml>10000)return null;
  const liters=String(ml/1000),centiliters=String(ml/10),forms=[ml+'ml',liters+'l',centiliters+'cl'];
@@ -75,10 +77,10 @@ export function queryGroups(query){
  const tokens=translated.trim().split(' ').filter(Boolean);
  requireValue(tokens.length>0&&tokens.length<=8&&original.length<=120,'Введите название короче 120 символов.');
  const brandText=tokens.map(t=>(aliases[t]?.length===1?aliases[t][0]:t)).join(' '),redBull=/(?:^| )red ?bull?(?: |$)/.test(brandText);
- const energy=energyQuery(query),groups=[];
+ const energy=energyQuery(query),specificEnergy=redBull||energy&&/(?:^| )(?:monster|guarana|hell|ultra)(?: |$)/.test(brandText),groups=[];
  for(const token of tokens){
-  if(redBull&&energyTokens.has(token))continue;
-  if(['свежий','свежие','свежая','свежую'].map(normalize).includes(token)&&tokens.some(t=>(aliases[t]||[]).some(w=>['krastav','paradajz','rajcic'].includes(w))))continue;
+  if(specificEnergy&&energyTokens.has(token))continue;
+  if(['свежий','свежие','свежая','свежую','сырое','сырая','сырой','sveza','sveze','svezi','raw'].map(normalize).includes(token)&&tokens.some(t=>(aliases[t]||[t]).some(w=>/^(krastav|paradajz|rajcic|pile|pilet|goved|junec|svinj|curet)/.test(w))))continue;
   if(energy&&['напиток','напитки','напитка'].map(normalize).includes(token))continue;
   if(redBull&&['redbull','редбулл','редбул'].map(normalize).includes(token)){groups.push(['red','redbull'],['bull','redbull']);continue;}
   const group=aliases[token]||[token];
@@ -90,7 +92,8 @@ export function queryGroups(query){
  return groups;
 }
 export const freshProduceQuery=query=>!/(марин|сол[её]н|консерв|паста|соус|суп|сок|сметан|kisel|marin|paster|konzerv)/i.test(String(query))&&!/(kisel|marin|paster|konzerv|pasta|sos|supa|sok|pavl|perec)/.test(normalize(query))&&queryGroups(query).some(group=>group.some(word=>/^(krastav|paradajz|rajcic)/.test(word)));
-export const freshMeatQuery=query=>!/(фарш|паштет|колбас|сосиск|копч|готов|суп|соус|корм)/i.test(String(query))&&!/(pastet|kobasic|salam|virsl|dimlj|supa|sos|hrana|mleven|mljeven|gril|rostilj|pecen|pohov|panir|kubet|smok|smaz|kitekat|patelin|fryer|sampinjon|deligh|dog|cat)/.test(normalize(query))&&queryGroups(query).some(group=>group.some(word=>/^(pile|goved|junec|svinj|curet)/.test(word)));
+export const relatedChickenQuery=query=>!/(корм|hrana|whiskas|kitekat|pedigree)/i.test(String(query))&&queryGroups(query).some(g=>g.length<=2&&g.some(t=>/^(pile|pilet)/.test(t)));
+export const freshMeatQuery=query=>(!relatedChickenQuery(query)||/(свеж|сырой|сырая|сырое|svez|svjez|raw)/i.test(String(query)))&&!/(фарш|паштет|колбас|сосиск|копч|готов|суп|соус|корм)/i.test(String(query))&&!/(pastet|kobasic|salam|virsl|dimlj|supa|sos|hrana|mleven|mljeven|gril|rostilj|pecen|pohov|panir|kubet|smok|smaz|kitekat|patelin|fryer|sampinjon|deligh|dog|cat)/.test(normalize(query))&&queryGroups(query).some(group=>group.some(word=>/^(pile|goved|junec|svinj|curet)/.test(word)));
 export const butterQuery=query=>queryGroups(query).some(group=>group.length===1&&group[0]==='maslac')&&!/(posud|noz|keks|biskvit|kikirik|kakao|pasta|kokic|popcorn|baget|peciv|kroasan|marg)/.test(normalize(query));
 export const oilQuery=query=>queryGroups(query).some(group=>group.length===1&&group[0]==='ulje')&&!/(motor|menjac|sapun|sampon|tun|sardin|grisin|riba|sos|pasta)/.test(normalize(query));
 export const bulbQuery=query=>queryGroups(query).some(group=>group.some(word=>/^sijalic|^zarulj|^bulbs?$/.test(word)));
