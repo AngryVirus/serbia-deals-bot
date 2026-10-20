@@ -18,6 +18,10 @@ def main():
         result=invoke('status')
         print('Active:',result['active'],'sources:',len(result['sources']))
         print('Queue:',result['queue'])
+        print('Catalog:',result['catalog'],'SQLite storage:',result['storage'])
+        for source in result['sources']:
+            if source['active'] or source['status']!='pending':
+                print('Source:',source['name'],'status:',source['status'],'date:',source['date'])
     elif args.action=='activate':
         status=invoke('status')
         if not any(s.get('active') for s in status.get('sources',[])):
