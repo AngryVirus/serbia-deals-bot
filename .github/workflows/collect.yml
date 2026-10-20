@@ -1,6 +1,11 @@
 name: Refresh official prices
 on:
   workflow_dispatch:
+    inputs:
+      verify_only:
+        description: Verify the enabled schedule and source selection without import or messages
+        type: boolean
+        default: false
   schedule:
     - cron: '21 5 * * *'
 permissions:
@@ -24,9 +29,19 @@ jobs:
         with:
           python-version: '3.12'
       - run: npm ci --ignore-scripts --no-audit --no-fund --prefix serverless
-      - run: python3 -m collector.collect --publish --sources enabled --budget 2100
+      - name: Verify bounded source selection
+        run: |
+          python3 - <<'PYCODE'
+          import json
+          from collector.collect import ROOT,select_sources
+          sources=select_sources(json.loads((ROOT/'collector/sources.json').read_text()),'enabled')
+          print('Scheduled sources:', ', '.join(source['alias'] for source in sources))
+          PYCODE
+      - if: inputs.verify_only != true
+        run: python3 -m collector.collect --publish --sources enabled --budget 2100
         env:
           TGCLOUD_TOKEN: ${{ secrets.SERBIA_DEALS_CLOUD_TOKEN }}
-      - run: python3 -m collector.operations notify
+      - if: inputs.verify_only != true
+        run: python3 -m collector.operations notify
         env:
           TGCLOUD_TOKEN: ${{ secrets.SERBIA_DEALS_CLOUD_TOKEN }}
