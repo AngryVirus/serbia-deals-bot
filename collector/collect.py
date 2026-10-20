@@ -89,6 +89,9 @@ def main():
         except (OSError,ValueError,RuntimeError) as error:
             # URLs can contain publisher SAS credentials. Never print exceptions.
             report.append({'source':source['alias'],'state':'unavailable','reason':type(error).__name__})
+            from .cloud import ManagementError
+            if isinstance(error,ManagementError):
+                report[-1].update(http_status=error.status,category=error.category)
             print(json.dumps(report[-1]),flush=True)
             if args.publish:
                 try:invoke('source_failure',source=source['id'])
