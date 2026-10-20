@@ -58,7 +58,9 @@ test('grocery milk and plums do not match kitchen implements or cleansing milk',
   offer(3,{name:'Mleko za telo',terms:['mleko','za','telo'],regular:1}),
   offer(4,{name:'Sljiva 1kg',terms:['sljiva','1kg']}),
   offer(5,{name:'Odstranjivac kostica za sljive',terms:['odstranjivac','kostica','za','sljive'],regular:1}),
-  offer(6,{name:'Flasa za mlijeko sa slamcicom',terms:['flasa','za','mlijeko','sa','slamcicom'],regular:1})
+  offer(6,{name:'Flasa za mlijeko sa slamcicom',terms:['flasa','za','mlijeko','sa','slamcicom'],regular:1}),
+  offer(7,{name:'Maslac Mlekoprodukt 10g',terms:['maslac','mlekoprodukt','10g'],regular:1}),
+  offer(8,{name:'Vlazne maramice kozje mleko',terms:['vlazne','maramice','kozje','mleko'],regular:1})
  ]);
  assert.equal((await f.store.search('молоко')).length,1);assert.equal((await f.store.search('сливы')).length,1);
  assert.equal((await f.store.search('posuda za mleko')).length,1);
