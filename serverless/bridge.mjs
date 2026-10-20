@@ -70,7 +70,7 @@ import {Store} from '../lib/store.js';
 import {assertBot} from '../lib/domain.js';
 export default async function(input,ctx){
  if(ctx?.ownerRun!==true)throw Error('Private probe only');await assertBot(api);const store=new Store(db),queries=[];
- for(const query of ['молотый кофе','кофе в зернах','куриное филе','зелёный чай','Энергетик монстр 0.5','курица','сливы','соус песто','питьевое молоко']){const rows=await store.search(query),check={query,matches:rows.length};if(query==='питьевое молоко')check.refined_networks=(await store.searchChains('молоко',Date.now(),{type:['milkplain']})).length;if(['Энергетик монстр 0.5','курица'].includes(query)){const chains=await store.searchChains(query);check.networks=chains.length;check.products=chains.length?(await store.searchChain(query,chains[0].source_id)).length:0;}queries.push(check);}
+ for(const query of ['молотый кофе','кофе в зернах','куриное филе','зелёный чай','Энергетик монстр 0.5','курица','сливы','соус песто','питьевое молоко']){const started=Date.now(),rows=await store.search(query),check={query,matches:rows.length,elapsed_ms:Date.now()-started};if(query==='питьевое молоко')check.refined_networks=(await store.searchChains('молоко',Date.now(),{type:['milkplain']})).length;if(['Энергетик монстр 0.5','курица'].includes(query)){const chains=await store.searchChains(query);check.networks=chains.length;check.products=chains.length?(await store.searchChain(query,chains[0].source_id)).length:0;}queries.push(check);}
  const patchProbe=await db.get("SELECT json_patch(json_remove(:payload,'$.searchFilters'),:fields) AS value",{':payload':JSON.stringify({query:'probe',searchFilters:{brand:'Old'}}),':fields':JSON.stringify({searchFilters:{}})});const topLevelReplace=JSON.parse(patchProbe.value).searchFilters.brand===undefined;
  return {top_level_replace:topLevelReplace,queries};
 }`;
@@ -104,6 +104,23 @@ export default async function(input,ctx){
 }`;
   try{result.language={ok:true,...(await client.runFunction(token,'endpoints/language_probe',{...Object.fromEntries(['lib/domain','lib/store','lib/product-names'].map(name=>[name,sources[name]])),'endpoints/language_probe':languageProbe},{},{ownerRun:true})).result};}
   catch(error){const detail=String(error.message||'').toLowerCase();result.language={ok:false,hints:['time','limit','memory','syntax'].filter(word=>detail.includes(word))};}
+  const speedProbe=`import {api,db} from 'sdk';
+import {Store} from '../lib/store.js';
+import {assertBot} from '../lib/domain.js';
+import {productNames} from '../lib/product-names.js';
+export default async function(input,ctx){
+ if(ctx?.ownerRun!==true)throw Error('Private probe only');
+ const start=Date.now();await assertBot(api);const identityMs=Date.now()-start;
+ const counts={run:0,get:0,all:0};const measured=Object.fromEntries(['run','get','all'].map(method=>[method,async(...args)=>{counts[method]++;return db[method](...args);}])) ;
+ const initStart=Date.now();await new Store(measured).init();const initMs=Date.now()-initStart,initCalls={...counts};
+ for(const k of Object.keys(counts))counts[k]=0;
+ const repeatStart=Date.now(),store=new Store(measured);await store.init();const repeatMs=Date.now()-repeatStart,repeatCalls={...counts};
+ for(const k of Object.keys(counts))counts[k]=0;
+ const namesStart=Date.now();await productNames(store,null,[{name:'KEKS JAFFA KOLAČ DONAT CHOCO CREAM 75G'},{name:'LED sijalica E27 9W 806lm'},{name:'Energetski napitak Red Bull 0,25l'}]);
+ return {identity_ms:identityMs,init_ms:initMs,init_calls:initCalls,repeat_init_ms:repeatMs,repeat_init_calls:repeatCalls,cached_names_ms:Date.now()-namesStart,cached_names_calls:counts};
+}`;
+  try{result.performance=(await client.runFunction(token,'endpoints/speed_probe',{...Object.fromEntries(['lib/domain','lib/store','lib/product-names'].map(name=>[name,sources[name]])),'endpoints/speed_probe':speedProbe},{},{ownerRun:true})).result;}
+  catch{result.performance={ok:false};}
   const handlerProbe=`import {api,db,InputFile} from 'sdk';
 import {Bot} from '../lib/bot.js';
 import {OWNER_ID,assertBot} from '../lib/domain.js';
