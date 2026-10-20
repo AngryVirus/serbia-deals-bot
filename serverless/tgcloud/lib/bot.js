@@ -116,14 +116,17 @@ export class Bot{
   rows.push([button('− 1','quantity:'+id+':-1'),button('＋ 1','quantity:'+id+':1')],[button('🗑 Удалить из корзины','cartremove:'+id)],[button('⬅️ К корзине','basket:'+(Math.floor(index/5)*5))]);
   return this.panel(`<b>Товар в корзине</b>\n\n${safe(item.product?names.get(item.name)||bilingual(null,item.name):item.query)}\n\n<b>Количество:</b> ${item.quantity}\n`+(item.product?'Выбрана конкретная упаковка.':'Подбор по названию. Упаковка ещё не выбрана.')+'\nКоличество — упаковки или штуки.',rows);
  }
- async comparison(source=null,offset=0){
+ async comparison(source=null,offset=0,itemOffset=0){
   const wait=await this.store.rate(this.uid);if(wait)return this.panel(`<b>Небольшая пауза</b>\nПовторите через ${wait} сек.`,[[button('🛒 Корзина','basket')]]);
   let report;try{report=await compareBasket(this.store,this.uid);}catch{return this.panel('<b>Не удалось сравнить</b>\nПовторите чуть позже. Корзина сохранена.',[[button('🛒 Корзина','basket')]]);}
   const networks=basketNetworks(report),rows=[];
   if(!source){
-   for(const store of networks.slice(0,4))rows.push([button('🏪 '+(store.chain||store.name).slice(0,45),'basketshop:'+store.source+':0')]);
+   const start=Math.min(Math.floor(offset/2)*2,Math.floor(Math.max(0,networks.length-1)/2)*2),itemStart=Math.min(Math.floor(itemOffset/5)*5,Math.floor(Math.max(0,report.items.length-1)/5)*5),names=await this.names(report.items.slice(itemStart,itemStart+5).filter(i=>i.product));
+   for(const store of networks.slice(start,start+2))rows.push([button('🏪 Товары: '+(store.chain||store.name).slice(0,40),'basketshop:'+store.source+':0')]);
+   const nav=[];if(start)nav.push(button('⬅️ Магазины',`basketoverview:${start-2}:${itemStart}`));if(networks.length>start+2)nav.push(button('Магазины ➡️',`basketoverview:${start+2}:${itemStart}`));if(nav.length)rows.push(nav);
+   const products=[];if(itemStart)products.push(button('⬅️ Товары',`basketoverview:${start}:${itemStart-5}`));if(report.items.length>itemStart+5)products.push(button('Товары ➡️',`basketoverview:${start}:${itemStart+5}`));if(products.length)rows.push(products);
    if(report.split?.complete&&report.split.items.length)rows.push([button('🛍 В разных магазинах · '+(report.estimated?'от ':'')+money(report.split.total),'basketsplit:0')]);
-   return this.panel(basketSummary(report),[...rows,[button('🛒 Изменить корзину','basket')],...BACK]);
+   return this.panel(basketSummary(report,{offset:start,itemOffset:itemStart,names}),[...rows,[button('🛒 Изменить корзину','basket')],...BACK]);
   }
   const shop=source==='split'?report.split:networks.find(x=>x.source===source);if(!shop?.items?.length)return this.comparison();
   const start=Math.min(offset,Math.floor((shop.items.length-1)/5)*5),shown=shop.items.slice(start,start+5),names=await this.names(shown.filter(i=>!i.estimated));
@@ -196,6 +199,7 @@ export class Bot{
   if(/^cartchange:[a-z0-9-]{1,40}$/.test(action)){const next=await resetProduct(this.store,uid,action.slice(11));if(!next)return this.basket();await this.store.patch(uid,{cartTarget:null,refinement:null,searchFilters:{}});this.user={...this.user,cartTarget:null,refinement:null,searchFilters:{}};return this.basketItem(next);}
   if(action==='basketinput'){await this.store.patch(uid,{pending:'basket',cartTarget:null});return this.panel('<b>Добавьте список покупок</b>\n\nТовары — с новой строки или через запятую. Количество — после ×.\n\nМолоко 1 л × 2\nКофе\nОгурцы\n\nДо 20 товаров за раз, 30 в корзине.',BACK);}
   if(action==='basketcompare')return this.comparison();
+  if(/^basketoverview:(0|[1-9][0-9]?):(0|5|10|15|20|25)$/.test(action)){const [,offset,itemOffset]=action.split(':');return this.comparison(null,Number(offset),Number(itemOffset));}
   if(/^basketshop:[a-f0-9]{24}:(0|5|10|15|20|25)$/.test(action)){const [,source,offset]=action.split(':');return this.comparison(source,Number(offset));}
   if(/^basketsplit:(0|5|10|15|20|25)$/.test(action))return this.comparison('split',Number(action.split(':')[1]));
   if(/^basketpick:[a-z0-9-]{1,20}:[a-f0-9]{24}$/.test(action)){const [,id,source]=action.split(':'),item=(await cartItems(this.store,uid)).find(x=>x.id===id&&!x.product);if(!item)return this.basket();await this.store.patch(uid,{cartTarget:id,searchFilters:{},refinement:null});this.user={...this.user,cartTarget:id,searchFilters:{},refinement:null};this.allowAll=true;return this.search(item.query,0,source);}
