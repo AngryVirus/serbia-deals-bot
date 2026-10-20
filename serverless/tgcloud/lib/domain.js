@@ -45,7 +45,7 @@ const phrases=[
  ['зубная паста','pasta zub'],['зубную пасту','pasta zub'],
  ['влажные салфетки','vlazn maramic'],['влажных салфеток','vlazn maramic'],
  ['корм для кошек','hrana mack'],['корм для котов','hrana mack'],['корм для собак','hrana ps']
-].map(([from,to])=>[normalize(from),normalize(to)]);
+].flatMap(([from,to])=>{const tokens=normalize(from).split(' '),target=normalize(to);return tokens.length===2?[[tokens.join(' '),target],[[...tokens].reverse().join(' '),target]]:[[tokens.join(' '),target]];});
 const aliases=Object.fromEntries([...Object.entries(words),...shoppingWords.flatMap(([forms,terms])=>forms.split(' ').map(form=>[form,terms.split(' ')]))].map(([key,value])=>[normalize(key),value]));
 const energyTokens=new Set(shoppingWords.find(([forms])=>forms.startsWith('энергетик '))[0].split(' ').map(normalize));
 export const energyQuery=query=>normalize(query).split(' ').some(t=>energyTokens.has(t));
