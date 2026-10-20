@@ -25,6 +25,11 @@ export async function manage(input,ctx,{db,api}){
   }catch{/* Some hosted SQLite environments restrict PRAGMA inspection. */}
   return {active:await store.meta('active'),sources,queue,catalog,storage,last_collection:await store.meta('last_collection')};
  }
+ if(operation==='search_check'){
+  requireValue(typeof input.query==='string'&&input.query.length<=120);
+  const started=Date.now(),rows=await store.search(input.query);
+  return {query:input.query,returned:rows.length,elapsed_ms:Date.now()-started,sample:rows.slice(0,3).map(row=>({name:JSON.parse(row.payload).name,store:JSON.parse(row.payload).format,price:row.price}))};
+ }
  if(operation==='activate'){requireValue(input.confirm_username==='SerbiaDealsBot');await store.setMeta('active',true);return {active:true};}
  if(operation==='pause'){await store.setMeta('active',false);return {active:false};}
  if(operation==='register_sources'){
