@@ -1,0 +1,335 @@
+{
+  "date": "2026-10-21",
+  "scope": "Automatic audit of all accepted offers in eight reviewed public price feeds; not a manual guarantee for every future title.",
+  "offers": 129552,
+  "sources": 8,
+  "canonical_queries": 334,
+  "matched_queries": 334,
+  "spelling_forms_checked": 836,
+  "spelling_mismatches": [],
+  "metadata_dimension_conflicts": 343,
+  "suspect_title_dimensions": 1,
+  "capacity_or_specifications": 2879,
+  "duplicate_csv_rows_removed": 264,
+  "conflicting_identities_removed": 3,
+  "rejected_csv_rows": 0,
+  "per_source": [
+    {
+      "alias": "metro",
+      "date": "2026-10-20",
+      "offers": 9487,
+      "quality": {
+        "offers": 9487,
+        "measurable": 6910,
+        "wrong_dimension": 0,
+        "specifications": 0,
+        "metadata_conflicts": 17,
+        "price_compared": 0,
+        "price_jumps": 0,
+        "examples": []
+      },
+      "parse": {
+        "date": "2026-10-20",
+        "rows": 26672,
+        "accepted": 9487,
+        "rejected": 0,
+        "conflicts": 1,
+        "duplicates": 37
+      }
+    },
+    {
+      "alias": "lidl",
+      "date": "2026-10-21",
+      "offers": 2992,
+      "quality": {
+        "offers": 2992,
+        "measurable": 2742,
+        "wrong_dimension": 0,
+        "specifications": 0,
+        "metadata_conflicts": 35,
+        "price_compared": 0,
+        "price_jumps": 0,
+        "examples": []
+      },
+      "parse": {
+        "date": "2026-10-21",
+        "rows": 9267,
+        "accepted": 2992,
+        "rejected": 0,
+        "conflicts": 1,
+        "duplicates": 96
+      }
+    },
+    {
+      "alias": "gomex",
+      "date": "2026-10-21",
+      "offers": 6087,
+      "quality": {
+        "offers": 6087,
+        "measurable": 5717,
+        "wrong_dimension": 0,
+        "specifications": 0,
+        "metadata_conflicts": 68,
+        "price_compared": 0,
+        "price_jumps": 0,
+        "examples": []
+      },
+      "parse": {
+        "date": "2026-10-21",
+        "rows": 18217,
+        "accepted": 6087,
+        "rejected": 0,
+        "conflicts": 0,
+        "duplicates": 0
+      }
+    },
+    {
+      "alias": "matijevic",
+      "date": "2026-10-20",
+      "offers": 508,
+      "quality": {
+        "offers": 508,
+        "measurable": 295,
+        "wrong_dimension": 0,
+        "specifications": 0,
+        "metadata_conflicts": 0,
+        "price_compared": 0,
+        "price_jumps": 0,
+        "examples": []
+      },
+      "parse": {
+        "date": "2026-10-20",
+        "rows": 1508,
+        "accepted": 508,
+        "rejected": 0,
+        "conflicts": 0,
+        "duplicates": 0
+      }
+    },
+    {
+      "alias": "aman",
+      "date": "2026-10-20",
+      "offers": 7122,
+      "quality": {
+        "offers": 7122,
+        "measurable": 6013,
+        "wrong_dimension": 1,
+        "specifications": 2,
+        "metadata_conflicts": 0,
+        "price_compared": 0,
+        "price_jumps": 0,
+        "examples": [
+          {
+            "kind": "dimension",
+            "name": "MLEKO SVEZE PET 2,8%MM DUKAT 1.5KG SOMBOLED"
+          }
+        ]
+      },
+      "parse": {
+        "date": "2026-10-20",
+        "rows": 21418,
+        "accepted": 7122,
+        "rejected": 0,
+        "conflicts": 1,
+        "duplicates": 1
+      }
+    },
+    {
+      "alias": "maxi",
+      "date": "2026-10-21",
+      "offers": 27711,
+      "quality": {
+        "offers": 27711,
+        "measurable": 22965,
+        "wrong_dimension": 0,
+        "specifications": 0,
+        "metadata_conflicts": 220,
+        "price_compared": 0,
+        "price_jumps": 0,
+        "examples": []
+      },
+      "parse": {
+        "date": "2026-10-21",
+        "rows": 84209,
+        "accepted": 27711,
+        "rejected": 0,
+        "conflicts": 0,
+        "duplicates": 7
+      }
+    },
+    {
+      "alias": "okov",
+      "date": "2026-10-20",
+      "offers": 75453,
+      "quality": {
+        "offers": 75453,
+        "measurable": 8528,
+        "wrong_dimension": 0,
+        "specifications": 2877,
+        "metadata_conflicts": 3,
+        "price_compared": 0,
+        "price_jumps": 0,
+        "examples": []
+      },
+      "parse": {
+        "date": "2026-10-20",
+        "rows": 75453,
+        "accepted": 75453,
+        "rejected": 0,
+        "conflicts": 0,
+        "duplicates": 0
+      }
+    },
+    {
+      "alias": "lilly",
+      "date": "2026-10-20",
+      "offers": 192,
+      "quality": {
+        "offers": 192,
+        "measurable": 43,
+        "wrong_dimension": 0,
+        "specifications": 0,
+        "metadata_conflicts": 0,
+        "price_compared": 0,
+        "price_jumps": 0,
+        "examples": []
+      },
+      "parse": {
+        "date": "2026-10-20",
+        "rows": 21554,
+        "accepted": 192,
+        "rejected": 0,
+        "conflicts": 0,
+        "duplicates": 123
+      }
+    }
+  ],
+  "controls": {
+    "пончик": {
+      "networks": 5,
+      "examples": [
+        {
+          "name": "Donut sa šećerom MK60 47g",
+          "translated": "Пончик с сахаром MK60 47 г / Donut sa šećerom MK60 47g",
+          "unit": "g",
+          "unit_price": "638,09 RSD/кг"
+        },
+        {
+          "name": "Krofna sa punj. od kajsije MK105 48g",
+          "translated": "Пончик с абрикосовой начинкой MK105 48 г / Krofna sa punj. od kajsije MK105 48g",
+          "unit": "g",
+          "unit_price": "708,13 RSD/кг"
+        }
+      ]
+    },
+    "крофне": {
+      "networks": 5,
+      "examples": [
+        {
+          "name": "Donut sa šećerom MK60 47g",
+          "translated": "Пончик с сахаром MK60 47 г / Donut sa šećerom MK60 47g",
+          "unit": "g",
+          "unit_price": "638,09 RSD/кг"
+        },
+        {
+          "name": "Krofna sa punj. od kajsije MK105 48g",
+          "translated": "Пончик с абрикосовой начинкой MK105 48 г / Krofna sa punj. od kajsije MK105 48g",
+          "unit": "g",
+          "unit_price": "708,13 RSD/кг"
+        }
+      ]
+    },
+    "петрушка": {
+      "networks": 5,
+      "examples": [
+        {
+          "name": "ZAČIN PERŠUNOV LIST UNIJA 7G",
+          "translated": "Приправа петрушка лист UNIJA 7 г / ZAČIN PERŠUNOV LIST UNIJA 7G",
+          "unit": "kg",
+          "unit_price": "2 262,86 RSD/кг"
+        },
+        {
+          "name": "Peršun MK30 10g",
+          "translated": "Петрушка MK30 10 г / Peršun MK30 10g",
+          "unit": "g",
+          "unit_price": "1 999,00 RSD/кг"
+        }
+      ]
+    },
+    "пертушка": {
+      "networks": 5,
+      "examples": [
+        {
+          "name": "ZAČIN PERŠUNOV LIST UNIJA 7G",
+          "translated": "Приправа петрушка лист UNIJA 7 г / ZAČIN PERŠUNOV LIST UNIJA 7G",
+          "unit": "kg",
+          "unit_price": "2 262,86 RSD/кг"
+        },
+        {
+          "name": "Peršun MK30 10g",
+          "translated": "Петрушка MK30 10 г / Peršun MK30 10g",
+          "unit": "g",
+          "unit_price": "1 999,00 RSD/кг"
+        }
+      ]
+    },
+    "энергитик": {
+      "networks": 5,
+      "examples": [
+        {
+          "name": "0.25L POWER UP ENERGY DRINK NOVO-STAND.-VAR.",
+          "translated": "0.25 л POWER UP энергетик напиток NOVO-STAND.-VAR. / 0.25L POWER UP ENERGY DRINK NOVO-STAND.-VAR.",
+          "unit": "L",
+          "unit_price": "191,96 RSD/л"
+        },
+        {
+          "name": "ENERGETSKO PIĆE POWWER ZERO LIMENKA 0.25L",
+          "translated": "Энергетик PIĆE POWWER ZERO LIMENKA 0.25 л / ENERGETSKO PIĆE POWWER ZERO LIMENKA 0.25L",
+          "unit": "l",
+          "unit_price": "199,96 RSD/л"
+        }
+      ]
+    },
+    "квас": {
+      "networks": 4,
+      "examples": [
+        {
+          "name": "KVAS ZLATNI LIMUN-PIVO MIX TRADE 0.5L",
+          "translated": "Квас ZLATNI лимон-пиво MIX TRADE 0.5 л / KVAS ZLATNI LIMUN-PIVO MIX TRADE 0.5L",
+          "unit": "l",
+          "unit_price": "126,72 RSD/л"
+        },
+        {
+          "name": "0.5L BIP RUSKI KVAS PET-STAND.-VAR.",
+          "translated": "0.5 л BIP RUSKI квас PET-STAND.-VAR. / 0.5L BIP RUSKI KVAS PET-STAND.-VAR.",
+          "unit": "L",
+          "unit_price": "146,20 RSD/л"
+        }
+      ]
+    },
+    "хрен": {
+      "networks": 5,
+      "examples": [
+        {
+          "name": "Ren SK2 185g,190g",
+          "translated": "Хрен SK2 185 г,190 г / Ren SK2 185g,190g",
+          "unit": "kg",
+          "unit_price": "662,11 RSD/кг"
+        },
+        {
+          "name": "PRELIV SA REN-270G DOJPAK DIJAMANT",
+          "translated": "Соус с хрен-270 г DOJPAK DIJAMANT / PRELIV SA REN-270G DOJPAK DIJAMANT",
+          "unit": "kom",
+          "unit_price": "588,89 RSD/кг"
+        }
+      ]
+    }
+  },
+  "interpretation": [
+    "Metadata mismatches do not establish a wrong title: source units never override validated title quantities.",
+    "Vessel capacity and appliance specifications remain in the public original name; they are excluded from comparable package quantities.",
+    "The suspicious milk title 1.5KG is not silently changed to litres. It is flagged and excluded from unconfirmed quantity calculations.",
+    "Observed legitimate powders, frozen products, cosmetics, baby formula, multipacks and coconut oil retain valid units.",
+    "Price jumps need a previous comparable generation; initial audit does not invent historical observations."
+  ]
+}
