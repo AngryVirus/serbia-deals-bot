@@ -87,7 +87,7 @@ export default async function(input,ctx){
     const checked=(await client.runFunction(token,'endpoints/search_probe',{'lib/domain':sources['lib/domain'],'lib/store':sources['lib/store'],'endpoints/search_probe':searchProbe},{query},{ownerRun:true})).result;
     if(checked?.top_level_replace!==true||checked?.queries?.length!==1||checked.queries[0].query!==query)throw Error('Invalid search probe result');
     result.search.queries.push(...checked.queries);
-   }catch(error){const detail=String(error.message||'').toLowerCase();result.search={...result.search,ok:false,status:Number.isInteger(error.status)?error.status:null,hints:['time','limit','memory','syntax'].filter(word=>detail.includes(word)),failed_probe:searchQueries.indexOf(query)+1};break;}
+   }catch(error){const detail=(String(error.description||error.message||'')+' '+JSON.stringify(error.parameters||{})).toLowerCase();result.search={...result.search,ok:false,status:Number.isInteger(error.status)?error.status:null,hints:['time','limit','memory','syntax','column','table','json','function','parameter','module','unsupported','denied','quota','rate','argument','invalid','binding','budget','statement','interrupted','maximum','scope'].filter(word=>detail.includes(word)),failed_probe:searchQueries.indexOf(query)+1};break;}
   }
   const basketProbe=`import {api,db} from 'sdk';
 import {Store} from '../lib/store.js';
