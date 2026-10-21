@@ -107,3 +107,7 @@ test('legacy saved package choices cannot reintroduce grams for energy drinks or
 test('type questions use the same prefix exclusions as SQL and never advertise an empty drinking-milk option',async()=>{
  const f=await fixture();await publish(f,[offer(1,{name:'Kisac mleko 1l',terms:['kisac','mleko','1l']}),offer(2,{name:'Kiselo mleko 180g',terms:['kiselo','mleko','180g']})]);const rows=await f.store.refinementSamples('молоко'),d=buildRefinement('молоко',rows.map(r=>JSON.parse(r.payload)),'milk');assert(!d.facets.some(f=>f.key==='type'));assert.equal((await f.store.searchChains('молоко',Date.now(),{type:['milkplain']})).length,0);assert((await f.store.searchChains('молоко')).length);
 });
+
+test('bounded audit batches checkpoint each page, stop at completion, and reject excessive work',async()=>{
+ const f=await fixture();await publish(f,Array.from({length:501},(_,i)=>offer(i+1)));await f.db.run('DELETE FROM sd_meta WHERE key=:key',{':key':'catalog_quality:'+source});const r=await run(f,{operation:'quality_page',source,pages:5});assert(r.done);assert.equal(r.offers,501);assert.equal(r.pages,2);assert.equal((await f.store.meta('catalog_quality:'+source)).offers,501);assert.equal((await run(f,{operation:'quality_page',source,pages:5})).offers,501);await assert.rejects(run(f,{operation:'quality_page',source,pages:6}));
+});

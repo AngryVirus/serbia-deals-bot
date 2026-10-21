@@ -39,7 +39,7 @@ def main():
             if not source.get('active'):continue
             for _ in range(2000):
                 if time.monotonic()>deadline:raise RuntimeError('Catalog audit budget; checkpoint retained')
-                result=invoke('quality_page',source=source['id'])
+                result=invoke('quality_page',source=source['id'],pages=5)
                 if result.get('done') or result.get('skipped'):break
             else:raise RuntimeError('Catalog audit page bound')
             print('Catalog audit source',index+1,result,flush=True)
