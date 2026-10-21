@@ -1,4 +1,4 @@
-import {normalize,energyQuery,volumeQuery,weightQuery,queryGroups,plainMilkQuery,packageMeasure,measurePolicy,milkQuery} from './domain.js';
+import {normalize,energyQuery,volumeQuery,weightQuery,queryGroups,matchesSearchTerm,plainMilkQuery,packageMeasure,measurePolicy,milkQuery} from './domain.js';
 export function measure(text){
  const m=packageMeasure(text);if(!m)return null;
  const {kind,amount}=m,label=amount>=1000?(amount/1000)+(kind==='volume'?' л':' кг'):amount+(kind==='volume'?' мл':' г');
@@ -17,7 +17,7 @@ const types=[
 export function matchesType(offer,terms){
  const t=normalize(offer.name),tokens=t.split(' ');
  if(terms[0]==='milkplain')return !tokens.some(w=>/^(kisel|kis|cokolad|coko|cok|kakao|arom|ukus|prah|suvo|susen|kondenz|evapor|badem|kokos|soj|ovsen|pirinac|pocet|adapt|formul)/.test(w));
- return terms.some(term=>tokens.some(w=>w.startsWith(term)));
+ return terms.some(term=>tokens.some(w=>matchesSearchTerm(w,term)));
 }
 const meaningfulBrand=brand=>typeof brand==='string'&&brand.trim().length>0&&brand.length<=80&&!/^(brend|brand|unknown|n\/a|bez brenda|-|nepoznat)$/i.test(brand.trim());
 export function buildRefinement(query,offers,token,now=Date.now(),single=false){

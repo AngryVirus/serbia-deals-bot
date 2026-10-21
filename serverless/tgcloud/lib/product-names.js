@@ -1,15 +1,16 @@
-import {shoppingLexicon,normalize,rawPackageMeasure} from './domain.js';
+import {shoppingLexicon,normalize,rawPackageMeasure,matchesSearchTerm} from './domain.js';
 // Translate public catalogue titles only; never send private searches or basket input.
 const local=new Map(Object.entries({krastavac:'Огурец',paradajz:'Помидор',krompir:'Картофель',sargarepa:'Морковь',luk:'Лук',jabuka:'Яблоко',banana:'Банан',mleko:'Молоко',jaja:'Яйца',kafa:'Кофе',secer:'Сахар',brasno:'Мука',hleb:'Хлеб',voda:'Вода',piletina:'Курица',maslac:'Сливочное масло',pirinac:'Рис',so:'Соль'}));
 const latin=value=>String(value).toLowerCase().normalize('NFKD').replace(/\p{M}/gu,'').replace(/đ/g,'dj');
 export function localName(name){return local.get(latin(name).trim())||null;}
-const fallbackWords=shoppingLexicon().flatMap(entry=>entry.terms.filter(t=>t.length>=3).map(term=>({term,ru:entry.query}))).sort((a,b)=>b.term.length-a.term.length);
+const umbrellaNames=new Set(['рыба','мясо','крупа','морепродукты','зелень','напиток','орехи']);
+const fallbackWords=shoppingLexicon().flatMap(entry=>entry.terms.filter(t=>t.length>=3).map(term=>({term,ru:entry.query}))).sort((a,b)=>b.term.length-a.term.length||Number(umbrellaNames.has(a.ru))-Number(umbrellaNames.has(b.ru)));
 const fallbackIndex=new Map();for(const entry of fallbackWords){const letter=entry.term[0];if(!fallbackIndex.has(letter))fallbackIndex.set(letter,[]);fallbackIndex.get(letter).push(entry);}
 const fallbackPhrases=[[/keks\s+jaffa\s+kola[čc]\s+donat/gi,'Пончик JAFFA'],[/choco cream/gi,'с шоколадным кремом'],[/triple choco/gi,'тройной шоколад'],[/sa [sš]e[cć]erom/gi,'с сахаром'],[/sa kajsija punjenjem/gi,'с абрикосовой начинкой'],[/sa punj\.? od kajsije/gi,'с абрикосовой начинкой'],[/sa vocnim punjenjem/gi,'с фруктовой начинкой'],[/coko mrvicama/gi,'шоколадной крошкой']];
 export function fallbackName(name){
  let text=String(name),count=0;const phrases=[];for(const [pattern,ru] of fallbackPhrases)text=text.replace(pattern,()=>{count++;phrases.push(ru);return '\uE000'+(phrases.length-1)+'\uE001';});
  const water=/(?:^| )(?:voda|water)(?: |$)/.test(normalize(name));
- text=text.replace(/[A-Za-zÀ-žА-Яа-яЁёЂђЈјЉљЊњЋћЏџ]+/g,word=>{const key=normalize(word);const exact=local.get(key);if(exact){count++;return exact;}if(water&&key==='donat')return word;const found=(fallbackIndex.get(key[0])||[]).find(x=>key===x.term||x.term.length>=4&&key.startsWith(x.term));if(!found)return ({sa:'с',od:'из',bez:'без',list:'лист',koren:'корень',seckan:'нарезанный',rezani:'нарезанная',suseni:'сушёный',punjenjem:'начинкой'}[key]||word);count++;return found.ru;});
+ text=text.replace(/[A-Za-zÀ-žА-Яа-яЁёЂђЈјЉљЊњЋћЏџ]+/g,word=>{const key=normalize(word);const exact=local.get(key);if(exact){count++;return exact;}if(water&&key==='donat')return word;const found=(fallbackIndex.get(key[0])||[]).find(x=>(key===x.term||x.term.length>=4)&&matchesSearchTerm(key,x.term));if(!found)return ({sa:'с',od:'из',bez:'без',list:'лист',koren:'корень',seckan:'нарезанный',rezani:'нарезанная',suseni:'сушёный',punjenjem:'начинкой'}[key]||word);count++;return found.ru;});
  if(!count)return null;
  text=text.replace(/\uE000(\d+)\uE001/g,(_,index)=>phrases[Number(index)]);
  text=text.replace(/(\d(?:[.,]\d+)?)\s*(kg|ml|gr|g|l)\b/gi,(_,n,u)=>n+' '+({kg:'кг',ml:'мл',gr:'г',g:'г',l:'л'}[u.toLowerCase()]));
