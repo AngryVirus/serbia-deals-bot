@@ -147,10 +147,14 @@ export function rawPackageMeasure(name){
 }
 // Source fields often contain category units; a title can also contain capacity,
 // load limits or a mistyped dimension. Never convert weight into volume.
+// Only fixed, code-owned patterns enter this cache. QuickJS otherwise recompiles
+// long category expressions for every public catalogue row.
+const measurePatterns=new Map();
+const measurePattern=(text,exact=false)=>{const key=(exact?'e:':'p:')+text;if(!measurePatterns.has(key))measurePatterns.set(key,new RegExp('(?:^| )(?:'+text+')'+(exact?'':'[a-z0-9]*')+'(?: |$)'));return measurePatterns.get(key);};
 export function measurePolicy(name){
  const t=normalize(name),ru=String(name).toLowerCase();
- const has=roots=>new RegExp('(?:^| )(?:'+roots+')[a-z0-9]*(?: |$)').test(t);
- const exact=words=>new RegExp('(?:^| )(?:'+words+')(?: |$)').test(t);
+ const has=roots=>measurePattern(roots).test(t);
+ const exact=words=>measurePattern(words,true).test(t);
  const head=t.replace(/^(?:[0-9]+ )?[0-9]+(?:ml|l|cl|kg|gr|g) /,'');
  const contents=/^(?:sredstvo |sred |sprej |silikon |mast |lepak |lepilo |boja |lak |ulje |tecnost |pasta |sampon |sapun |deterdzent |pena |mleko |jogurt |kefir |sok |voda |vino |rakija |pivo |keks |cokolad|med |kafa |dzem |pekmez |so )/.test(head);
  // Identify the main object, not a container mentioned after a food or cleaner.
