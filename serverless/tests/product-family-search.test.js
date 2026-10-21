@@ -100,3 +100,13 @@ test('the reviewed hardware source stays searchable for tools but cannot supply 
  assert.deepEqual(await names(f,'mlin za so'),['Mlin za so 90g']);
  assert.deepEqual(await names(f,'лампочка'),['Sijalica E27']);
 });
+
+test('persisted type filters apply the same word forms as refinement choices and keep breast distinct from prosciutto',async()=>{
+ const f=await fixture();await publish(f,[product(1,'Pileca prsa 500g'),product(2,'Pileci prsut 500g'),product(3,'Pileca grudi 500g')]);
+ const filters={type:['prs']};
+ assert.deepEqual(await names(f,'курица',filters),['Pileca prsa 500g']);
+ assert.deepEqual((await f.store.searchChain('курица',source,0,Date.now(),filters)).map(r=>JSON.parse(r.payload).name),['Pileca prsa 500g']);
+ assert.deepEqual((await f.store.basketCandidates('курица',Date.now(),filters)).map(r=>JSON.parse(r.payload).name),['Pileca prsa 500g']);
+ assert.equal(matchesType({name:'Pileci prsut 500g'},filters.type),false);
+ assert.deepEqual(await names(f,'курица',{type:[]}),['Pileca grudi 500g','Pileca prsa 500g','Pileci prsut 500g']);
+});

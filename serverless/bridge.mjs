@@ -70,7 +70,7 @@ export default async function(input,ctx){
   catch(error){const detail=String(error.message||'')+' '+JSON.stringify(error.parameters||{});result.ui={ok:false,status:Number.isInteger(error.status)?error.status:null,hints:['time','limit','memory','source','size','module','parse','syntax','inputfile','function','png','invalid','cpu','heap','execution'].filter(word=>detail.toLowerCase().includes(word))};}
   const searchProbe=`import {api,db} from 'sdk';
 import {Store} from '../lib/store.js';
-import {assertBot} from '../lib/domain.js';
+import {assertBot,normalize,matchesSearchTerm} from '../lib/domain.js';
 export default async function(input,ctx){
  if(ctx?.ownerRun!==true)throw Error('Private probe only');await assertBot(api);const store=new Store(db),queries=[];
  for(const query of [input.query]){const started=Date.now(),rows=await store.search(query),check={query,matches:rows.length,elapsed_ms:Date.now()-started};const chainStart=Date.now();check.network_count=(await store.searchChains(query)).length;check.networks_ms=Date.now()-chainStart;if(query==='питьевое молоко')check.refined_networks=(await store.searchChains('молоко',Date.now(),{type:['milkplain']})).length;if(['Энергетик монстр 0.5','курица'].includes(query)){const chains=await store.searchChains(query);check.networks=chains.length;check.products=chains.length?(await store.searchChain(query,chains[0].source_id)).length:0;}queries.push(check);}
@@ -79,6 +79,14 @@ export default async function(input,ctx){
   queries[0].reported_cabbage_found=Boolean(cabbage);
   queries[0].reported_cabbage_matches=cabbage?await store.matchesOffer('рыба',cabbage.id):false;
   if(queries[0].reported_cabbage_matches)throw Error('Unsafe fish match');
+ }
+ if(input.query==='курица'){
+  const plan=await store.searchPlan('курица',Date.now(),null,{type:['prs']}),typed=await store.db.all(plan.sql,plan.params);
+  queries[0].breast_filter_checked=typed.length;
+  queries[0].breast_filter_invalid=typed.filter(r=>!normalize(JSON.parse(r.payload).name).split(' ').some(w=>matchesSearchTerm(w,'prs'))).length;
+  if(queries[0].breast_filter_invalid)throw Error('Unsafe product type match');
+  queries[0].empty_type_is_any=(await store.searchChains('курица',Date.now(),{type:[]})).length===queries[0].network_count;
+  if(!queries[0].empty_type_is_any)throw Error('Invalid empty type filter');
  }
  const patchProbe=await db.get("SELECT json_patch(json_remove(:payload,'$.searchFilters'),:fields) AS value",{':payload':JSON.stringify({query:'probe',searchFilters:{brand:'Old'}}),':fields':JSON.stringify({searchFilters:{}})});const topLevelReplace=JSON.parse(patchProbe.value).searchFilters.brand===undefined;
  return {top_level_replace:topLevelReplace,queries};
