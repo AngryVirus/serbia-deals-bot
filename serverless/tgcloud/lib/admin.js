@@ -1,5 +1,5 @@
 import {sourceHealth} from './health.js';
-import {OWNER_ID,positive,safe,day} from './domain.js';
+import {OWNER_ID,positive,safe,day,MEASURE_VERSION} from './domain.js';
 import {ROLE_NAMES,rank,roleOf,rawRole,record,banned,label,mayBan,mayRole,resolveTarget,verifyTag,decide,lockUser,unlockUser,userStats} from './moderation-state.js';
 import {deliverNotice} from './moderation-notices.js';
 const b=(text,callback_data)=>({text,callback_data}),BACK=[[b('⚙️ Админка','admin')],[b('🏠 Меню','home')]],nonce=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,12);

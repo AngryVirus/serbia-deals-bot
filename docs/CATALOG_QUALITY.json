@@ -9,7 +9,7 @@
   "spelling_mismatches": [],
   "metadata_dimension_conflicts": 343,
   "suspect_title_dimensions": 1,
-  "capacity_or_specifications": 2879,
+  "capacity_or_specifications": 3391,
   "duplicate_csv_rows_removed": 264,
   "conflicting_identities_removed": 3,
   "rejected_csv_rows": 0,
@@ -20,9 +20,9 @@
       "offers": 9487,
       "quality": {
         "offers": 9487,
-        "measurable": 6910,
+        "measurable": 6875,
         "wrong_dimension": 0,
-        "specifications": 0,
+        "specifications": 35,
         "metadata_conflicts": 17,
         "price_compared": 0,
         "price_jumps": 0,
@@ -43,9 +43,9 @@
       "offers": 2992,
       "quality": {
         "offers": 2992,
-        "measurable": 2742,
+        "measurable": 2731,
         "wrong_dimension": 0,
-        "specifications": 0,
+        "specifications": 11,
         "metadata_conflicts": 35,
         "price_compared": 0,
         "price_jumps": 0,
@@ -66,9 +66,9 @@
       "offers": 6087,
       "quality": {
         "offers": 6087,
-        "measurable": 5717,
+        "measurable": 5709,
         "wrong_dimension": 0,
-        "specifications": 0,
+        "specifications": 8,
         "metadata_conflicts": 68,
         "price_compared": 0,
         "price_jumps": 0,
@@ -89,9 +89,9 @@
       "offers": 508,
       "quality": {
         "offers": 508,
-        "measurable": 295,
+        "measurable": 293,
         "wrong_dimension": 0,
-        "specifications": 0,
+        "specifications": 2,
         "metadata_conflicts": 0,
         "price_compared": 0,
         "price_jumps": 0,
@@ -112,9 +112,9 @@
       "offers": 7122,
       "quality": {
         "offers": 7122,
-        "measurable": 6013,
+        "measurable": 5970,
         "wrong_dimension": 1,
-        "specifications": 2,
+        "specifications": 45,
         "metadata_conflicts": 0,
         "price_compared": 0,
         "price_jumps": 0,
@@ -140,9 +140,9 @@
       "offers": 27711,
       "quality": {
         "offers": 27711,
-        "measurable": 22965,
+        "measurable": 22953,
         "wrong_dimension": 0,
-        "specifications": 0,
+        "specifications": 12,
         "metadata_conflicts": 220,
         "price_compared": 0,
         "price_jumps": 0,
@@ -163,9 +163,9 @@
       "offers": 75453,
       "quality": {
         "offers": 75453,
-        "measurable": 8528,
+        "measurable": 8127,
         "wrong_dimension": 0,
-        "specifications": 2877,
+        "specifications": 3278,
         "metadata_conflicts": 3,
         "price_compared": 0,
         "price_jumps": 0,
@@ -331,5 +331,6 @@
     "The suspicious milk title 1.5KG is not silently changed to litres. It is flagged and excluded from unconfirmed quantity calculations.",
     "Observed legitimate powders, frozen products, cosmetics, baby formula, multipacks and coconut oil retain valid units.",
     "Price jumps need a previous comparable generation; initial audit does not invent historical observations."
-  ]
+  ],
+  "measure_policy_version": 2
 }

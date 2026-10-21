@@ -69,7 +69,7 @@ export class Bot{
   return this.panel(text,[...rows,...(this.user.cartTarget?[[button('🛒 Корзина','basket')]]:BACK)]);
  }
  async search(query,offset=0,source=null){
-  if(measurementIssue(query)==='wrong_dimension')return this.panel('<b>Проверьте единицу измерения</b>\n\n'+(measurePolicy(query)==='volume'?'Для этого напитка укажите объём в мл или л.':'Для этого товара укажите вес в г или кг.')+' Мы не пересчитываем граммы в литры.',[[button('🔎 Изменить запрос','search')],...BACK]);
+  if(measurementIssue(query)==='wrong_dimension')return this.panel('<b>Проверьте единицу измерения</b>\n\n'+(measurePolicy(query)==='volume'?'Для этого напитка укажите объём в мл или л.':'Для этого товара укажите вес в г или кг.')+' Мы не пересчитываем граммы в литры.',[[button('🔎 Изменить запрос','search')],...(this.user.cartTarget?[[button('🛒 Корзина','basket')]]:[]),...BACK]);
   const wait=await this.store.rate(this.uid);if(wait)return this.panel(`<b>Небольшая пауза</b>\n\nПовторите поиск через ${wait} сек.`,BACK);
   try{
    if(!this.allowAll&&!source&&!offset){

@@ -90,3 +90,7 @@ test('an import resumed from legacy staging indexes missing quantities before pu
  await ingest(f.store,{operation:'begin',...context,name:'Example',url:`https://data.gov.rs/sr/datasets/${source}/`,date:o.date,chunks:1});await ingest(f.store,{operation:'chunk',...context,part:0,rows:[o]});await f.db.run("UPDATE sd_offers SET payload=json_remove(payload,'$._measure','$._measure_rev')");await f.db.run("DELETE FROM sd_terms WHERE term IN ('1500ml','5l','150cl')");await ingest(f.store,{operation:'finish',...context,count:1});
  assert.equal((await f.store.search('энергетик 1.5 л')).length,1);assert.equal((await f.store.meta('catalog_quality:'+source)).offers,1);
 });
+
+test('a basket with an invalid requested dimension keeps its return path and is never changed silently',async()=>{
+ const f=await fixture();await new Bot(f).handle(message(5,'/start'));await addList(f.store,5,'энергетик 200 г',902);await new Bot(f).handle(callback(5,'resolve:902-0'));assert(f.sent.at(-1).text.includes('Проверьте единицу'));assert(keys(f).some(k=>k.callback_data==='basket'));assert.equal((await compareBasket(f.store,5)).items[0].query,'энергетик 200 г');
+});
