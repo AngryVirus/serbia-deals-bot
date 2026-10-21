@@ -53,6 +53,6 @@ test('deleting user data removes their advertising targets and receipts without 
  const f=await setup(2),d=await draft(f);await launch(f,d);assert(await read(f,'ad_delivery',d.id+':1'));await f.store.deleteUser(1);assert.equal(await read(f,'ad_delivery',d.id+':1'),undefined);assert.equal(await read(f,'ad_target',d.id+':'+String(1).padStart(20,'0')),undefined);assert(await read(f,'ad_delivery',d.id+':2'));await f.store.ensure(1);await next(f);assert.equal(adCalls(f).filter(p=>p.chat_id===1).length,1);
 });
 
-test('read-only runtime check compiles the actual atomic launch SQL and creates no ad state',async()=>{
- const f=await setup(1),before=await f.db.get('SELECT COUNT(*) AS n FROM sd_admin_records');assert.deepEqual(await checkAds(f.store),{ok:true,launch_sql_compiled:true,campaign_state:'none',draft_present:false});assert.deepEqual(await f.db.get('SELECT COUNT(*) AS n FROM sd_admin_records'),before);assert.equal(adCalls(f).length,0);
+test('runtime check validates the actual atomic launch SQL with no lease and creates no ad state',async()=>{
+ const f=await setup(1),before=await f.db.get('SELECT COUNT(*) AS n FROM sd_admin_records');assert.deepEqual(await checkAds(f.store),{ok:true,launch_sql_checked:true,changed_rows:0,campaign_state:'none',draft_present:false});assert.deepEqual(await f.db.get('SELECT COUNT(*) AS n FROM sd_admin_records'),before);assert.equal(adCalls(f).length,0);
 });

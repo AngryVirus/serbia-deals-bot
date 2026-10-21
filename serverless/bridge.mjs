@@ -161,7 +161,7 @@ export default async function(input,ctx){
   try{result.quality=(await client.runFunction(token,'endpoints/quality_probe',{...sources,'endpoints/quality_probe':qualityProbe},{},{ownerRun:true})).result;}
   catch(error){const detail=(String(error.message||'')+' '+JSON.stringify(error.parameters||{})).toLowerCase();result.quality={ok:false,status:Number.isInteger(error.status)?error.status:null,hints:['time','limit','memory','syntax','column','table','json','function','update','from'].filter(word=>detail.includes(word))};}
   try{result.advertising=(await client.runFunction(token,'endpoints/manage',sources,{operation:'ads_check'},{ownerRun:true})).result;}
-  catch(error){const message=String(error.message||'').toLowerCase();result.advertising={ok:false,hints:['syntax','explain','column','table','sqlite','parameter','limit','module','unsupported'].filter(word=>message.includes(word))};}
+  catch(error){const message=(String(error.description||error.message||'')+' '+JSON.stringify(error.parameters||{})).toLowerCase();result.advertising={ok:false,status:Number.isInteger(error.status)?error.status:null,hints:['syntax','column','table','sqlite','parameter','limit','module','unsupported','function','statement','write','read','only','allowed','denied','exceeded','rows','execution','invalid','constraint','binding'].filter(word=>message.includes(word))};}
  }else if(input.command==='remote'){const r=await client.getFiles(token);result={revision:r.revision,canonical_modules:r.canonical_modules};}
  else if(input.command==='deploy'){
   const remote=await client.getFiles(token);

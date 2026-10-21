@@ -29,11 +29,12 @@ const launchSQL=`WITH existing AS (
       SELECT kind,key,payload,:now FROM entries WHERE EXISTS(SELECT 1 FROM permitted)
       AND EXISTS(SELECT 1 FROM sd_locks WHERE id=-1 AND owner=:lock AND expires>:now)
       ON CONFLICT(kind,key) DO UPDATE SET payload=excluded.payload WHERE excluded.kind='ad_control'`;
-// EXPLAIN compiles the exact launch statement without creating a campaign or sending.
+// The impossible worker owner makes the real statement affect zero rows. Unlike
+// EXPLAIN this also exercises the hosted write API, without reserving a launch.
 export async function checkAds(store){
- const plan=await store.db.all('EXPLAIN '+launchSQL,{':lock':'read-only-probe',':now':Date.now(),':id':'probe',':prefix':'probe:%',':day':new Date().toISOString().slice(0,10),':limit':1,':audit_key':'probe:start',':audit':'{}',':post':'{}',':created':new Date().toISOString()});
+ const checked=await store.db.run(launchSQL,{':lock':'probe-without-worker-lease',':now':Date.now(),':id':'probe',':prefix':'probe:%',':day':new Date().toISOString().slice(0,10),':limit':1,':audit_key':'probe:start',':audit':'{}',':post':'{}',':created':new Date().toISOString()});
  const current=await currentId(store),campaign=current&&await read(store,'ad_campaign',current);
- return {ok:plan.length>0,launch_sql_compiled:plan.length>0,campaign_state:campaign?.state||'none',draft_present:Boolean(await store.meta('ad_draft'))};
+ return {ok:checked.rowsAffected===0,launch_sql_checked:checked.rowsAffected===0,changed_rows:checked.rowsAffected,campaign_state:campaign?.state||'none',draft_present:Boolean(await store.meta('ad_draft'))};
 }
 
 // Separate durable advertising records; price alerts keep their own queue.
