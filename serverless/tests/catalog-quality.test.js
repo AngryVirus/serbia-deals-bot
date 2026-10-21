@@ -79,3 +79,14 @@ test('observed powder drinks, flavoured sweets and unusual retail units remain v
  assert.equal(packageMeasure('MLEKO SVEZE PET 2,8%MM DUKAT 1.5KG SOMBOLED'),null);
  const product={name:'Donut 75g',unit:'L'};assert.equal(unitPrice(product,7500).unit,'кг');assert.equal(packageMeasure('Termos solja 350ml'),null);assert.equal(packageMeasure('Donat Mg 1l').kind,'volume');
 });
+
+test('every reviewed spelling form compiles to the same product groups as its canonical word',async()=>{
+ const {shoppingLexicon}=await import('../tgcloud/lib/domain.js');
+ for(const entry of shoppingLexicon())for(const form of entry.forms)assert.deepEqual(queryGroups(form),queryGroups(entry.query),entry.query+': '+form);
+});
+
+test('an import resumed from legacy staging indexes missing quantities before publishing',async()=>{
+ const f=await fixture(),{ingest}=await import('../tgcloud/lib/ingest.js'),context={source,gen:'b'.repeat(32),owner:'11111111-1111-4111-8111-111111111111'},o=offer(1,{name:'Energetski napitak 6x250ml',terms:['energetski','napitak','6x250ml']});
+ await ingest(f.store,{operation:'begin',...context,name:'Example',url:`https://data.gov.rs/sr/datasets/${source}/`,date:o.date,chunks:1});await ingest(f.store,{operation:'chunk',...context,part:0,rows:[o]});await f.db.run("UPDATE sd_offers SET payload=json_remove(payload,'$._measure')");await f.db.run("DELETE FROM sd_terms WHERE term IN ('1500ml','5l','150cl')");await ingest(f.store,{operation:'finish',...context,count:1});
+ assert.equal((await f.store.search('энергетик 1.5 л')).length,1);assert.equal((await f.store.meta('catalog_quality:'+source)).offers,1);
+});

@@ -1,4 +1,10 @@
 import { requireValue,day,cutoff,emptyQuality,auditOffer,measuredOffer } from './domain.js';
+export async function indexMeasures(db,source,gen,offers){
+ if(!offers.length)return;
+ const params={':rows':JSON.stringify(offers.map(measuredOffer)),':source':source,':gen':gen};
+ await db.run("INSERT INTO sd_offers(source,gen,id,product,name,regular,discount,begin,end,date,payload) SELECT o.source,o.gen,o.id,o.product,o.name,o.regular,o.discount,o.begin,o.end,o.date,json_set(o.payload,'$._measure',json_extract(r.value,'$._measure')) FROM json_each(:rows) r CROSS JOIN sd_offers o WHERE o.source=:source AND o.gen=:gen AND o.id=json_extract(r.value,'$.id') ON CONFLICT(source,gen,id) DO UPDATE SET payload=excluded.payload",params);
+ await db.run("INSERT INTO sd_terms(offer,term) SELECT o.rowid,t.value FROM json_each(:rows) r CROSS JOIN sd_offers o CROSS JOIN json_each(r.value,'$.terms') t WHERE o.source=:source AND o.gen=:gen AND o.id=json_extract(r.value,'$.id') ON CONFLICT DO NOTHING",params);
+}
 async function cleanupGeneration(store,source,gen){
  const db=store.db,p={':source':source,':gen':gen};
  const state=await db.get('SELECT current_gen,stage_gen FROM sd_sources WHERE id=:source',p);
@@ -58,6 +64,8 @@ export async function ingest(store,input){
   let check=await store.meta(verifyKey);
   if(check?.gen!==gen||!check.quality)check={gen,after:'',count:0,date:'',quality:emptyQuality()};
   const page=await db.all('SELECT o.id,o.date,o.payload,old.name AS previous_name,old.regular AS previous_regular FROM sd_offers o LEFT JOIN sd_offers old ON old.source=:source AND old.gen=:previous AND old.id=o.id WHERE o.source=:source AND o.gen=:gen AND o.id>:after ORDER BY o.id LIMIT 1000',{...p,':after':check.after,':previous':state.current_gen});
+  const legacy=page.map(row=>JSON.parse(row.payload)).filter(offer=>!Object.hasOwn(offer,'_measure'));
+  await indexMeasures(db,source,gen,legacy);
   for(const row of page){check.after=row.id;check.count++;auditOffer(check.quality,JSON.parse(row.payload),{name:row.previous_name,regular:row.previous_regular});if(row.date>check.date)check.date=row.date;}
   await store.setMeta(verifyKey,check);
   if(page.length===1000)return {verifying:true,count:check.count};

@@ -1,8 +1,8 @@
 import {checkHealth} from './health.js';
 import { Store } from './store.js';
 import { cartItems,compareBasket } from './basket.js';
-import { OWNER_ID,assertBot,requireValue,emptyQuality,auditOffer,measuredOffer } from './domain.js';
-import { ingest } from './ingest.js';
+import { OWNER_ID,assertBot,requireValue,emptyQuality,auditOffer } from './domain.js';
+import { ingest,indexMeasures } from './ingest.js';
 import { prepareNotifications,deliverNotifications } from './notifications.js';
 import { unzlibSync } from './image-codec.js';
 const COMMANDS=[{command:'start',description:'Начать работу'},{command:'menu',description:'Главное меню'},{command:'help',description:'Помощь'}];
@@ -58,11 +58,7 @@ export async function manage(input,ctx,{db,api}){
   const old=await store.meta(key),next=old?.gen===source.current_gen?{...old,quality:{...old.quality,examples:[...old.quality.examples]}}:{gen:source.current_gen,after:'',quality:emptyQuality()};
   const rows=await db.all('SELECT id,payload FROM sd_offers WHERE source=:source AND gen=:gen AND id>:after ORDER BY id LIMIT 500',{':source':input.source,':gen':source.current_gen,':after':next.after});
   for(const row of rows){auditOffer(next.quality,JSON.parse(row.payload));next.after=row.id;}
-  if(rows.length){
-   const measured=JSON.stringify(rows.map(row=>measuredOffer(JSON.parse(row.payload)))),params={':rows':measured,':source':input.source,':gen':source.current_gen};
-   await db.run("INSERT INTO sd_offers(source,gen,id,product,name,regular,discount,begin,end,date,payload) SELECT o.source,o.gen,o.id,o.product,o.name,o.regular,o.discount,o.begin,o.end,o.date,json_set(o.payload,'$._measure',json_extract(r.value,'$._measure')) FROM json_each(:rows) r CROSS JOIN sd_offers o WHERE o.source=:source AND o.gen=:gen AND o.id=json_extract(r.value,'$.id') ON CONFLICT(source,gen,id) DO UPDATE SET payload=excluded.payload",params);
-   await db.run("INSERT INTO sd_terms(offer,term) SELECT o.rowid,t.value FROM json_each(:rows) r CROSS JOIN sd_offers o CROSS JOIN json_each(r.value,'$.terms') t WHERE o.source=:source AND o.gen=:gen AND o.id=json_extract(r.value,'$.id') ON CONFLICT DO NOTHING",params);
-  }
+  await indexMeasures(db,input.source,source.current_gen,rows.map(row=>JSON.parse(row.payload)));
   const live=await db.get('SELECT current_gen FROM sd_sources WHERE id=:source',{':source':input.source});if(live.current_gen!==next.gen)return {changed:true};
   const saved=await db.run('UPDATE sd_meta SET value=:next WHERE key=:key AND value=:old',{':key':key,':next':JSON.stringify(next),':old':JSON.stringify(old)});if(saved.rowsAffected!==1)return {busy:true};
   if(rows.length===500)return {more:true,offers:next.quality.offers};
