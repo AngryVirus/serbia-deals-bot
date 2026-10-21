@@ -12,7 +12,7 @@ try{
  let result;
  if(input.command==='run'){
   // Bulk ingestion never resends image/font assets to the management gateway.
-  const names=['lib/domain','lib/product-names','lib/moderation-state','lib/basket','lib/store','lib/ingest','lib/notifications','lib/health','lib/manage','lib/image-codec','endpoints/manage'];
+  const names=['lib/domain','lib/product-names','lib/moderation-state','lib/ads','lib/basket','lib/store','lib/ingest','lib/notifications','lib/health','lib/manage','lib/image-codec','endpoints/manage'];
   const selected=Object.fromEntries(names.map(name=>[name,sources[name]]));
   result=(await client.runFunction(token,'endpoints/manage',selected,input.args,{ownerRun:true})).result;
  }else if(input.command==='moderation'){
@@ -28,6 +28,7 @@ import {Bot} from '../lib/bot.js';
 import {assertBot,OWNER_ID} from '../lib/domain.js';
 import {Store} from '../lib/store.js';
 import {adminRoute} from '../lib/admin.js';
+import {adStatus} from '../lib/ads.js';
 import {cartItems} from '../lib/basket.js';
 import {productNames} from '../lib/product-names.js';
 import {buildRefinement,refinementFilters} from '../lib/refinements.js';
@@ -42,6 +43,7 @@ export default async function(input,ctx){
  bot.user={};await adminRoute(bot,'admin');bot.user={};await adminRoute(bot,'admin:stats');
  const adminPhotos=photoCalls-home.photoCalls,adminTexts=textCalls-home.textCalls;
  bot.user={};await adminRoute(bot,'admin:sources');bot.user={};await adminRoute(bot,'admin:sources:1');bot.user={};await adminRoute(bot,'admin:quality');
+ bot.user={};await adStatus(bot);
  const sourcePhotos=photoCalls-home.photoCalls-adminPhotos,sourceTexts=textCalls-home.textCalls-adminTexts;
  const beforePhotos=photoCalls,beforeTexts=textCalls;bot.store.rate=async()=>0;
  bot.user={};await bot.prompt();bot.user={};await bot.basket();bot.user={};await bot.notifications();
@@ -158,6 +160,8 @@ export default async function(input,ctx){
 }`;
   try{result.quality=(await client.runFunction(token,'endpoints/quality_probe',{...sources,'endpoints/quality_probe':qualityProbe},{},{ownerRun:true})).result;}
   catch(error){const detail=(String(error.message||'')+' '+JSON.stringify(error.parameters||{})).toLowerCase();result.quality={ok:false,status:Number.isInteger(error.status)?error.status:null,hints:['time','limit','memory','syntax','column','table','json','function','update','from'].filter(word=>detail.includes(word))};}
+  try{result.advertising=(await client.runFunction(token,'endpoints/manage',sources,{operation:'ads_check'},{ownerRun:true})).result;}
+  catch(error){const message=String(error.message||'').toLowerCase();result.advertising={ok:false,hints:['syntax','explain','column','table','sqlite','parameter','limit','module','unsupported'].filter(word=>message.includes(word))};}
  }else if(input.command==='remote'){const r=await client.getFiles(token);result={revision:r.revision,canonical_modules:r.canonical_modules};}
  else if(input.command==='deploy'){
   const remote=await client.getFiles(token);

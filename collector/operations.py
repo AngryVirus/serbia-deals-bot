@@ -5,7 +5,7 @@ from .cloud import call,invoke
 
 def main():
     parser=argparse.ArgumentParser()
-    parser.add_argument('action',choices=['stage','check','activate','pause','notify','health','diagnose','moderation','commands','quality'])
+    parser.add_argument('action',choices=['stage','check','activate','pause','notify','health','diagnose','moderation','commands','quality','ads'])
     parser.add_argument('--expected-revision',type=int)
     args=parser.parse_args()
     if args.action=='stage':
@@ -15,6 +15,11 @@ def main():
         print('Code staged:',result)
         print('Activation unchanged:',state['active'])
         print('Telegram command menu:',invoke('configure_commands'))
+    elif args.action=='ads':
+        for _ in range(20):
+            result=invoke('ads_tick')
+            if result.get('done') or result.get('busy') or result.get('retry_after',0)>2:break
+        print('Advertising queue:',result,flush=True)
     elif args.action=='commands':
         print('Telegram command menu:',invoke('configure_commands'))
     elif args.action=='check':

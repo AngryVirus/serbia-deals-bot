@@ -61,7 +61,7 @@ export class Store{
   }
   this.db.schemaReady=true;
   await this.db.run("DELETE FROM sd_basket_reports WHERE expires<:now",{':now':Date.now()});
-  await this.db.run("DELETE FROM sd_admin_records WHERE kind='audit' AND at<:cutoff",{':cutoff':Date.now()-10*86400000});
+  await this.db.run("DELETE FROM sd_admin_records WHERE kind IN ('audit','ad_audit') AND at<:cutoff",{':cutoff':Date.now()-10*86400000});
  }
  async meta(key){const row=await this.db.get('SELECT value FROM sd_meta WHERE key=:key',{':key':key});return row?JSON.parse(row.value):null;}
  async setMeta(key,value){await this.db.run('INSERT INTO sd_meta(key,value) VALUES(:key,:value) ON CONFLICT(key) DO UPDATE SET value=excluded.value',{':key':key,':value':JSON.stringify(value)});}
@@ -135,7 +135,7 @@ export class Store{
  }
  async watches(uid){return this.db.all('SELECT product,name,baseline FROM sd_watches WHERE uid=:uid ORDER BY name LIMIT 100',{':uid':uid});}
  async removeWatch(uid,product){await this.db.run('DELETE FROM sd_watches WHERE uid=:uid AND product=:product',{':uid':uid,':product':product});await this.db.run("UPDATE sd_queue SET state='cancelled' WHERE uid=:uid AND product=:product AND state='pending'",{':uid':uid,':product':product});}
- async deleteUser(uid){await this.db.run('DELETE FROM sd_basket_reports WHERE uid=:uid',{':uid':uid});await this.db.run('DELETE FROM sd_watches WHERE uid=:uid',{':uid':uid});await this.db.run('DELETE FROM sd_queue WHERE uid=:uid',{':uid':uid});await this.db.run('DELETE FROM sd_rates WHERE id=:key',{':key':'search:'+uid});await this.db.run('DELETE FROM sd_updates WHERE id LIKE :prefix',{':prefix':uid+':%'});await this.db.run('DELETE FROM sd_users WHERE id=:uid',{':uid':uid});}
+ async deleteUser(uid){await this.db.run('DELETE FROM sd_basket_reports WHERE uid=:uid',{':uid':uid});await this.db.run('DELETE FROM sd_watches WHERE uid=:uid',{':uid':uid});await this.db.run('DELETE FROM sd_queue WHERE uid=:uid',{':uid':uid});await this.db.run('DELETE FROM sd_rates WHERE id=:key',{':key':'search:'+uid});await this.db.run('DELETE FROM sd_updates WHERE id LIKE :prefix',{':prefix':uid+':%'});await this.db.run("DELETE FROM sd_admin_records WHERE (kind='ad_delivery' AND key LIKE :delivery) OR (kind='ad_target' AND key LIKE :target)",{':delivery':'%:'+uid,':target':'%:'+String(uid).padStart(20,'0')});await this.db.run('DELETE FROM sd_users WHERE id=:uid',{':uid':uid});}
  async catalogHealth(now=Date.now()){return this.db.get('SELECT COUNT(*) AS active,COALESCE(SUM(date>=:cutoff AND date<=:today),0) AS fresh,MAX(CASE WHEN date<=:today THEN date END) AS latest FROM sd_sources WHERE current_gen IS NOT NULL',{':cutoff':cutoff(now),':today':day(now)});}
  async sources(){return this.db.all('SELECT id,name,url,date,checked,status,current_gen,current_gen IS NOT NULL AS active FROM sd_sources ORDER BY name');}
 }

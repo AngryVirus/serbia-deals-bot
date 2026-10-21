@@ -2,7 +2,7 @@
 import { zlibSync, unzlibSync, jpegSync } from './image-codec.js';
 import { HEADER } from './image-header.js';
 import { FONTS, FONT_DATA } from './image-fonts.js';
-export const IMAGE_VERSION='serbia-deals-v4';
+export const IMAGE_VERSION='serbia-deals-v5';
 const W=960, BG=[251,246,236], INK=[22,45,67], MUTED=[100,117,129], BLUE=[44,106,160];
 export function fromBase64(value) {
  const alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/',out=[];let bits=0,n=0;
@@ -46,12 +46,26 @@ function drawIcon(pixel,kind,cx,cy) {
  if(kind==='coins'){circle(-5,-3,10);circle(5,5,10);line(5,-1,5,11);line(2,1,8,1);line(2,8,8,8);}
  if(kind==='bell'){path([[-12,8],[-9,4],[-8,-6],[-4,-11],[4,-11],[8,-6],[9,4],[12,8],[-12,8]]);line(-3,13,3,13);}
  if(kind==='eye'){path([[-15,0],[-8,-8],[0,-11],[8,-8],[15,0],[8,8],[0,11],[-8,8],[-15,0]]);circle(0,0,4);}
+ if(kind==='produce'){path([[-12,12],[-13,1],[-7,-10],[7,-14],[13,-13],[12,1],[3,10],[-12,12],[5,-6]]);line(-5,5,-5,-3);line(0,0,7,1);}
+ if(kind==='cleaning'){path([[-8,-5],[-12,2],[-12,14],[10,14],[10,1],[5,-5],[-8,-5],[-8,-12],[8,-12],[11,-8],[1,-8],[1,-5]]);line(15,-10,18,-10);line(15,-5,17,-3);line(-7,6,5,6);}
+ if(kind==='dairy'){path([[-7,-13],[7,-13],[7,-6],[12,1],[12,14],[-12,14],[-12,1],[-7,-6],[-7,-13]]);line(-7,-8,7,-8);path([[-11,3],[11,3]]);line(-4,8,4,8);}
+ if(kind==='drink'){path([[-11,-9],[11,-9],[8,14],[-8,14],[-11,-9]]);path([[1,6],[4,-15],[12,-15]]);line(-10,-3,10,-3);}
+ if(kind==='meat'){path([[-12,9],[-14,1],[-10,-8],[-3,-13],[6,-12],[13,-5],[13,3],[7,11],[-3,14],[-12,9]]);circle(3,-2,5);path([[-10,7],[-3,9],[7,6]]);}
+ if(kind==='fish'){path([[-11,0],[-5,-8],[5,-10],[14,-4],[16,0],[11,7],[3,10],[-5,8],[-11,0],[-17,-8],[-17,8],[-11,0]]);circle(9,-2,1);path([[0,-10],[-3,-15],[6,-10]]);}
+ if(kind==='bread'){path([[-13,12],[-16,4],[-14,-5],[-7,-12],[5,-14],[13,-10],[16,-2],[14,7],[8,12],[-13,12]]);line(-8,-5,-4,1);line(-1,-8,3,-2);line(6,-7,10,-1);}
+ if(kind==='sweet'){circle(0,0,14);for(const [x,y] of [[-6,-5],[4,-7],[7,4],[-4,6]])disc(x,y,2,ink);}
+ if(kind==='care'){path([[-10,0],[10,0],[10,14],[-10,14],[-10,0],[-6,-5],[6,-5],[10,0]]);path([[0,-5],[0,-13],[12,-13],[12,-9]]);line(-5,7,5,7);}
+ if(kind==='pet'){for(const [x,y] of [[-12,-5],[-5,-12],[5,-12],[12,-5]])circle(x,y,3);path([[-9,10],[-8,5],[-3,-1],[3,-1],[8,5],[9,10],[5,13],[0,11],[-5,13],[-9,10]]);}
+ if(kind==='home'){path([[-16,-1],[0,-14],[16,-1],[11,-1],[11,14],[-11,14],[-11,-1]]);path([[-4,14],[-4,4],[4,4],[4,14]]);}
+ if(kind==='tool'){path([[-11,14],[-15,10],[-3,-2],[-6,-9],[-3,-15],[0,-8],[6,-6],[11,-12],[13,-7],[9,0],[2,2],[-11,14]]);}
+ if(kind==='bag'){path([[-12,-6],[12,-6],[14,14],[-14,14],[-12,-6]]);path([[-6,-3],[-6,-10],[-3,-14],[3,-14],[6,-10],[6,-3]]);}
 }
+const productGlyphs={'🥬':'produce','🧽':'cleaning','🥛':'dairy','🥤':'drink','🥩':'meat','🐟':'fish','🍞':'bread','🍪':'sweet','🧴':'care','🐾':'pet','🏠':'home','🔧':'tool','💡':'bulb','🛒':'cart','🛍':'bag'};
 export function imageDocument(html) {
- const lines=String(html).replace(/<\/?blockquote>/g,'\n').split('\n').map(s=>({bold:/<b>/.test(s),text:decode(s.replace(/<[^>]*>/g,'')).replace(/[\p{Extended_Pictographic}\uFE0F\u200D\u20E3]/gu,'').replaceAll('✕','×').normalize('NFC').trim()}));
+ const lines=String(html).replace(/<\/?blockquote>/g,'\n').split('\n').map(s=>{const raw=decode(s.replace(/<[^>]*>/g,'')).trim();return {bold:/<b>/.test(s),icon:productGlyphs[[...raw][0]]||null,text:raw.replace(/[\p{Extended_Pictographic}\uFE0F\u200D\u20E3]/gu,'').replaceAll('✕','×').normalize('NFC').trim()};});
  while(lines.length&&!lines[0].text)lines.shift();
- const title=lines.shift()?.text || 'Где дешевле? Сербия';while(lines.length&&!lines[0].text)lines.shift();
- return {title,lines};
+ const heading=lines.shift(),title=heading?.text || 'Где дешевле? Сербия';while(lines.length&&!lines[0].text)lines.shift();
+ return {title,titleIcon:heading?.icon||null,lines};
 }
 const glyph=(c,face)=>FONTS[face].glyphs[c.codePointAt(0)] || FONTS[face].glyphs['9633'];
 const width=(s,face)=>[...s].reduce((n,c)=>n+glyph(c,face)[4],0);
@@ -66,13 +80,15 @@ function chunk(type,data){const name=new Uint8Array([...type].map(c=>c.charCodeA
 function png(rgb,height){const stride=W*3,scan=new Uint8Array((stride+1)*height);for(let y=0;y<height;y++){const start=y*(stride+1);scan[start]=1;for(let x=0;x<stride;x++)scan[start+1+x]=(rgb[y*stride+x]-(x>=3?rgb[y*stride+x-3]:0)+256)&255;}
  return concat([new Uint8Array([137,80,78,71,13,10,26,10]),chunk('IHDR',concat([u32(W),u32(height),new Uint8Array([8,2,0,0,0])])),chunk('IDAT',zlibSync(scan,{level:3})),chunk('IEND',new Uint8Array())]);}
 export function renderImage(html,{format='png',compact=false}={}) {
- assets();const doc=imageDocument(html),layout=[],headerHeight=compact?112:210;let y=headerHeight+26;
- const titles=wrap(doc.title,'title',W-112);for(const line of titles){layout.push({text:line,face:'title',x:56,y,color:INK});y+=54;}
+ assets();const doc=imageDocument(html),layout=[],headerHeight=compact?240:300;let y=headerHeight+26;
+ const titleLeft=doc.titleIcon?132:56;
+ if(doc.titleIcon)layout.push({icon:doc.titleIcon,x:88,y:y+26});
+ const titles=wrap(doc.title,'title',W-titleLeft-56);for(const line of titles){layout.push({text:line,face:'title',x:titleLeft,y,color:INK});y+=54;}
  y+=12;const ruleY=y;y+=22;
  const take=(text,max)=>{let count=0,n=0,lastSpace=-1;for(const c of text){const next=width(c,'body');if(n+next>max)break;n+=next;count+=c.length;if(c===' ')lastSpace=count;}if(count<text.length && lastSpace>0)count=lastSpace;return [text.slice(0,count).trim(),text.slice(count).trim()];};
  for(const line of doc.lines){
   if(!line.text){y+=12;continue;}
-  const colon=line.text.indexOf(':'),icon=colon>0?categoryIcon(line.text):null,left=icon?132:68;
+  const colon=line.text.indexOf(':'),icon=line.icon||(colon>0?categoryIcon(line.text):null),left=icon?132:68;
   if(icon)layout.push({icon,x:88,y:y+24});
   if(line.bold && colon>0 && width(line.text.slice(0,colon+1),'bold')<W-300-(icon?64:0)){
    const label=line.text.slice(0,colon+1),x=left+width(label,'bold')+12;
@@ -86,8 +102,10 @@ export function renderImage(html,{format='png',compact=false}={}) {
  const rgb=new Uint8Array(W*height*3);for(let p=0;p<rgb.length;p+=3)rgb.set(BG,p);
  const pixel=(x,y,c,alpha=255)=>{x=Math.round(x);y=Math.round(y);if(x<0||y<0||x>=W||y>=height)return;const p=(y*W+x)*3;for(let k=0;k<3;k++)rgb[p+k]=Math.round((c[k]*alpha+rgb[p+k]*(255-alpha))/255);};
  const rect=(x,y,w,h,c)=>{for(let yy=y;yy<y+h;yy++)for(let xx=x;xx<x+w;xx++)pixel(xx,yy,c);};
- for(let y=0;y<headerHeight;y++)for(let x=0;x<W;x++){const originalY=Math.min(HEADER.height-1,y+(compact?65:30)),i=headerPixels[originalY*W+x]*3;const alpha=Math.min(1,(headerHeight-y)/Math.min(38,headerHeight/4));rgb.set(HEADER.palette.slice(i,i+3).map((c,k)=>Math.round(c*alpha+BG[k]*(1-alpha))),(y*W+x)*3);}
+ // Preserve the basket in the foreground; the former narrow crop showed only the skyline.
+ for(let y=0;y<headerHeight;y++)for(let x=0;x<W;x++){const originalY=Math.min(HEADER.height-1,y+(compact?40:0)),i=headerPixels[originalY*W+x]*3;const alpha=Math.min(1,(headerHeight-y)/28);rgb.set(HEADER.palette.slice(i,i+3).map((c,k)=>Math.round(c*alpha+BG[k]*(1-alpha))),(y*W+x)*3);}
  rect(56,ruleY,100,4,[184,51,63]);rect(156,ruleY,100,4,BLUE);rect(256,ruleY,W-312,2,[226,219,207]);
- for(const line of layout){if(line.icon){drawIcon(pixel,line.icon,line.x,line.y);continue;}let x=line.x;const check=line.text.startsWith('✓') || line.text.startsWith('Выбрано:');if(check)rect(48,line.y-2,W-96,50,[225,237,242]);for(const c of line.text){const [w,h,left,top,advance,offset]=glyph(c,line.face);for(let yy=0;yy<h;yy++)for(let xx=0;xx<w;xx++){const a=fontPixels[offset+yy*w+xx];if(a)pixel(x+left+xx,line.y+top+yy,line.color,a);}x+=advance;}}
+ for(const line of layout)if(line.text&&(line.text.startsWith('✓')||line.text.startsWith('Выбрано:')))rect(48,line.y-2,W-96,50,[225,237,242]);
+ for(const line of layout){if(line.icon){drawIcon(pixel,line.icon,line.x,line.y);continue;}let x=line.x;for(const c of line.text){const [w,h,left,top,advance,offset]=glyph(c,line.face);for(let yy=0;yy<h;yy++)for(let xx=0;xx<w;xx++){const a=fontPixels[offset+yy*w+xx];if(a)pixel(x+left+xx,line.y+top+yy,line.color,a);}x+=advance;}}
  return {bytes:format==='jpeg'?jpegSync(rgb,W,height):png(rgb,height),format,width:W,height,title:doc.title,icons:layout.filter(l=>l.icon).length};
 }

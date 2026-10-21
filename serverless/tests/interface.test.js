@@ -53,5 +53,5 @@ test('empty notifications guide users to finding a product instead of an empty w
 });
 test('working screens preserve readable content with a shorter header; hero and default exports stay unchanged',()=>{
  const text='<b>Выберите магазин</b>\nПоиск: молоко\n\nНайдено сетей: 8',full=renderImage(text),compact=renderImage(text,{compact:true,format:'jpeg'});
- assert.equal(full.title,compact.title);assert.equal(compact.width,960);assert.equal(full.height-compact.height,98);assert(compact.height>=360);assert.deepEqual([...compact.bytes.slice(0,2)],[255,216]);
+ assert.equal(full.title,compact.title);assert.equal(compact.width,960);assert.equal(full.height-compact.height,60);assert(compact.height>=360);assert.deepEqual([...compact.bytes.slice(0,2)],[255,216]);
 });

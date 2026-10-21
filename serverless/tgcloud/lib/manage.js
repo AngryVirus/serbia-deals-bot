@@ -1,4 +1,5 @@
 import {checkHealth} from './health.js';
+import {adTick,checkAds} from './ads.js';
 import { Store } from './store.js';
 import { cartItems,compareBasket } from './basket.js';
 import { OWNER_ID,assertBot,requireValue,emptyQuality,auditOffer,MEASURE_VERSION } from './domain.js';
@@ -41,6 +42,8 @@ export async function manage(input,ctx,{db,api}){
  const store=new Store(db);await store.init();
  const operation=input?.operation;
  if(operation==='configure_commands')return configureCommands(api);
+ if(operation==='ads_tick')return adTick(store,api);
+ if(operation==='ads_check')return checkAds(store);
  if(operation==='init'){if(await store.meta('active')===null)await store.setMeta('active',false);return {ready:true,active:await store.meta('active')};}
  if(operation==='notices_due'){const row=await store.db.get("SELECT COUNT(*) AS count FROM sd_admin_records r JOIN sd_users u ON CAST(u.id AS TEXT)=r.key WHERE r.kind IN ('ban','role') AND json_extract(r.payload,'$.notice')='pending' AND COALESCE(json_extract(r.payload,'$.retry'),0)<=:now",{':now':Date.now()});return {due:row.count};}
  if(operation==='status'){
