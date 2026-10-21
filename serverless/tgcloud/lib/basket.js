@@ -115,7 +115,7 @@ export async function compareBasket(store,uid,now=Date.now()){
  requireValue(items.length<=30,'Слишком много товаров в списке. Разделите его на корзины до 30 позиций.');
  if(!items.length)return {items,pending,stores:[],split:null,unresolved:[]};
  const versions=JSON.stringify((await store.sources()).map(s=>[s.id,s.current_gen,s.name]));
- const fingerprint=JSON.stringify(['comparable-v3',day(now),items,versions]);
+ const fingerprint=JSON.stringify(['comparable-v4',day(now),items,versions]);
  try{const cached=await store.db.get('SELECT payload FROM sd_basket_reports WHERE uid=:uid AND fingerprint=:fingerprint AND expires>:now',{':uid':uid,':fingerprint':fingerprint,':now':now});if(cached)return JSON.parse(cached.payload);}catch{}
  const matrices=new Map(),cheapest=[],missing=[],unresolved=[];
  const allRows=items.some(i=>i.product)?await store.basketSelectedRows(uid,now):[];

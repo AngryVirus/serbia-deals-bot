@@ -6,7 +6,7 @@ const cyr=Object.fromEntries([...'абвгдђежзијклљмнњопрстћ
 export function normalize(value){return String(value).toLowerCase().replace(/[абвгдђежзијклљмнњопрстћуфхцчџш]/g,c=>cyr[c]).replace(/đ/g,'dj').normalize('NFKD').replace(/\p{M}/gu,'').replace(/\b(e|gu)\s+(\d+)\b/g,'$1$2').replace(/(\d)\s+(w|lm|k|kg|g|ml|l)\b/g,'$1$2').replace(/_/g,' ').match(/[\p{L}\p{N}]+/gu)?.join(' ')||'';}
 const words={
  'лампочка':['sijalic','zarulj'], 'лампочки':['sijalic','zarulj'], 'лампа':['sijalic','lamp'],
- 'молоко':['mleko','mlijeko'], 'кофе':['kafa','coffee'], 'яйца':['jaja'],
+ 'молоко':['mleko','mlijeko'], 'кофе':['kafa','coffee'], 'яйца':['jaja','jaje'],
  'масло':['ulje','maslac'], 'сахар':['secer'], 'мука':['brasno'], 'сыр':['sir'],
  'батарейка':['baterij'], 'батарейки':['baterij'], 'порошок':['deterdzent','prasak'],
  'шампунь':['sampon'], 'мыло':['sapun'], 'подгузники':['pelen'], 'бумага':['papir'],
@@ -20,8 +20,8 @@ const shoppingWords=[
  ['яблоко яблоки яблок яблоками','jabuk'],['банан бананы бананов','banan'],['апельсин апельсины','pomorand narand'],['мандарин мандарины','mandarin'],
  ['слива сливы сливу сливами','sljiv'],['песто','pesto'],['соус соусы соуса','sos umak preliv'],
  ['лимон лимоны','limun'],['груша груши','krusk'],['клубника клубнику','jagod'],['виноград винограда','grozd'],['арбуз арбузы','lubenic'],['авокадо','avokad'],
- ['яйцо яиц яйцами','jaja jaje'],['курица курицу курицы куриный куриное куриные','pile pilet'],['индейка индейку','curet'],['говядина говядину говядины говяжий говяжье говяжья','goved junec'],
- ['свинина свинину свинины свиной свиное свиная','svinj'],['мясо мяса meso месо','meso pile pilet goved junec svinj curet'],['фарш фарша','mleven mljeven'],['рыба рыбу рыбы','riba riblj'],['лосось лосося','losos'],['тунец тунца','tunjevin tuna'],
+ ['яйцо яиц яйцами','jaja jaje'],['курица курицу курицы куриный куриная куриную куриное куриные куриных','pile pilet'],['индейка индейку индейки индюшка индюшки индюшатина','curet'],['говядина говядину говядины говяжий говяжье говяжья говяжьи говяжью','goved junec'],
+ ['свинина свинину свинины свиной свиное свиная свиную свиные','svinj'],['мясо мяса meso месо','meso pile pilet goved junec svinj curet'],['фарш фарша','mleven mljeven'],['рыба рыбу рыбы рыбка рыбки рыбку riba ribe ribu','riba riblj losos tunjevin tuna pastrm skus sardin haring oslic bakalar brancin orada smudj saran som pangasius pangaz tilapi incun papalin giric'],['лосось лосося salmon','losos salmon'],['тунец тунца tuna tunjevina','tunjevin tuna'],
  ['колбаса колбасу колбасы','kobasic salam'],['сосиски сосисок','virsl hrenov'],['ветчина ветчину','sunk'],['бекон бекона','slanin bacon'],
  ['йогурт йогурты йогурта','jogurt yogurt'],['кефир кефира','kefir'],['сметана сметану','pavlak'],['сливки сливок','pavlak vrhnj'],['творог творога','sir'],
  ['сыра сыры','sir'],['молока молочку','mleko mlijeko'],['шоколад шоколада шоколадка','cokolad'],['печенье печенья','keks biskvit'],['мороженое мороженого','sladoled'],
@@ -53,7 +53,7 @@ shoppingWords.push(['пончик пончики пончиков пончика
  ['ряженка','ferment'],['моцарелла моцареллу','mocarel mozzarella'],['пармезан пармезана','parmezan parmesan'],['фета фету','feta'],['сливочный сливочного','krem'],['маргарин маргарина','margarin'],['сгущёнка сгущенка','kondenz zgusn'],['йогурта','jogurt yogurt'],['кефира','kefir'],
  ['форель форели','pastrmk'],['скумбрия скумбрию скумбрии','skus'],['сардины сардин','sardin'],['сельдь селёдка селедка','haring'],['хек хека','oslic'],['креветки креветок','gambor kozic shrimp'],['кальмар кальмары кальмаров','lignj'],['мидии мидий','dagnj'],['осьминог осьминога','hobotnic'],['сёмга семга','losos'],['утка утку утки','patk'],['кролик кролика','kunic zec'],['баранина баранины','jagnj ovc'],['печень печени печёнка печенка','jetr'],['сердце сердечки','src'],['сало сала','slanina'],['рёбра ребра ребрышки','rebr'],['окорок окорока','sunka but'],['голень голени','batak'],['стейк стейки','stejk steak'],['гуляш гуляша','gulas'],['шницель шницели','snicl'],['пельмени пельменей','peljmen raviol'],['равиоли','raviol'],['пицца пиццу пиццы','pizz'],['суп супы супа','supa corba'],
  ['шампиньоны шампиньонов','sampinjon'],['грибы грибов','pecurk gljiv sampinjon'],['вешенки вешенок','bukovac'],['маслины маслин оливки оливок','maslin'],['каперсы каперсов','kapar'],['хумус хумуса','humus hummus'],['тахини','tahini taan'],['горчица горчицу горчицы','senf'],['уксус уксуса','sirce ocat'],['хрен хрена','ren hren'],['аджика айвар айвара','ajvar'],['песто pesto','pesto'],['барбекю','barbecue bbq'],['соевый соевого','soja sojin'],
- ['крупа крупы','krup'],['пшено пшена','proso'],['булгур булгура','bulgur'],['кускус кускуса','kuskus couscous'],['киноа','kinoa quinoa'],['перловка перловку','jecam'],['манка манку манная','griz'],['мюсли мюслей','musli muesli'],['гранола гранолы','granola'],['овсяное овсяный','ovsen'],['ржаной ржаного','razeni razan'],['пшеничный пшеничная','psenic'],['цельнозерновой цельнозерновые','integral'],
+ ['крупа крупы','pirinac heljd proso bulgur kuskus kinoa jecam griz ovsen krupica'],['пшено пшена','proso'],['булгур булгура','bulgur'],['кускус кускуса','kuskus couscous'],['киноа','kinoa quinoa'],['перловка перловку','jecam'],['манка манку манная','griz'],['мюсли мюслей','musli muesli'],['гранола гранолы','granola'],['овсяное овсяный','ovsen'],['ржаной ржаного','razeni razan'],['пшеничный пшеничная','psenic'],['цельнозерновой цельнозерновые','integral'],
  ['кола cola','cola kola'],['лимонад лимонада','limunad lemonad'],['тоник тоника','tonic tonik'],['квас кваса','kvas'],['сидр сидра','cider sajder'],['виски','whisky whiskey'],['водка водки','vodka votka'],['ром рома','rum'],['джин джина','gin dzin'],['текила текилы','tequila tekila'],['ликёр ликер ликера','liker liqueur'],['коньяк коньяка','konjak cognac'],['ракия ракию ракии','rakij'],
  ['средство средства','sredstv'],['посудомойка посудомойки','sudomasin'],['кондиционер кондиционера','omeksiv regenerator'],['отбеливатель отбеливателя','izbeljiv belil'],['пятновыводитель пятновыводителя','fleke'],['перчатки перчаток','rukavic'],['фольга фольги','folij'],['плёнка пленка пленки','folij'],['пергамент пергамента','papir pecenj'],['полотенца полотенец','ubrus peskir'],['щётка щетка щетки щётки','cetk'],['расчёска расческа расчески','cesalj'],['бритва бритву бритвы','brijac'],['прокладки прокладок','ulosci'],['тампоны тампонов','tampon'],['дезодорант дезодоранты','dezodor dezodorans'],['антиперспирант','antiperspir'],['гель геля','gel'],['крем крема','krem'],['лосьон лосьона','losion'],['бальзам бальзама','balzam'],['зубы зубов','zub'],['ополаскиватель ополаскивателя','vodic tecnost'],['линзы линз','sociv'],['подгузник подгузников','pelen'],['пелёнки пеленки пеленок','pelen podlog'],
  ['розетка розетки','uticnic'],['выключатель выключателя','prekidac'],['удлинитель удлинителя','produzn'],['отвёртка отвертка отвертки','odvijac srafciger'],['дрель дрели','busilic'],['шуруповёрт шуруповерт','busilic odvijac'],['молоток молотка','cekic'],['гвозди гвоздей','ekser'],['шуруп шурупы саморез саморезы','sraf vijak'],['плоскогубцы пассатижи','klest'],['нож ножи ножей','noz'],['ножницы ножниц','makaz'],['рулетка рулетки','metar'],['клей клея','lepak ljepilo'],['скотч скотча','trak'],['краска краски','boj farb'],['кисть кисти кисточка','cetk'],['валик валики','valjak'],['шпатель шпателя','spahtl'],['наждачка наждачная','smirgl'],['пила пилы','testera'],
@@ -63,7 +63,8 @@ const extraForms={огурец:'огурчик огурчики огурчико
 shoppingWords.push(['зелень','persun mirodj kopar korijand bosilj rukol']);
 for(const row of shoppingWords){const more=extraForms[row[0].split(' ')[0]];if(more)row[0]+=' '+more;}
 shoppingWords.push(['редбулл редбул redbull','redbull'],['монстер манстер','monster']);
-export const shoppingLexicon=()=>shoppingWords.map(([forms,terms])=>({query:forms.split(' ')[0],forms:forms.split(' '),terms:terms.split(' ')}));
+shoppingWords.push(['треска треску трески','bakalar'],['карп карпа','saran'],['судак судака','smudj'],['сом сома','som'],['сибас сибаса','brancin'],['дорадо дорада','orada'],['пангасиус пангасиуса','pangasius pangaz'],['тилапия тилапию тилапии','tilapi'],['анчоус анчоусы анчоусов','incun'],['морепродукты морепродуктов','gambor kozic shrimp lignj dagnj hobotnic']);
+export const shoppingLexicon=()=>[...Object.entries(words).map(([query,terms])=>({query,forms:[query],terms})),...shoppingWords.map(([forms,terms])=>({query:forms.split(' ')[0],forms:forms.split(' '),terms:terms.split(' ')}))];
 const phrases=[
  ['сухое молоко','молоко prah'],['молоко в порошке','молоко prah'],['сгущённое молоко','молоко kondenz'],['сгущенное молоко','молоко kondenz'],['питьевое молоко','молоко'],['обычное молоко','молоко'],['кисломолочное молоко','молоко kisel'],['шоколадное молоко','молоко cokolad'],
  ['наждачка','brusni papir'],['наждачная бумага','brusni papir'],['шлифовальная бумага','brusni papir'],['наждачная','brusni papir'],
@@ -80,6 +81,37 @@ const phrases=[
  ['корм для кошек','hrana mack'],['корм для котов','hrana mack'],['корм для собак','hrana ps']
 ].flatMap(([from,to])=>{const tokens=normalize(from).split(' '),target=normalize(to);return tokens.length===2?[[tokens.join(' '),target],[[...tokens].reverse().join(' '),target]]:[[tokens.join(' '),target]];});
 const aliases=Object.fromEntries([...Object.entries(words),...shoppingWords.flatMap(([forms,terms])=>forms.split(' ').map(form=>[form,terms.split(' ')]))].map(([key,value])=>[normalize(key),value]));
+// Ambiguous stems need reviewed word forms, not an unrestricted prefix.
+// riba (fish) must not match ribanac/ribanje (grated cabbage/scrubbing).
+const boundedTerms={
+ riba:{words:'riba ribe ribu ribom'},som:{words:'som soma somu somom'},saran:{words:'saran sarana saranu saranom'},
+ sir:{words:'sir sira sirom siru sirevi sireva sireve',prefixes:'sirn sirev'},
+ luk:{words:'luk luka luku lukom lukovi lukova'},med:{words:'med meda medom medu'},
+ caj:{words:'caj caja caju cajem cajevi cajeva cajeve'},sos:{words:'sos sosa sosu sosom sosevi soseva soseve'},
+ voda:{words:'voda vode vodu vodom'},
+ soli:{words:'soli'},jaja:{words:'jaja jajima'},jaje:{words:'jaje jajeta jajetom'},
+ nar:{words:'nar nara naru narom'},nara:{words:'nara'},zele:{words:'zele zelea zeleu zeleom'},
+ pic:{words:'pice picem picu'},gel:{words:'gel gela gelom gelu gelovi gelove'},
+ sunk:{words:'sunka sunke sunku sunkom',prefixes:'sunkaric'},
+ prs:{words:'prsa prsi prsima prsni prsna prsne'},grud:{words:'grudi grudima grudni grudna'},
+ vrat:{words:'vrat vratu vratom'},rebr:{words:'rebra rebro rebara rebrima'},
+ sto:{words:'sto stola stolu stolom stolovi stolova stolove',prefixes:'stocic'},
+ stol:{words:'stola stolu stolom stolovi stolova stolove'},
+ sraf:{words:'sraf srafa srafu srafom srafovi srafova srafove'},
+ noz:{words:'noz noza nozu nozem nozevi nozeva nozeve nozic'},
+ solj:{words:'solja solje solju soljom solji',prefixes:'soljic'},serp:{words:'serpa serpe serpi serpu serpom'},
+ zub:{words:'zub zuba zube zubi zubom',prefixes:'zubn'},
+ boj:{words:'boja boje boju boji bojom'},
+ trak:{words:'traka trake traku trakom trakama trakica trakice'},
+ casa:{words:'casa case casu casom casama'},case:{words:'case'},
+ kant:{words:'kanta kante kantu kantom kanti',prefixes:'kantic'},
+ ceb:{words:'cebe cebeta cebetom cebadi'},
+ krem:{words:'krem krema kreme kremu kremom kremi kremovi kremova kremove',prefixes:'kremast'}
+};
+const reviewedPatterns=Object.fromEntries(Object.entries(boundedTerms).map(([root,rule])=>[root,[...(rule.words||'').split(' ').filter(Boolean).map(term=>({term,exact:true})),...(rule.prefixes||'').split(' ').filter(Boolean).map(term=>({term,exact:false}))]]));
+const exactTerms=new Set(['so','sok','cola','kola','pivo','vino','kvas','ren','hren','rum','gin']);
+export function searchPatterns(term){return Object.hasOwn(reviewedPatterns,term)?reviewedPatterns[term]:[{term,exact:exactTerms.has(term)||/^(?:e\d+|gu\d+|g\d+|\d+(?:w|lm|k|kg|g|ml|l)|\d{8,14})$/.test(term)}];}
+export const matchesSearchTerm=(word,term)=>searchPatterns(term).some(p=>p.exact?word===p.term:word.startsWith(p.term));
 const energyTokens=new Set(shoppingWords.find(([forms])=>forms.startsWith('энергетик '))[0].split(' ').map(normalize));
 export const energyQuery=query=>normalize(query).split(' ').some(t=>energyTokens.has(t));
 export function volumeQuery(query){
@@ -109,6 +141,10 @@ export function queryGroups(query){
   if(energy&&['напиток','напитки','напитка'].map(normalize).includes(token))continue;
   if(redBull&&['redbull','редбулл','редбул'].map(normalize).includes(token)){groups.push(['red','redbull'],['bull','redbull']);continue;}
   const group=aliases[token]||[token];
+  if(group.length===2&&group.includes('prasak')&&group.includes('peciv')){groups.push(['prasak'],['peciv']);continue;}
+  if(group.length===2&&group.includes('papir')&&group.includes('pecenj')){groups.push(['papir'],['pecenj']);continue;}
+  if(group.length===1&&group[0]==='indij'){groups.push(['indij'],['orah','orascic']);continue;}
+  if(['линзы','линз'].map(normalize).includes(token)){groups.push(['kontakt','contact'],['sociv','lens']);continue;}
   if(group.includes('beli')&&group.includes('cesnjak')){groups.push(['beli','cesnjak'],['luk','cesnjak']);continue;}
   if(['фарш','фарша'].map(normalize).includes(token)){groups.push(group,['mes','junec','goved','svinj','pile','curet']);continue;}
   groups.push(redBull&&group.some(t=>t==='red'||t==='bull')?[...group,'redbull']:group);
@@ -116,9 +152,21 @@ export function queryGroups(query){
  if(volume)groups.push(volume.terms);
  return groups;
 }
-const foodRoots=new Set('krastav paradajz rajcic krompir sargarep luk beli kupus jabuk banan pomorand limun krusk jagod grozd lubenic sljiv jaja jaje pile pilet meso goved junec svinj curet mleko mlijeko sir maslac kafa caj secer brasno hleb voda pirinac so soli med ulje keks biskvit cokolad sok pivo vino persun parsley mirodj kopar korijand bosilj spanac celer cvekl rotkv brokol karfiol kukuruz grasak pasulj leblebij sociv breskv kajsij tresnj visnj malin borovnic badem lesnik pistac kikiriki orah krofn donut doughnut donat peciv kobasic salam tunjevin tuna losos skus sardin oslic gambor lignj sampinjon pecurk gljiv sampinjon senf kecap majonez pesto dzem pekmez griz ovs musli'.split(' '));
-const nonfoodRoots=new Set('sapun sampon gel losion krem balzam regenerator solj tanjir noz kasik ser postelj cetk hrana igrack kalup aparat sijalic zarulj lamp kitekat whiskas pedigree friskies dog cat motor kontakt'.split(' '));
-export const groceryQuery=query=>{const groups=queryGroups(query);return !groups.some(g=>g.some(t=>[...nonfoodRoots].some(r=>t===r||r.length>=3&&t.startsWith(r))))&&groups.some(g=>g.some(t=>foodRoots.has(t)));};
+const fishRoots=new Set('riba riblj losos salmon tunjevin tuna pastrm pastrmk skus sardin haring oslic bakalar brancin orada smudj saran som pangasius pangaz tilapi incun papalin giric gambor kozic shrimp lignj dagnj hobotnic'.split(' '));
+const foodRoots=new Set(('krastav paradajz rajcic krompir sargarep luk beli kupus jabuk banan pomorand limun krusk jagod grozd lubenic sljiv jaja jaje pile pilet meso goved junec svinj curet mleko mlijeko sir maslac kafa caj secer brasno hleb voda pirinac so soli med ulje keks biskvit cokolad sok pivo vino persun parsley mirodj kopar korijand bosilj spanac celer cvekl rotkv brokol karfiol kukuruz grasak pasulj leblebij sociv breskv kajsij tresnj visnj malin borovnic badem lesnik pistac kikiriki orah orascic krofn donut doughnut donat peciv kobasic salam senf kecap majonez pesto dzem pekmez griz ovs musli nar nara zele jagnj ovc patk kunic zec jetr src rebr grud prs heljd proso bulgur kuskus kinoa jecam krupica napit pic drink '+[...fishRoots].join(' ')).split(' '));
+for(const root of 'krumpir mrkv tikvic patlidzan paprik salat mandarin avokad nektarin kupin ribizl brusnic grejp grapefruit ananas mango kivi kiwi dinj kokos coconut smokv urm datul suvogrozd suvogrozdje indij semen semenk susam cimet kurkum djumbir ginger vanil kvasac skrob gustin prezl dvopek kroasan croissant zemick djevrek bagel torta pita kolac mafin muffin palacink vafl medenjak cips chips kokic popcorn smok flips gric kreker bombon praline marmel nutella kakao cocoa ferment mocarel mozzarella parmezan parmesan feta margarin kondenz zgusn sunka sunk slanin bacon rebr batak stejk steak gulas snicl peljmen raviol pizz supa corba bukovac maslin kapar humus hummus tahini taan sirce ocat ren hren ajvar barbecue bbq soja sojin riza testenin pasta spaget ovs ovsen zob pahulj muesli granola limunad lemonad tonic tonik cider sajder whisky whiskey vodka votka rum gin dzin tequila tekila liker liqueur konjak cognac rakij'.split(' '))foodRoots.add(root);
+// This reviewed official dataset contains hardware/home goods, not groceries.
+// Food searches must not rank a meat slicer or salt cellar as the food itself.
+// The source stays enabled for all nonfood searches; revisit if its range changes.
+export const nonGrocerySources=['69f46178dc8b5354213e7c52']; // pragma: allowlist secret
+const nonfoodRoots=new Set('sapun sampon gel losion krem balzam regenerator solj tanjir noz kasik ser postelj cetk hrana igrack kalup aparat sijalic zarulj lamp kitekat whiskas pedigree friskies dog cat motor kontakt zub posud cinij tiganj lonac lonc serp drzac viljusk pekac strugac lopatic dask klest resetk termomet radijator grejalic podlosk cekic testera hvatalj kuval tajmer svec separator rezac dozer mesoreznic mlin papir folij'.split(' '));
+for(const root of 'virsl hrenov jogurt yogurt kefir pavlak vrhnj sladoled sokic pecen svinj curet goved'.split(' '))foodRoots.add(root);
+const categoryIndex=roots=>{const index=new Map();for(const root of roots)for(const p of [{term:root,exact:true},...searchPatterns(root)]){if(!index.has(p.term[0]))index.set(p.term[0],[]);index.get(p.term[0]).push(p);}return index;};
+const nonfoodPatterns=categoryIndex(nonfoodRoots),foodPatterns=categoryIndex(foodRoots),fishPatterns=categoryIndex(fishRoots);
+const categoryMatches=(groups,index)=>groups.some(g=>g.some(t=>(index.get(t[0])||[]).some(p=>p.exact?t===p.term:t.startsWith(p.term))));
+export const groceryQuery=query=>{const groups=queryGroups(query);return !categoryMatches(groups,nonfoodPatterns)&&categoryMatches(groups,foodPatterns);};
+export const fishQuery=query=>groceryQuery(query)&&categoryMatches(queryGroups(query),fishPatterns);
+export const breastQuery=query=>queryGroups(query).some(g=>g.includes('grud')&&g.includes('prs'));
 export const donutQuery=query=>queryGroups(query).some(g=>g.some(t=>/^(donut|doughnut|krofn|donat)/.test(t)))&&!/(?:^| )(?:voda|water|mg|solja|solje|kalup|aparat|plafonjerka)(?: |$)/.test(normalize(query))&&!/вода|кружк|форма|аппарат|светильник/.test(String(query).toLowerCase());
 export const parsleyQuery=query=>queryGroups(query).some(g=>g.some(t=>/^persun|^parsley/.test(t)))&&!/(сыр|приправа|суп|sir|supa|zacin)/i.test(query);
 export const plumQuery=query=>!volumeQuery(query)&&queryGroups(query).some(group=>group.some(word=>/^sljiv/.test(word)))&&!/(?:^| )(?:rakij[a-z]*|sljivovic[a-z]*|paradajz|rajcic[a-z]*|dzem|pekmez|peciv[a-z]*|rolnic[a-z]*|pita|burek|kroas[a-z]*|lisnat[a-z]*|strudl[a-z]*|kolac[a-z]*|marmel[a-z]*|slatko|arom[a-z]*|kasic[a-z]*|kasa|sok|caj|knedl[a-z]*|cokolad[a-z]*)(?: |$)/.test(normalize(query))&&!/раки|сливовиц|томат|помидор|джем|варень|каша|пюре|сок|чай|шоколад/i.test(String(query));

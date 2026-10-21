@@ -21,7 +21,7 @@ const productGroups=[
  ['🍪',/^(donut|doughnut|krofn|donat$|keks|kolac|mafin|muffin|torta|palacink|vafl|medenjak|cips|chips|kokic|popcorn|smok|flips|gric|kreker|bombon|praline|cokolad|biskvit|sladoled)/],
  ['🥤',/^(energet|energy|redbull$|monster$|voda|water|sok$|juice|cola|kola$|limunad|tonic|tonik|kvas$|pivo|beer|vino|rakij|whisky|whiskey|vodka|votka|rum$|gin$|dzin|liker|cider|sajder)/],
  ['🥛',/^(mleko|mlijeko|jogurt|yogurt|kefir|pavlak|sir$|sirev|maslac|mocarel|mozzarella|parmezan|parmesan|feta|margarin|jaja|jaje)/],
- ['🐟',/^(riba|losos|tun[ae]?$|pastrmk|skus|sardin|haring|oslic|gambor|kozic|shrimp|lignj|dagnj|hobotnic)/],
+ ['🐟',/^(riba$|ribe$|ribu$|ribom$|riblj|losos|salmon|tun[ae]?$|tunjevin|pastrm|skus|sardin|haring|oslic|bakalar|brancin|orada|smudj|saran$|som$|pangasius|pangaz|tilapi|incun|gambor|kozic|shrimp|lignj|dagnj|hobotnic)/],
  ['🥩',/^(meso|pile|pilet|curet|goved|junec|svinj|jagnj|patk|kunic|jetr|kobasic|salam|virsl|sunka|slanina|rebr|batak|stejk|steak|mleven)/],
  ['🥬',/^(krastav|paradajz|rajcic|krompir|krumpir|sargarep|mrkv|luk$|cesnjak|kupus|tikvic|patlidzan|paprik|salat|jabuk|banan|pomorand|narand|mandarin|sljiv|limun|krusk|jagod|grozd|lubenic|avokad|persun|parsley|mirodj|kopar|korijand|bosilj|ruzmar|timijan|menta|rukol|spanac|celer|cvekl|rotkv|bundev|brokol|karfiol|breskv|kajsij|nektarin|tresnj|visnj|malin|kupin|borovnic|ribizl|brusnic|grejp|ananas|mango|kivi|dinj|sampinjon|pecurk|gljiv)/],
  ['🛒',/^(kafa|coffee|caj$|brasno|secer|pirinac|riza$|testenin|pasta|ulje|pesto|sos$|umak|preliv|zacin|badem|lesnik|pistac|susam|cimet|so$|sol$|sirce|senf|ajvar|pasulj|grasak|sociv|kukuruz|musli|granola|ovsen|dzem|pekmez)/]
