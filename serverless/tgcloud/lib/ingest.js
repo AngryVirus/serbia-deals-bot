@@ -62,7 +62,7 @@ export async function ingest(store,input){
   requireValue(count.n===state.expected&&Number.isInteger(input.count)&&input.count>0,'Incomplete source upload');
   const verifyKey='verify:'+source;
   let check=await store.meta(verifyKey);
-  if(check?.gen!==gen||!check.quality)check={gen,after:'',count:0,date:'',quality:emptyQuality()};
+  if(check?.gen!==gen||check.version!==MEASURE_VERSION||!check.quality)check={gen,version:MEASURE_VERSION,after:'',count:0,date:'',quality:emptyQuality()};
   const page=await db.all('SELECT o.id,o.date,o.payload,old.name AS previous_name,old.regular AS previous_regular FROM sd_offers o LEFT JOIN sd_offers old ON old.source=:source AND old.gen=:previous AND old.id=o.id WHERE o.source=:source AND o.gen=:gen AND o.id>:after ORDER BY o.id LIMIT 1000',{...p,':after':check.after,':previous':state.current_gen});
   const legacy=page.map(row=>JSON.parse(row.payload)).filter(offer=>!Object.hasOwn(offer,'_measure')||offer._measure_rev!==MEASURE_VERSION);
   await indexMeasures(db,source,gen,legacy);
