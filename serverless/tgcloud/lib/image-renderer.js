@@ -48,7 +48,7 @@ function drawIcon(pixel,kind,cx,cy) {
  if(kind==='eye'){path([[-15,0],[-8,-8],[0,-11],[8,-8],[15,0],[8,8],[0,11],[-8,8],[-15,0]]);circle(0,0,4);}
 }
 export function imageDocument(html) {
- const lines=String(html).replace(/<\/?blockquote>/g,'\n').split('\n').map(s=>({bold:/<b>/.test(s),text:decode(s.replace(/<[^>]*>/g,'')).replace(/[\p{Extended_Pictographic}\uFE0F\u200D\u20E3]/gu,'').normalize('NFC').trim()}));
+ const lines=String(html).replace(/<\/?blockquote>/g,'\n').split('\n').map(s=>({bold:/<b>/.test(s),text:decode(s.replace(/<[^>]*>/g,'')).replace(/[\p{Extended_Pictographic}\uFE0F\u200D\u20E3]/gu,'').replaceAll('✕','×').normalize('NFC').trim()}));
  while(lines.length&&!lines[0].text)lines.shift();
  const title=lines.shift()?.text || 'Где дешевле? Сербия';while(lines.length&&!lines[0].text)lines.shift();
  return {title,lines};

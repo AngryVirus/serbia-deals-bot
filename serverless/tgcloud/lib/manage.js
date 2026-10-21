@@ -1,8 +1,8 @@
 import {checkHealth} from './health.js';
 import { Store } from './store.js';
 import { cartItems,compareBasket } from './basket.js';
-import { OWNER_ID,assertBot,requireValue } from './domain.js';
-import { ingest } from './ingest.js';
+import { OWNER_ID,assertBot,requireValue,emptyQuality,auditOffer,MEASURE_VERSION } from './domain.js';
+import { ingest,indexMeasures } from './ingest.js';
 import { prepareNotifications,deliverNotifications } from './notifications.js';
 import { unzlibSync } from './image-codec.js';
 const COMMANDS=[{command:'start',description:'Начать работу'},{command:'menu',description:'Главное меню'},{command:'help',description:'Помощь'}];
@@ -17,6 +17,23 @@ async function configureCommands(api){
  requireValue(await api.setChatMenuButton({menu_button:{type:'commands'}})===true,'Menu button unconfirmed');
  requireValue((await api.getChatMenuButton({}))?.type==='commands','Menu button verification failed');
  return {commands:COMMANDS.map(c=>c.command),scopes,button:'commands'};
+}
+async function qualityPage(store,db,sourceId){
+  const source=await db.get('SELECT current_gen,date FROM sd_sources WHERE id=:source',{':source':sourceId});if(!source?.current_gen)return {skipped:true};
+  const key='quality_scan:'+sourceId,summaryKey='catalog_quality:'+sourceId,current=await store.meta(summaryKey);
+  if(current?.gen===source.current_gen&&current.version===MEASURE_VERSION&&current.offers>0)return {done:true,offers:current.offers};
+  await db.run("INSERT INTO sd_meta(key,value) VALUES(:key,'null') ON CONFLICT DO NOTHING",{':key':key});
+  const old=await store.meta(key),next=old?.gen===source.current_gen&&old.version===MEASURE_VERSION?{...old,quality:{...old.quality,examples:[...old.quality.examples]}}:{gen:source.current_gen,version:MEASURE_VERSION,after:'',quality:emptyQuality()};
+  const readStart=Date.now();
+  const rows=await db.all('SELECT id,payload FROM sd_offers WHERE source=:source AND gen=:gen AND id>:after ORDER BY id LIMIT 500',{':source':sourceId,':gen':source.current_gen,':after':next.after});
+  const readDone=Date.now();
+  for(const row of rows){auditOffer(next.quality,JSON.parse(row.payload));next.after=row.id;}
+  const analyzed=Date.now(),indexTime=await indexMeasures(db,sourceId,source.current_gen,rows.map(row=>JSON.parse(row.payload))),timing={read_ms:readDone-readStart,analyze_ms:analyzed-readDone,...indexTime};
+  const live=await db.get('SELECT current_gen FROM sd_sources WHERE id=:source',{':source':sourceId});if(live.current_gen!==next.gen)return {changed:true};
+  const saved=await db.run('UPDATE sd_meta SET value=:next WHERE key=:key AND value=:old',{':key':key,':next':JSON.stringify(next),':old':JSON.stringify(old)});if(saved.rowsAffected!==1)return {busy:true};
+  if(rows.length===500)return {more:true,offers:next.quality.offers,timing};
+  await store.setMeta(summaryKey,{gen:next.gen,date:source.date,checked:Date.now(),version:MEASURE_VERSION,...next.quality,coverage_drop:false});
+  await db.run('DELETE FROM sd_meta WHERE key=:key AND value=:next',{':key':key,':next':JSON.stringify(next)});return {done:true,offers:next.quality.offers,timing};
 }
 export async function manage(input,ctx,{db,api}){
  requireValue(ctx?.ownerRun===true,'Management requires authenticated owner run');
@@ -41,6 +58,18 @@ export async function manage(input,ctx,{db,api}){
    if(Number.isSafeInteger(pages?.page_count)&&Number.isSafeInteger(size?.page_size))storage={bytes:pages.page_count*size.page_size};
   }catch{/* Some hosted SQLite environments restrict PRAGMA inspection. */}
   return {active:await store.meta('active'),sources,queue,catalog,storage,last_collection:await store.meta('last_collection')};
+ }
+ if(operation==='source_audit'){
+  requireValue(/^[a-f0-9]{24}$/.test(input.source||'')&&/^[a-f0-9]{32}$/.test(input.gen||''));
+  const stats={};for(const key of ['rows','accepted','rejected','conflicts','duplicates']){const n=input.stats?.[key];requireValue(Number.isSafeInteger(n)&&n>=0&&n<=10000000);stats[key]=n;}
+  const source=await db.get('SELECT current_gen FROM sd_sources WHERE id=:source',{':source':input.source});
+  if(source?.current_gen!==input.gen)return {changed:true};
+  await store.setMeta('catalog_parse:'+input.source,{gen:input.gen,...stats});return {saved:true};
+ }
+ if(operation==='quality_page'){
+  const pages=input.pages??1;requireValue(/^[a-f0-9]{24}$/.test(input.source||'')&&Number.isInteger(pages)&&pages>=1&&pages<=5);
+  let result;for(let page=0;page<pages;page++){result=await qualityPage(store,db,input.source);if(!result.more)return {...result,pages:page+1};}
+  return {...result,pages};
  }
  if(operation==='basket_check'){
   const items=await cartItems(store,OWNER_ID),report=await compareBasket(store,OWNER_ID);

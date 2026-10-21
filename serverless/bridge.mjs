@@ -41,7 +41,7 @@ export default async function(input,ctx){
  bot.store=new Store(db);await bot.store.init();bot.store.patch=async()=>{};
  bot.user={};await adminRoute(bot,'admin');bot.user={};await adminRoute(bot,'admin:stats');
  const adminPhotos=photoCalls-home.photoCalls,adminTexts=textCalls-home.textCalls;
- bot.user={};await adminRoute(bot,'admin:sources');bot.user={};await adminRoute(bot,'admin:sources:1');
+ bot.user={};await adminRoute(bot,'admin:sources');bot.user={};await adminRoute(bot,'admin:sources:1');bot.user={};await adminRoute(bot,'admin:quality');
  const sourcePhotos=photoCalls-home.photoCalls-adminPhotos,sourceTexts=textCalls-home.textCalls-adminTexts;
  const beforePhotos=photoCalls,beforeTexts=textCalls;bot.store.rate=async()=>0;
  bot.user={};await bot.prompt();bot.user={};await bot.basket();bot.user={};await bot.notifications();
@@ -143,6 +143,21 @@ export default async function(input,ctx){
 }`;
   try{result.handler=(await client.runFunction(token,'endpoints/handler_probe',{...sources,'endpoints/handler_probe':handlerProbe},{},{ownerRun:true})).result;}
   catch(error){const detail=String(error.message||'').toLowerCase();result.handler={ok:false,status:Number.isInteger(error.status)?error.status:null,hints:['time','limit','memory','syntax'].filter(word=>detail.includes(word))};}
+  const qualityProbe=`import {api,db} from 'sdk';
+import {manage} from '../lib/manage.js';
+import {Store} from '../lib/store.js';
+import {packageMeasure,measurementIssue,assertBot,MEASURE_VERSION} from '../lib/domain.js';
+export default async function(input,ctx){
+ if(ctx?.ownerRun!==true)throw Error('Private probe only');await assertBot(api);
+ let phase='source_list';
+ const traced=Object.fromEntries(['run','all','get'].map(method=>[method,async(sql,params)=>{phase=sql.startsWith('INSERT INTO sd_offers')?'canonical_update':sql.startsWith('INSERT INTO sd_terms')?'index_update':sql.startsWith('UPDATE sd_meta')?'checkpoint':method;return db[method](sql,params);} ]));
+ try{
+ const store=new Store(db),sources=(await store.sources()).filter(s=>s.active);let target=sources[0];for(const source of sources){const quality=await store.meta('catalog_quality:'+source.id);if(quality?.gen!==source.current_gen||quality.version!==MEASURE_VERSION){target=source;break;}}const page=target?await manage({operation:'quality_page',source:target.id,pages:5},{ownerRun:true},{db:traced,api}):null;
+ return {ok:true,page,invalid_drink:packageMeasure('Energetski napitak 200g')===null,invalid_donut:packageMeasure('Donut 1l')===null,powder_preserved:packageMeasure('Cedevita napitak 200g')?.kind==='weight',vessel_excluded:measurementIssue('Posuda 2l')==='capacity_or_specification'};
+ }catch(error){const text=String(error.message||'')+' '+JSON.stringify(error.parameters||{});return {ok:false,phase,hints:['syntax','column','table','sqlite','json','limit','instruction','memory','unsupported','allowed','denied','permission','rowid','ambiguous','function','invalid','binding','parameter'].filter(word=>text.toLowerCase().includes(word))};}
+}`;
+  try{result.quality=(await client.runFunction(token,'endpoints/quality_probe',{...sources,'endpoints/quality_probe':qualityProbe},{},{ownerRun:true})).result;}
+  catch(error){const detail=(String(error.message||'')+' '+JSON.stringify(error.parameters||{})).toLowerCase();result.quality={ok:false,status:Number.isInteger(error.status)?error.status:null,hints:['time','limit','memory','syntax','column','table','json','function','update','from'].filter(word=>detail.includes(word))};}
  }else if(input.command==='remote'){const r=await client.getFiles(token);result={revision:r.revision,canonical_modules:r.canonical_modules};}
  else if(input.command==='deploy'){
   const remote=await client.getFiles(token);

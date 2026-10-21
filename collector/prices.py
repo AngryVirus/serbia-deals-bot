@@ -106,7 +106,7 @@ def parse_prices(body, source, *, today=None):
     latest = max(dates)
     if (today - latest).days > 2:
         raise ValueError('Price list older than two days')
-    offers, rejected, conflicts = {}, 0, set()
+    offers, rejected, conflicts, duplicates = {}, 0, set(), 0
     for row, published in dated:
         if published != latest or (columns['kind'] and normalize(get(row, 'kind')) != 'vazeci cenovnik'):
             continue
@@ -131,6 +131,7 @@ def parse_prices(body, source, *, today=None):
                  'date': latest.isoformat(), 'terms': [t for t in dict.fromkeys(normalized.split()+[barcode]+([code] if code else [])) if t and len(t)<=100][:35],
                  'norm': normalized, 'traits': characteristics(name), 'unit': get(row, 'unit')[:30]}
         if key in offers:
+            duplicates += 1
             old = offers[key]
             if old['name'] != name or old['regular'] != regular or old['discount'] != discount:
                 conflicts.add(key)
@@ -143,4 +144,4 @@ def parse_prices(body, source, *, today=None):
         raise ValueError('No unambiguous current prices')
     return list(offers.values()), {'date': latest.isoformat(), 'rows': len(rows),
                                   'accepted': len(offers), 'rejected': rejected,
-                                  'conflicts': len(conflicts)}
+                                  'conflicts': len(conflicts), 'duplicates': duplicates}
