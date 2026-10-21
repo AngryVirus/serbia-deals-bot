@@ -20,6 +20,11 @@ test('generic meat includes multiple animal types but excludes processed product
 test('all categories receive available brand and package options; explicit values are not asked twice',()=>{
  const offers=[{name:'Sampon A 250ml',brand:'Alpha'},{name:'Sampon B 500ml',brand:'Beta'}];const d=buildRefinement('шампунь',offers,'a');assert(d.facets.some(f=>f.key==='brand'));assert(d.facets.some(f=>f.key==='pack'));const explicit=buildRefinement('шампунь Alpha 250 мл',offers,'b');assert.equal(explicit,null);assert.equal(buildRefinement('4006381333931',offers,'c'),null);
 });
+test('empty and whitespace catalogue brands never hide meaningful brand choices',()=>{
+ const offers=[{name:'Sampon A 250ml',brand:'Alpha'},{name:'Sampon B 500ml',brand:'Beta'},...['','   ',null,undefined,'-','unknown'].map(brand=>({name:'Sampon 100ml',brand}))];
+ const draft=buildRefinement('шампунь',offers,'nonempty'),brands=draft.facets.find(f=>f.key==='brand');assert(brands);assert.deepEqual(brands.values.map(v=>v.value),['Alpha','Beta']);
+ assert.equal(buildRefinement('шампунь',[{name:'Sampon 250ml',brand:''},{name:'Sampon 250ml',brand:'   '}],'no-brand'),null);
+});
 test('weights and volumes match canonical equivalents without a larger-size substring match',async()=>{
  const f=await fixture();await publish(f,[drink(1,'Kafa 500g','A',['kafa','500g']),drink(2,'Kafa 0,5kg','B',['kafa','0','5kg']),drink(3,'Kafa 1500g','C',['kafa','1500g'])]);assert.equal((await f.store.search('кофе 500 г')).length,2);assert.equal((await f.store.search('кофе 0,5 кг')).length,2);
  const g=await fixture();await publish(g,drinks());assert.equal((await g.store.search('энергетик 250 мл')).length,2);assert.equal((await g.store.search('энергетик 0,25 л')).length,2);
@@ -32,6 +37,16 @@ test('milk fat and bulb socket choices are bounded and filter actual characteris
 });
 test('package choices follow the selected brand and reopening refinements retains chosen values',async()=>{
  const f=await fixture();await publish(f,drinks());await new Bot(f).handle(message(5,'энергетик'));await act(f,':brand:open');const monster=keys(f).find(b=>b.text==='Monster');await new Bot(f).handle(callback(5,monster.callback_data));await act(f,':pack:open');assert(keys(f).some(b=>b.text==='500 мл'));assert(!keys(f).some(b=>b.text==='250 мл'));const volume=keys(f).find(b=>b.text==='500 мл');await new Bot(f).handle(callback(5,volume.callback_data));await act(f,':apply');await new Bot(f).handle(callback(5,'refine:again'));const d=(await f.store.user(5)).refinement;assert.equal(refinementFilters(d).brand,'Monster');assert.equal(refinementFilters(d).pack.amount,500);
+});
+test('opening brand choices ignores dependent packaging without changing active filters until apply',async()=>{
+ const f=await fixture();await publish(f,[drinks()[0],drinks()[1]]);await new Bot(f).handle(message(5,'энергетик'));await act(f,':brand:open');await new Bot(f).handle(callback(5,keys(f).find(b=>b.text==='Monster').callback_data));await act(f,':pack:open');await new Bot(f).handle(callback(5,keys(f).find(b=>b.text==='500 мл').callback_data));await act(f,':apply');
+ const active={brand:'Monster',pack:{kind:'volume',amount:500}};assert.deepEqual((await f.store.user(5)).searchFilters,active);await new Bot(f).handle(callback(5,'refine:again'));await act(f,':brand:open');assert(keys(f).some(b=>b.text==='Red Bull'));assert.deepEqual((await f.store.user(5)).searchFilters,active);assert.deepEqual(refinementFilters((await f.store.user(5)).refinement),active);
+ await new Bot(f).handle(callback(5,keys(f).find(b=>b.text==='Red Bull').callback_data));assert.deepEqual(refinementFilters((await f.store.user(5)).refinement),{brand:'Red Bull'});assert.deepEqual((await f.store.user(5)).searchFilters,active);await act(f,':apply');assert.deepEqual((await f.store.user(5)).searchFilters,{brand:'Red Bull'});
+});
+test('opening milk types shows other package dimensions and keeps the active choice until apply',async()=>{
+ const f=await fixture();await publish(f,[drink(1,'Mleko 1l','Imlek',['mleko','1l']),drink(2,'Kiselo mleko 180g','Imlek',['kiselo','mleko','180g'])]);await new Bot(f).handle(message(5,'молоко'));await act(f,':type:open');await new Bot(f).handle(callback(5,keys(f).find(b=>b.text==='Питьевое').callback_data));await act(f,':pack:open');await new Bot(f).handle(callback(5,keys(f).find(b=>b.text==='1 л').callback_data));await act(f,':apply');
+ const active={type:['milkplain'],pack:{kind:'volume',amount:1000}};assert.deepEqual((await f.store.user(5)).searchFilters,active);await new Bot(f).handle(callback(5,'refine:again'));await act(f,':type:open');assert(keys(f).some(b=>b.text==='Кисломолочное'));assert.deepEqual((await f.store.user(5)).searchFilters,active);assert.deepEqual(refinementFilters((await f.store.user(5)).refinement),active);
+ await new Bot(f).handle(callback(5,keys(f).find(b=>b.text==='Кисломолочное').callback_data));assert.deepEqual(refinementFilters((await f.store.user(5)).refinement),{type:['kisel','kis']});assert.deepEqual((await f.store.user(5)).searchFilters,active);await act(f,':apply');assert.deepEqual((await f.store.user(5)).searchFilters,{type:['kisel','kis']});
 });
 test('new search invalidates old questions and selecting all discards every optional filter',async()=>{
  const f=await fixture();await publish(f,drinks());await new Bot(f).handle(message(5,'энергетик'));const old=keys(f).find(b=>b.callback_data.endsWith(':apply')).callback_data;await new Bot(f).handle(callback(5,'search'));await new Bot(f).handle(callback(5,old));assert(f.sent.at(-1).text.includes('уже изменились'));await new Bot(f).handle(message(5,'энергетик'));await act(f,':brand:open');await act(f,':brand:0');await act(f,':all');assert.deepEqual((await f.store.user(5)).searchFilters,{});

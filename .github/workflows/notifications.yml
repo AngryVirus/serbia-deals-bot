@@ -6,7 +6,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: serbia-deals-maintenance
+  group: serbia-deals-price-alerts
   cancel-in-progress: false
 jobs:
   notify:

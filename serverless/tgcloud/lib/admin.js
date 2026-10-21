@@ -55,6 +55,7 @@ async function list(bot,kind,page=0){
 }
 export async function adminRoute(bot,action,text){
  const role=await roleOf(bot.store,bot.uid),adminAction=action.startsWith('admin'),input=bot.user.adminInput;
+ if(!adminAction&&text?.startsWith('/')){if(input){await setInput(bot,null);bot.user.adminInput=null;}return false;}
  if(!adminAction&&!input)return false;
  if(rank(role)<1){await bot.store.patch(bot.uid,{adminInput:null,adminDraft:null});await bot.home();return true;}
  try{

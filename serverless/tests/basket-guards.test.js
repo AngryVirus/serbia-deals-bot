@@ -6,8 +6,21 @@ import {Bot} from '../tgcloud/lib/bot.js';
 async function fill(f,count){for(let i=0;i<count;i++)await addList(f.store,5,'Товар '+i,1000+i);}
 
 test('stale selection cannot overwrite a confirmed product or another user basket',async()=>{
- const f=await fixture();await addList(f.store,5,'молоко × 3',123);const id=(await cartItems(f.store,5))[0].id,first=offer(),other=offer(2,{product:'gtin:00000000000002',name:'Different product'});
+ const f=await fixture(),first=offer(),other=offer(2,{product:'gtin:00000000000002',name:'Different product'});await publish(f,[first,other]);await addList(f.store,5,'лампочка × 3',123);const id=(await cartItems(f.store,5))[0].id;
  assert.equal(await addOffer(f.store,6,other,id),false);assert.equal(await addOffer(f.store,5,first,id),true);assert.equal(await addOffer(f.store,5,other,id),false);const saved=(await cartItems(f.store,5))[0];assert.equal(saved.product,first.product);assert.equal(saved.quantity,3);assert.equal(saved.name,first.name);
+});
+test('an old unrelated product card cannot fill a shopping-list position without saved filters',async()=>{
+ const f=await fixture(),lamp=offer(),cucumber=offer(2,{product:'local:'+'2'.repeat(32),name:'Krastavac',terms:['krastavac']});await publish(f,[lamp,cucumber]);await new Bot(f).handle(message(5,'/start'));await addList(f.store,5,'огурцы × 2',900);
+ await new Bot(f).handle(callback(5,'resolve:900-0'));await new Bot(f).handle(callback(5,'offer:'+lamp.id));
+ const old=f.sent.at(-1).reply_markup.inline_keyboard.flat().find(b=>b.callback_data==='basketadd:'+lamp.id+':900-0');assert(old);
+ await new Bot(f).handle(callback(5,old.callback_data));assert.equal((await cartItems(f.store,5))[0].product,null);assert(f.sent.at(-1).text.includes('устарела'));
+ assert.equal(await addOffer(f.store,5,cucumber,'900-0'),true);const item=(await cartItems(f.store,5))[0];assert.equal(item.query,'огурцы');assert.equal(item.quantity,2);assert.equal(item.product,cucumber.product);
+});
+test('unfiltered choices preserve broad matching and reject a concurrent new constraint',async()=>{
+ const f=await fixture(),filet=offer(1,{product:'local:'+'1'.repeat(32),name:'Pileci file 500g',terms:['pileci','file','500g']}),snack=offer(2,{product:'local:'+'2'.repeat(32),name:'Cips ukus piletina 100g',terms:['cips','ukus','piletina','100g']});await publish(f,[filet,snack]);await addList(f.store,5,'курица, курица',901);
+ assert.equal(await addOffer(f.store,5,snack,'901-0'),true);
+ const matches=f.store.matchesOffer.bind(f.store);f.store.matchesOffer=async(...args)=>{const ok=await matches(...args);await f.db.run("INSERT INTO sd_basket_filters(uid,id,payload) VALUES(5,'901-1',:filters)",{':filters':JSON.stringify({pack:{kind:'weight',amount:100}})});return ok;};
+ assert.equal(await addOffer(f.store,5,filet,'901-1'),false);assert.equal((await cartItems(f.store,5))[1].product,null);
 });
 test('stale Telegram selection displays a useful message and preserves the confirmed product',async()=>{
  const f=await fixture(),a=offer(),b=offer(2,{product:'gtin:00000000000002'});await publish(f,[a,b]);await new Bot(f).handle(message(5,'/start'));await addList(f.store,5,'лампочка E27',321);const id=(await cartItems(f.store,5))[0].id;await new Bot(f).handle(callback(5,'basketadd:'+a.id+':'+id));await new Bot(f).handle(callback(5,'basketadd:'+b.id+':'+id));assert.equal((await cartItems(f.store,5))[0].product,a.product);assert(f.sent.at(-1).text.includes('устарела'));assert(f.sent.at(-1).reply_markup.inline_keyboard.flat().some(b=>b.callback_data==='basket'));

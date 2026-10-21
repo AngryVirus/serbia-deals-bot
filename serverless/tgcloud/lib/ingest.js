@@ -32,8 +32,10 @@ export async function ingest(store,input){
   requireValue(typeof input.name==='string'&&input.name.length<=160&&Number.isSafeInteger(input.chunks)&&input.chunks>0&&input.chunks<=5000);
   requireValue(input.url===`https://data.gov.rs/sr/datasets/${source}/`&&/^\d{4}-\d{2}-\d{2}$/.test(input.date)&&input.date>=cutoff(now)&&input.date<=day(now));
   const previous=await db.get('SELECT * FROM sd_sources WHERE id=:source',p);
-  await db.run(`INSERT INTO sd_sources(id,name,url,stage_gen,expected,owner,lease,date) VALUES(:source,:name,:url,:gen,:expected,:owner,:lease,:date) ON CONFLICT(id) DO UPDATE SET name=excluded.name,url=excluded.url,stage_gen=excluded.stage_gen,expected=excluded.expected,owner=excluded.owner,lease=excluded.lease WHERE sd_sources.lease<=:now OR sd_sources.lease IS NULL OR sd_sources.owner=:owner`,{...p,':name':input.name,':url':input.url,':expected':input.chunks,':lease':now+120000,':date':input.date});
+  requireValue(!previous?.current_gen||!previous.date||input.date>=previous.date,'Source snapshot older than published catalog');
+  await db.run(`INSERT INTO sd_sources(id,name,url,stage_gen,expected,owner,lease,date) VALUES(:source,:name,:url,:gen,:expected,:owner,:lease,:date) ON CONFLICT(id) DO UPDATE SET name=excluded.name,url=excluded.url,stage_gen=excluded.stage_gen,expected=excluded.expected,owner=excluded.owner,lease=excluded.lease WHERE (sd_sources.lease<=:now OR sd_sources.lease IS NULL OR sd_sources.owner=:owner) AND (sd_sources.current_gen IS NULL OR sd_sources.date IS NULL OR excluded.date>=sd_sources.date)`,{...p,':name':input.name,':url':input.url,':expected':input.chunks,':lease':now+120000,':date':input.date});
   const state=await db.get('SELECT * FROM sd_sources WHERE id=:source',p);
+  requireValue(!state.current_gen||!state.date||input.date>=state.date,'Source snapshot older than published catalog');
   requireValue(state.owner===owner,'Source busy');
   if(state.current_gen===gen){await db.run("UPDATE sd_sources SET stage_gen=NULL,lease=NULL,owner=NULL,checked=:now,status='ok' WHERE id=:source AND owner=:owner",p);return {unchanged:true};}
   if(previous?.stage_gen&&previous.stage_gen!==gen&&previous.stage_gen!==previous.current_gen)await enqueue(previous.stage_gen);
@@ -73,11 +75,12 @@ export async function ingest(store,input){
   if(page.length===1000)return {verifying:true,count:check.count};
   requireValue(check.count===input.count,'Offer count mismatch');
   const offers={n:check.count},snapshot={date:check.date};
+  requireValue(!state.current_gen||!state.date||snapshot.date>=state.date,'Source snapshot older than published catalog');
   await store.setMeta('catalog_count:'+source+':'+gen,offers.n);
   const previousCount=state.current_gen?await store.meta('catalog_count:'+source+':'+state.current_gen):null;
   await store.setMeta('catalog_quality:'+source,{gen,date:check.date,checked:now,version:MEASURE_VERSION,...check.quality,coverage_drop:previousCount>100&&offers.n<previousCount/2});
   if(state.current_gen&&state.current_gen!==gen)await enqueue(state.current_gen);
-  const result=await db.run(`UPDATE sd_sources SET current_gen=:gen,stage_gen=NULL,lease=NULL,owner=NULL,date=:date,checked=:now,status='ok' WHERE id=:source AND owner=:owner AND stage_gen=:gen AND lease>:now`,{...p,':date':snapshot.date});requireValue(result.rowsAffected===1,'Publication lost lease');
+  const result=await db.run(`UPDATE sd_sources SET current_gen=:gen,stage_gen=NULL,lease=NULL,owner=NULL,date=:date,checked=:now,status='ok' WHERE id=:source AND owner=:owner AND stage_gen=:gen AND lease>:now AND (current_gen IS NULL OR date IS NULL OR :date>=date)`,{...p,':date':snapshot.date});requireValue(result.rowsAffected===1,'Publication lost lease or stale source snapshot');
   return {published:true,count:offers.n};
  }
  throw Error('Unknown import operation');

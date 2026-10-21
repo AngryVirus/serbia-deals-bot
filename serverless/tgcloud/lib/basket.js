@@ -61,6 +61,9 @@ export function parseList(text){
  requireValue(lines.length>0&&lines.length<=20,'Укажите до 20 товаров, каждый с новой строки.');
  return lines.map(line=>{const match=line.match(/^(.*?)\s+(?:[xх×*]|—|–)\s*(\d{1,2})\s*$/i);const query=(match?match[1]:line).trim(),quantity=match?Number(match[2]):1;requireValue(query.length>0&&query.length<=120&&quantity>0&&quantity<=99,'Проверьте название и количество.');return {query,quantity};});
 }
+// A reset ID comes from one catalogue SKU. Commas and trailing × numbers in
+// its title are product text, while older combined-list rows still need parsing.
+export function basketParts(item){return /^r[a-f0-9]{16}$/.test(item.id)?[{query:item.query,quantity:1}]:parseList(item.query);}
 
 export async function addList(store,uid,text,event){
  const items=parseList(text);await initBasket(store.db);
@@ -76,7 +79,7 @@ export async function addOffer(store,uid,offer,target=null){
  await initBasket(store.db);
  if(target){
   const item=await store.db.get(`SELECT b.query,COALESCE(f.payload,'{}') AS filters FROM sd_basket b LEFT JOIN sd_basket_filters f ON f.uid=b.uid AND f.id=b.id WHERE b.uid=:uid AND b.id=:id AND b.product IS NULL`,{':uid':uid,':id':target});if(!item)return false;
-  const filters=JSON.parse(item.filters),need=basketDemand(item);if(need&&packageMeasure(offer.name)?.kind!==need.kind)return false;if(Object.keys(filters).length&&!await store.matchesOffer(basketQuery(item),offer.id,filters))return false;
+  const filters=JSON.parse(item.filters),need=basketDemand(item);if(need&&packageMeasure(offer.name)?.kind!==need.kind)return false;if(!await store.matchesOffer(basketQuery(item),offer.id,filters))return false;
   const result=await store.db.run(`UPDATE sd_basket SET product=:product,name=:name WHERE uid=:uid AND id=:id AND product IS NULL AND COALESCE((SELECT payload FROM sd_basket_filters WHERE uid=:uid AND id=:id),'{}')=:filters`,{':uid':uid,':id':target,':product':offer.product,':name':offer.name,':filters':item.filters});return result.rowsAffected===1;
  }
  const id='p'+offer.id;
@@ -98,7 +101,7 @@ export async function cartItems(store,uid){await initBasket(store.db);return (aw
 
 export async function expandPendingList(store,uid,id){
  const rows=await cartItems(store,uid),item=rows.find(x=>x.id===id&&!x.product);if(!item)return false;
- const parsed=parseList(item.query);if(parsed.length<2)return false;
+ const parsed=basketParts(item);if(parsed.length<2)return false;
  requireValue(id.length<=16,'Добавьте список заново, по одному товару на строку.');
  const existing=new Set(rows.map(x=>x.id));existing.delete(id);
  const items=parsed.map((x,i)=>({id:id+'s'+i,query:x.query,quantity:Math.min(99,x.quantity*item.quantity)}));
@@ -108,14 +111,14 @@ export async function expandPendingList(store,uid,id){
 }
 
 export async function compareBasket(store,uid,now=Date.now()){
- const items=(await cartItems(store,uid)).flatMap(item=>item.product?[item]:parseList(item.query).map((parsed,index)=>({...item,id:index?item.id+'s'+index:item.id,query:parsed.query,quantity:Math.min(99,item.quantity*parsed.quantity)}))),pending=items.filter(x=>!x.product);
+ const items=(await cartItems(store,uid)).flatMap(item=>item.product?[item]:basketParts(item).map((parsed,index)=>({...item,id:index?item.id+'s'+index:item.id,query:parsed.query,quantity:Math.min(99,item.quantity*parsed.quantity)}))),pending=items.filter(x=>!x.product);
  requireValue(items.length<=30,'Слишком много товаров в списке. Разделите его на корзины до 30 позиций.');
  if(!items.length)return {items,pending,stores:[],split:null,unresolved:[]};
  const versions=JSON.stringify((await store.sources()).map(s=>[s.id,s.current_gen,s.name]));
  const fingerprint=JSON.stringify(['comparable-v3',day(now),items,versions]);
  try{const cached=await store.db.get('SELECT payload FROM sd_basket_reports WHERE uid=:uid AND fingerprint=:fingerprint AND expires>:now',{':uid':uid,':fingerprint':fingerprint,':now':now});if(cached)return JSON.parse(cached.payload);}catch{}
  const matrices=new Map(),cheapest=[],missing=[],unresolved=[];
- const allRows=items.some(i=>i.product)?await store.db.all(`SELECT o.payload,s.name AS source_name,b.id AS cart_id FROM sd_basket b JOIN sd_offers o ON o.product=b.product JOIN sd_sources s ON s.id=o.source AND s.current_gen=o.gen WHERE b.uid=:uid AND o.date>=:cutoff AND o.date<=:today LIMIT 6001`,{':uid':uid,':cutoff':cutoff(now),':today':day(now)}):[];
+ const allRows=items.some(i=>i.product)?await store.basketSelectedRows(uid,now):[];
  requireValue(allRows.length<=6000,'Слишком много предложений для одной корзины. Уточните товары.');
  for(const item of items){
   const need=basketDemand(item),query=basketQuery(item),detailed=!item.product&&(!!need||detailedQuery(query));

@@ -11,7 +11,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: serbia-deals-maintenance
+  group: serbia-deals-collect
   cancel-in-progress: false
 jobs:
   collect:

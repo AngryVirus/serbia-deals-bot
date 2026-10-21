@@ -12,10 +12,14 @@ on:
       expected_revision:
         description: Reviewed remote revision for a subsequent code update
         required: false
+      require_deployed:
+        description: Diagnose must match the installed module sources exactly
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
-  group: serbia-deals-maintenance
+  group: ${{ inputs.action == 'collect' && 'serbia-deals-collect' || 'serbia-deals-maintenance' }}
   cancel-in-progress: false
 jobs:
   cloud:
@@ -40,6 +44,7 @@ jobs:
           OPERATION: ${{ inputs.action }}
           SOURCE_SELECTION: ${{ inputs.sources }}
           EXPECTED_REVISION: ${{ inputs.expected_revision }}
+          REQUIRE_DEPLOYED: ${{ inputs.require_deployed }}
         run: |
           case "$OPERATION" in
             collect) python3 -m collector.collect --publish --sources "$SOURCE_SELECTION" --budget 2100 ;;
@@ -50,6 +55,13 @@ jobs:
                 python3 -m collector.operations stage
               fi
               ;;
-            check|activate|pause|notify|diagnose|commands|quality) python3 -m collector.operations "$OPERATION" ;;
+            diagnose)
+              if [ "$REQUIRE_DEPLOYED" = "true" ]; then
+                python3 -m collector.operations diagnose --require-deployed
+              else
+                python3 -m collector.operations diagnose
+              fi
+              ;;
+            check|activate|pause|notify|commands|quality) python3 -m collector.operations "$OPERATION" ;;
             *) exit 1 ;;
           esac

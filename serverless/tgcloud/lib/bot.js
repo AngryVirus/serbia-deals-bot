@@ -7,10 +7,15 @@ import {roleOf,banned,snapshot,trackUser,lockUser,unlockUser} from './moderation
 import {deliverNotice} from './moderation-notices.js';
 import { Store } from './store.js';
 import { OWNER_ID,assertBot,positive,safe,money,bulbQuery,unitPrice,measurementIssue,measurePolicy,milkQuery,plainMilkQuery } from './domain.js';
-import { renderImage,IMAGE_VERSION } from './image-renderer.js';
-import { cartItems,addList,addOffer,compareBasket,parseList,expandPendingList,resetProduct,saveBasketFilters,basketDemand,basketQuery } from './basket.js';
+import { renderImage,IMAGE_VERSION,imageHash } from './image-renderer.js';
+import { cartItems,addList,addOffer,compareBasket,basketParts,expandPendingList,resetProduct,saveBasketFilters,basketDemand,basketQuery } from './basket.js';
 const button=(text,data)=>({text,callback_data:data});
 const BACK=[[button('🏠 Меню','home')]];
+async function deleteSnapshot(bot){
+ const user=await bot.store.user(bot.uid),basket=await cartItems(bot.store,bot.uid),watches=await bot.store.watches(bot.uid);
+ // UI positions, activity timestamps and changing price baselines are not settings.
+ return imageHash(JSON.stringify({basket:basket.sort((a,b)=>a.id.localeCompare(b.id)),watches:watches.map(({product,name})=>({product,name})).sort((a,b)=>a.product.localeCompare(b.product)),settings:{enabled:user?.enabled||0,query:user?.query||null,searchFilters:user?.searchFilters||{}}}));
+}
 export class Bot{
  constructor(deps){Object.assign(this,deps);this.store=new Store(deps.db);this.metrics={screen:'other',lookup_ms:0,render_ms:0,telegram_ms:0};}
  async panel(text,rows=BACK,visual=true,cacheKey=null){
@@ -140,7 +145,7 @@ export class Bot{
  async basketItem(id){
   const items=await cartItems(this.store,this.uid),index=items.findIndex(x=>x.id===id),item=items[index];if(!item)return this.basket();
   const names=item.product?await this.names([item]):new Map(),need=basketDemand(item);
-  const rows=[];if(!item.product)rows.push([button(parseList(item.query).length>1?'Разделить список на товары':'🔎 Уточнить товар и упаковку','resolve:'+id)]);
+  const rows=[];if(!item.product)rows.push([button(basketParts(item).length>1?'Разделить список на товары':'🔎 Уточнить товар и упаковку','resolve:'+id)]);
   if(item.product)rows.push([button('🔄 Выбрать другой товар','cartchange:'+id)]);
   if(!item.product&&Object.keys(item.filters||{}).length)rows.push([button('Сбросить уточнения','cartfilters:'+id)]);
   rows.push([button('− 1','quantity:'+id+':-1'),button('＋ 1','quantity:'+id+':1')],[button('🗑 Удалить из корзины','cartremove:'+id)],[button('⬅️ К корзине','basket:'+(Math.floor(index/5)*5))]);
@@ -201,7 +206,8 @@ export class Bot{
  async dispatch(update){
   const cb=update.callback_query,msg=cb?.message||update.message,uid=this.uid;
   const action=cb?.data||'',text=update.message?.text?.trim();
-  if(action==='home'||['/start','/menu','/cancel'].includes(text)){await this.store.patch(uid,{pending:null,cartTarget:null,adminInput:null,adminDraft:null,refinement:null});return this.home();}
+  if(action==='home'||['/start','/menu','/cancel'].includes(text)){await this.store.patch(uid,{pending:null,cartTarget:null,adminInput:null,adminDraft:null,refinement:null,deleteDraft:null});return this.home();}
+  if(this.user.deleteDraft&&((action&&!action.startsWith('delete:confirm'))||(text&&text!=='/delete'))){await this.store.patch(uid,{deleteDraft:null});this.user.deleteDraft=null;}
   if(action==='ads'||action.startsWith('ads:')){
    if(uid===OWNER_ID){await this.store.patch(uid,{adminInput:null,adminDraft:null,pending:null,cartTarget:null});this.user={...this.user,adminInput:null,adminDraft:null,pending:null,cartTarget:null};}
    return adRoute(this,action);
@@ -219,7 +225,7 @@ export class Bot{
    const facet=draft.facets.find(f=>f.key===parts[2]),value=parts[3];if(!facet||parts.length!==4)return this.refine(draft);
    if(value==='open'){
     const wait=await this.store.rate(uid);if(wait)return this.panel(`<b>Небольшая пауза</b>\nПовторите через ${wait} сек.`,[[button('⬅️ К уточнениям',`ref:${draft.token}:back`)]]);
-    try{const filters=refinementFilters(draft);delete filters[facet.key];const samples=await this.store.refinementSamples(draft.query,Date.now(),filters),available=buildRefinement(draft.query,samples.map(r=>JSON.parse(r.payload)),draft.token,Date.now(),true),next=available?.facets.find(f=>f.key===facet.key),previous=facet.values[draft.selected[facet.key]]?.value;facet.values=next?.values||[];const index=facet.values.findIndex(v=>JSON.stringify(v.value)===JSON.stringify(previous));if(index<0)delete draft.selected[facet.key];else draft.selected[facet.key]=index;draft.token=Math.random().toString(36).slice(2,10);await this.store.patch(uid,{refinement:draft});}catch{/* Existing validated choices remain usable if a refresh fails. */}
+    try{const filters=refinementFilters(draft);delete filters[facet.key];if(['brand','type'].includes(facet.key))for(const key of ['pack','fat','socket'])delete filters[key];const samples=await this.store.refinementSamples(draft.query,Date.now(),filters),available=buildRefinement(draft.query,samples.map(r=>JSON.parse(r.payload)),draft.token,Date.now(),true),next=available?.facets.find(f=>f.key===facet.key),previous=facet.values[draft.selected[facet.key]]?.value;facet.values=next?.values||[];const index=facet.values.findIndex(v=>JSON.stringify(v.value)===JSON.stringify(previous));if(index<0)delete draft.selected[facet.key];else draft.selected[facet.key]=index;draft.token=Math.random().toString(36).slice(2,10);await this.store.patch(uid,{refinement:draft});}catch{/* Existing validated choices remain usable if a refresh fails. */}
     return this.refine(draft,facet.key);
    }
    if(/^page[0-3]$/.test(value))return this.refine(draft,facet.key,Number(value.slice(4)));
@@ -256,12 +262,22 @@ export class Bot{
   if(/^quantity:[a-z0-9-]{1,40}:-?1$/.test(action)){const [,id,delta]=action.split(':');await this.db.run('UPDATE sd_basket SET quantity=MIN(99,MAX(1,quantity+:delta)) WHERE uid=:uid AND id=:id',{':uid':uid,':id':id,':delta':Number(delta)});return this.basketItem(id);}
   if(action==='help:data')return this.dataHelp();
   if(action==='help'||text==='/help')return this.help();
-  if(text==='/delete')return this.panel('<b>Удалить данные?</b>\n\nУдалим ваш список и настройки, отключим уведомления.',[[button('Удалить мои данные','delete:confirm')],...BACK]);
-  if(action==='delete:confirm'){await cartItems(this.store,uid);await this.db.run('DELETE FROM sd_basket WHERE uid=:uid',{':uid':uid});await this.db.run('DELETE FROM sd_basket_filters WHERE uid=:uid',{':uid':uid});await this.store.deleteUser(uid);return this.api.sendMessage({chat_id:uid,text:'Ваши данные удалены. /start — начать заново.'});}
+  if(text==='/delete'){
+   const draft={token:Date.now().toString(36)+Math.random().toString(36).slice(2,12),expires:Date.now()+10*60000,snapshot:await deleteSnapshot(this)};
+   await this.store.patch(uid,{deleteDraft:draft});this.user.deleteDraft=draft;
+   return this.panel('<b>Удалить данные?</b>\n\nУдалим ваш список и настройки, отключим уведомления.\nПодтверждение действует 10 минут, пока вы не изменили данные или не перешли в другой раздел.',[[button('Удалить мои данные','delete:confirm:'+draft.token)],...BACK]);
+  }
+  if(action==='delete:confirm'||action.startsWith('delete:confirm:')){
+   const draft=this.user.deleteDraft;
+   if(!draft||!/^delete:confirm:[a-z0-9]{10,30}$/.test(action)||draft.token!==action.slice(15)||draft.expires<=Date.now()||draft.snapshot!==await deleteSnapshot(this)){
+    await this.store.patch(uid,{deleteDraft:null});return this.panel('<b>Подтверждение устарело</b>\n\nДанные сохранены. Для удаления ещё раз отправьте /delete.',BACK);
+   }
+   await this.store.patch(uid,{deleteDraft:null});await this.db.run('DELETE FROM sd_basket WHERE uid=:uid',{':uid':uid});await this.db.run('DELETE FROM sd_basket_filters WHERE uid=:uid',{':uid':uid});await this.store.deleteUser(uid);return this.api.sendMessage({chat_id:uid,text:'Ваши данные удалены. /start — начать заново.'});
+  }
   if(action==='watches')return this.watches();
-  if(/^watches:\d{1,2}$/.test(action))return this.watches(Math.min(90,Number(action.slice(8))));
+  if(/^watches:\d{1,2}$/.test(action))return this.watches(Math.min(95,Number(action.slice(8))));
   if(action==='notifications')return this.notifications();
-  if(/^notify:(on|off)$/.test(action)){await this.db.run('UPDATE sd_users SET enabled=:on,blocked=0 WHERE id=:uid',{':on':action==='notify:on'?1:0,':uid':uid});this.user=await this.store.user(uid);return this.notifications();}
+  if(/^notify:(on|off)$/.test(action)){await this.db.run('UPDATE sd_users SET enabled=:on,blocked=0 WHERE id=:uid',{':on':action==='notify:on'?1:0,':uid':uid});if(action==='notify:off')await this.db.run("UPDATE sd_queue SET state='cancelled' WHERE uid=:uid AND state='pending'",{':uid':uid});this.user=await this.store.user(uid);return this.notifications();}
   if(/^socket:(E27|E14|GU10|all)$/.test(action)&&this.user.query){const socket=action.split(':')[1];this.allowAll=true;return this.search(this.user.query+(socket==='all'?'':' '+socket));}
   if(/^page:[a-z0-9]{7}:\d{1,4}$/.test(action)){const [,rev,offset]=action.split(':');if(rev===this.user.searchRev&&Number(offset)<=1000){this.allowAll=true;return this.search(this.user.query,Number(offset),this.user.searchSource||null);}return this.panel('<b>Поиск уже изменился</b>\n\nОткройте текущие результаты.',[[button('К результатам','results')],...BACK]);}
   if((action==='chains'||/^chains:[a-z0-9]{7}:\d{1,3}$/.test(action))&&this.user.query){const [,rev,offset]=action.split(':');if(!rev||rev===this.user.searchRev){this.allowAll=true;return this.search(this.user.query,Number(offset)||0,null);}return this.panel('<b>Поиск уже изменился</b>',[[button('К результатам','results')],...BACK]);}
@@ -277,7 +293,10 @@ export class Bot{
    this.translationRequested=true;this.allowAll=true;return this.search(this.user.query,Number(offset),this.user.searchSource);
   }
   if(/^offer:[a-f0-9]{32}$/.test(action))return this.card(action.slice(6));
-  if(/^watch:[a-f0-9]{32}$/.test(action)){const added=await this.store.watch(uid,action.slice(6));return this.panel(added?'<b>Товар отслеживается</b>\n\n'+(this.user.enabled?'Сообщим о снижении цены.':'Включите уведомления, чтобы получать сообщения.'):'<b>Предложение обновилось</b>\n\nПовторите поиск.',[[button(this.user.enabled?'🔔 Уведомления':'🔔 Включить уведомления',this.user.enabled?'notifications':'notify:on')],[button('⬅️ К товару','offer:'+action.slice(6))],...BACK]);}
+  if(/^watch:[a-f0-9]{32}$/.test(action)){
+   let added;try{added=await this.store.watch(uid,action.slice(6));}catch(error){if(error.message!=='Можно отслеживать до 100 товаров.')throw error;return this.panel('<b>Лимит отслеживаний</b>\n\nМожно отслеживать до 100 товаров. Уберите ненужный товар из списка, чтобы добавить новый.',[[button('📋 Мои отслеживания','watches')],[button('⬅️ К товару','offer:'+action.slice(6))],...BACK]);}
+   return this.panel(added?'<b>Товар отслеживается</b>\n\n'+(this.user.enabled?'Сообщим о снижении цены.':'Включите уведомления, чтобы получать сообщения.'):'<b>Предложение обновилось</b>\n\nПовторите поиск.',[[button(this.user.enabled?'🔔 Уведомления':'🔔 Включить уведомления',this.user.enabled?'notifications':'notify:on')],[button('⬅️ К товару','offer:'+action.slice(6))],...BACK]);
+  }
   if(/^remove:(?:gtin:\d{14}|local:[a-f0-9]{32})$/.test(action)){await this.store.removeWatch(uid,action.slice(7));return this.watches();}
   if(text&&!text.startsWith('/')){if(this.user.pending==='basket'){try{await addList(this.store,uid,text,msg.message_id);}catch(error){return this.panel(safe(error.message),[[button('🛒 Корзина','basket')],...BACK]);}await this.store.patch(uid,{pending:null});try{await this.api.deleteMessage({chat_id:uid,message_id:msg.message_id});}catch{}return this.basket();}await this.store.patch(uid,{pending:null});const result=await this.search(text);try{await this.api.deleteMessage({chat_id:uid,message_id:msg.message_id});}catch{}return result;}
   return this.home();
