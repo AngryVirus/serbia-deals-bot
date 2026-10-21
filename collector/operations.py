@@ -30,6 +30,25 @@ def diagnostic_failures(result,require_deployed=False):
     return failures
 
 
+def diagnostic_failure_summary(result,failures):
+    """Allowlisted status/hints only; never echo exception text or probe data."""
+    details=[]
+    for name in failures:
+        section=result.get(name) if isinstance(result,dict) else None
+        if not isinstance(section,dict):
+            continue
+        status=section.get('status')
+        hints=section.get('hints')
+        safe_hints=[h for h in hints if h in ('time','limit','memory','syntax','column','table','json','function','parameter','module','unsupported','denied','quota','rate','argument','invalid','binding','budget','statement','interrupted','maximum','scope')] if isinstance(hints,list) else []
+        parts=([f'HTTP {status}'] if type(status) is int and 100<=status<=599 else [])+safe_hints
+        probe=section.get('failed_probe')
+        if type(probe) is int and 1<=probe<=9:
+            parts.append(f'probe {probe}')
+        if parts:
+            details.append(name+' ('+', '.join(parts)+')')
+    return '; '.join(details)
+
+
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('action',choices=['stage','check','activate','pause','notify','health','diagnose','moderation','commands','quality','ads'])
@@ -65,7 +84,8 @@ def main():
         result=call('diagnose')
         failures=diagnostic_failures(result,require_deployed=args.require_deployed)
         if failures:
-            raise SystemExit('Runtime diagnostics failed: '+', '.join(failures))
+            summary=diagnostic_failure_summary(result,failures)
+            raise SystemExit('Runtime diagnostics failed: '+', '.join(failures)+('; '+summary if summary else ''))
         print('Safe runtime diagnostics:',result,flush=True)
         print('Owner basket summary:',invoke('basket_check'),flush=True)
         print('Access notice image check:',call('moderation',args={'operation':'preview'}),flush=True)
