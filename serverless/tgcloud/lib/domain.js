@@ -65,7 +65,7 @@ for(const row of shoppingWords){const more=extraForms[row[0].split(' ')[0]];if(m
 shoppingWords.push(['редбулл редбул redbull','redbull'],['монстер манстер','monster']);
 export const shoppingLexicon=()=>shoppingWords.map(([forms,terms])=>({query:forms.split(' ')[0],forms:forms.split(' '),terms:terms.split(' ')}));
 const phrases=[
- ['питьевое молоко','молоко'],['обычное молоко','молоко'],['кисломолочное молоко','молоко kisel'],['шоколадное молоко','молоко cokolad'],
+ ['сухое молоко','молоко prah'],['молоко в порошке','молоко prah'],['сгущённое молоко','молоко kondenz'],['сгущенное молоко','молоко kondenz'],['питьевое молоко','молоко'],['обычное молоко','молоко'],['кисломолочное молоко','молоко kisel'],['шоколадное молоко','молоко cokolad'],
  ['наждачка','brusni papir'],['наждачная бумага','brusni papir'],['шлифовальная бумага','brusni papir'],['наждачная','brusni papir'],
  ['изюм','suvo grozdje'],['изюма','suvo grozdje'],['цветная капуста','karfiol'],['белый хлеб','beli hleb'],['зелёный лук','mladi luk'],['зеленый лук','mladi luk'],['лавровый лист','lovor'],['грецкий орех','orah'],['грецкие орехи','orah'],
  ['соус песто','pesto'],['соуса песто','pesto'],
@@ -168,7 +168,7 @@ export function measurePolicy(name){
  if(exact('donat mg'))return 'volume';
  // Both units are legitimate for these forms. Ingredients and flavour words
  // cannot establish the physical form of a product, so uncertain titles stay open.
- if(has('sladoled|icecream|med|honey|jogurt|yogurt|kefir|pavlak|krem|sapun|sampon|gel|balzam|prah|prasak|instant|kapsul|supa|corba|kisel|kondenz|evapor|suvo|susen|latte|cappucc|kapuc|ledena|iced|sos|sirup|sredstv|deterdz|pranj|namaz|cedevita|ciobar|nesquik|milkshake|sejk|ice(?= |$)|kras express|bebe|bebelac|humana|optipro|nutrino|kokos|piling|flasice|mix|crem|arom|protein|vitamin|kakao|hipp|combiotic|odoj|formul|barista|shake|tuna|tunjevin|skus|incun|pasta|zamena|dodatak|kafu|barni|napolit|stapic|karamel')||exact('kis|pra|kap')||/морожен|м[её]д|йогурт|кефир|сметан|мыло|шампун|гель|порош|растворим|капсул|суп/.test(ru))return 'either';
+ if(has('sladoled|icecream|med|honey|jogurt|yogurt|kefir|pavlak|krem|sapun|sampon|gel|balzam|prah|prasak|instant|kapsul|supa|corba|kisel|kondenz|evapor|suvo|susen|latte|cappucc|kapuc|ledena|iced|sos|sirup|sredstv|deterdz|pranj|namaz|cedevita|ciobar|nesquik|milkshake|sejk|ice(?= |$)|kras express|bebe|bebelac|humana|optipro|nutrino|kokos|piling|flasice|mix|crem|arom|protein|vitamin|kakao|hipp|combiotic|odoj|formul|barista|shake|tuna|tunjevin|skus|incun|pasta|zamena|dodatak|kafu|barni|napolit|stapic|karamel')||exact('kis|pra|kap')||/сухое|сухого|сгущ[её]н|кисломолоч|кислое|морожен|м[её]д|йогурт|кефир|сметан|мыло|шампун|гель|порош|растворим|капсул|суп/.test(ru))return 'either';
  const solid=has('donut|donat|doughnut|krofn|hleb|kruh|baget|keks|biskvit|cips|chips|kolac|torta|mafin|kroasan|peciv|pilet|pilec|goved|junec|svinj|curet|meso|kobasic|salam|virsl|jetr|persun|brasno|pirinac|testenin|maslac|bombon|pralin|smoki|focacc')||/пончик|петруш|хлеб|печенье|чипс|куриц|говядин|свинин|мясо|колбас|мука/.test(ru);
  const drink=exact('napitak|napitci|drink|drinks|voda|water|sok|juice|pivo|beer|vino|wine|ulje|sirce|mleko|mlijeko|cola|kola')||has('rakij|vodka|votka|whisky|whiskey|tequila|tekila|liker|limunad|lemonad|cider|sajder|somersby')||has('energet|energ(?= |$)|energy')&&has('napitak|pice|drink')||/энергетик|напиток|молоко|лимонад|пиво|вино/.test(ru);
  if(exact('sok')&&has('paradajz'))return 'either';

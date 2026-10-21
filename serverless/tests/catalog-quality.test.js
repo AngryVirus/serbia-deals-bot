@@ -112,3 +112,9 @@ test('type questions use the same prefix exclusions as SQL and never advertise a
 test('bounded audit batches checkpoint each page, stop at completion, and reject excessive work',async()=>{
  const f=await fixture();await publish(f,Array.from({length:501},(_,i)=>offer(i+1)));await f.db.run('DELETE FROM sd_meta WHERE key=:key',{':key':'catalog_quality:'+source});const r=await run(f,{operation:'quality_page',source,pages:5});assert(r.done);assert.equal(r.offers,501);assert.equal(r.pages,2);assert.equal((await f.store.meta('catalog_quality:'+source)).offers,501);assert.equal((await run(f,{operation:'quality_page',source,pages:5})).offers,501);await assert.rejects(run(f,{operation:'quality_page',source,pages:6}));
 });
+
+test('legitimate powdered and sour milk queries accept grams in either Russian word order',async()=>{
+ const f=await fixture();await publish(f,[offer(1,{name:'Mleko u prahu 200g',terms:['mleko','u','prahu','200g'],product:'local:dry'}),offer(2,{name:'Kiselo mleko 180g',terms:['kiselo','mleko','180g'],product:'local:sour'})]);
+ for(const query of ['сухое молоко 200 г','молоко сухое 200 г','молоко в порошке 200 г','молоко кисломолочное 180 г']){await new Bot(f).handle(message(5,query));assert(!f.sent.at(-1).text.includes('Проверьте единицу'),query);assert(keys(f).some(k=>k.callback_data.startsWith('chainsel:')),query);}
+ await addList(f.store,6,'молоко сухое 500 г',800);const row=(await compareBasket(f.store,6)).stores[0].items[0];assert.equal(row.quantity,3);assert.equal(row.pack,'200 г');assert.equal(row.supplied,'600 г');
+});
