@@ -13,7 +13,7 @@ try{
  let result;
  if(input.command==='run'){
   // Bulk ingestion never resends image/font assets to the management gateway.
-  const names=['lib/domain','lib/product-names','lib/moderation-state','lib/ads','lib/basket','lib/store','lib/ingest','lib/notifications','lib/health','lib/manage','lib/image-codec','endpoints/manage'];
+  const names=['lib/domain','lib/product-names','lib/moderation-state','lib/ads','lib/basket','lib/store','lib/ingest','lib/notifications','lib/health','lib/backup','lib/manage','lib/image-codec','endpoints/manage'];
   const selected=Object.fromEntries(names.map(name=>[name,sources[name]]));
   result=(await client.runFunction(token,'endpoints/manage',selected,input.args,{ownerRun:true})).result;
  }else if(input.command==='moderation'){

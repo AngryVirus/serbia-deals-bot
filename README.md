@@ -102,6 +102,8 @@ python3 -m collector.collect --sources lidl,maxi,okov --budget 180
 ## Подключение и запуск
 
 См. [инструкцию развёртывания](docs/DEPLOYMENT.md).
+Ежедневная зашифрованная копия пользовательских данных и проверка восстановления:
+[backup и recovery](docs/BACKUP_AND_RECOVERY.md).
 Плановый сбор обновляет только проверенный список `collector/enabled-sources.json`.
 Явное значение `false` у соответствующей Repository variable отключает расписание.
 Автоматической активации самого бота при push нет. Сначала отдельный ключ, stage, проверка импорта и лимитов,

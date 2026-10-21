@@ -1,6 +1,7 @@
 import {checkHealth} from './health.js';
 import {adTick,checkAds} from './ads.js';
 import { Store } from './store.js';
+import { backupOperation } from './backup.js';
 import { cartItems,compareBasket } from './basket.js';
 import { OWNER_ID,assertBot,requireValue,emptyQuality,auditOffer,MEASURE_VERSION } from './domain.js';
 import { ingest,indexMeasures } from './ingest.js';
@@ -41,6 +42,10 @@ export async function manage(input,ctx,{db,api}){
  await assertBot(api);
  const store=new Store(db);await store.init();
  const operation=input?.operation;
+ if(['backup_create','backup_page','backup_release'].includes(operation)){
+  requireValue(!ctx.initData&&!ctx.update,'Private owner CLI context required');
+  return backupOperation(store,input);
+ }
  if(operation==='configure_commands')return configureCommands(api);
  if(operation==='ads_tick')return adTick(store,api);
  if(operation==='ads_check')return checkAds(store);
