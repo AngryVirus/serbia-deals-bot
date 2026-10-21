@@ -104,6 +104,10 @@ class DiagnosticTests(unittest.TestCase):
         self.assertEqual(operations.diagnostic_failure_summary(result,['search']),'search (HTTP 429, limit)')
         result['search']={'ok':False,'status':'PRIVATE-VALUE','hints':'PRIVATE-VALUE'}
         self.assertEqual(operations.diagnostic_failure_summary(result,['search']),'')
+        result['search']['failed_probe']=4
+        self.assertEqual(operations.diagnostic_failure_summary(result,['search']),'search (probe 4)')
+        result['search']['failed_probe']='PRIVATE'
+        self.assertEqual(operations.diagnostic_failure_summary(result,['search']),'')
 
 
 if __name__=='__main__':

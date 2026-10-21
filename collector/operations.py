@@ -41,6 +41,9 @@ def diagnostic_failure_summary(result,failures):
         hints=section.get('hints')
         safe_hints=[h for h in hints if h in ('time','limit','memory','syntax','column','table','json','function','parameter','module','unsupported','denied')] if isinstance(hints,list) else []
         parts=([f'HTTP {status}'] if type(status) is int and 100<=status<=599 else [])+safe_hints
+        probe=section.get('failed_probe')
+        if type(probe) is int and 1<=probe<=9:
+            parts.append(f'probe {probe}')
         if parts:
             details.append(name+' ('+', '.join(parts)+')')
     return '; '.join(details)
