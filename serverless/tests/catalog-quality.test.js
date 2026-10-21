@@ -102,6 +102,7 @@ test('legacy saved package choices cannot reintroduce grams for energy drinks or
   d.facets.push({key:'pack',values:[{value:pack}]});d.selected.pack=0;assert.equal(refinementFilters(d).pack,undefined);
  }
  const milk={query:'молоко',facets:[],selected:{}};restoreRefinement(milk,{type:['kisel','kis'],pack:{kind:'weight',amount:180}});assert.equal(refinementFilters(milk).pack.amount,180);
+ const plain={query:'молоко',facets:[],selected:{}};restoreRefinement(plain,{type:['milkplain'],pack:{kind:'weight',amount:1500}});assert(!plain.facets.some(f=>f.key==='pack'));plain.facets.push({key:'pack',values:[{value:{kind:'weight',amount:1500}}]});plain.selected.pack=0;assert.equal(refinementFilters(plain).pack,undefined);
 });
 
 test('type questions use the same prefix exclusions as SQL and never advertise an empty drinking-milk option',async()=>{
