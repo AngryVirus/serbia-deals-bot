@@ -1,4 +1,4 @@
-import {normalize,energyQuery,volumeQuery,weightQuery,queryGroups,plainMilkQuery,packageMeasure} from './domain.js';
+import {normalize,energyQuery,volumeQuery,weightQuery,queryGroups,plainMilkQuery,packageMeasure,measurePolicy,milkQuery} from './domain.js';
 export function measure(text){
  const m=packageMeasure(text);if(!m)return null;
  const {kind,amount}=m,label=amount>=1000?(amount/1000)+(kind==='volume'?' л':' кг'):amount+(kind==='volume'?' мл':' г');
@@ -32,7 +32,11 @@ export function buildRefinement(query,offers,token,now=Date.now(),single=false){
  if(!/(?:e14|e27|gu10|g9|g4|h4|h7)/i.test(query)){const sockets=[...new Set(offers.map(o=>o.traits?.socket).filter(Boolean))];options('socket','Цоколь',sockets.map(s=>({label:s,value:s})));}
  return facets.length?{query,token,facets,selected:{},expires:now+15*60000}:null;
 }
-export function refinementFilters(draft){const filters={};for(const f of draft.facets){const i=draft.selected[f.key];if(Number.isInteger(i)&&f.values[i])filters[f.key]=f.values[i].value;}return filters;}
+export function validPackChoice(query,pack){
+ if(energyQuery(query)&&pack?.kind!=='volume')return false;
+ const policy=measurePolicy(query);return policy!=='piece'&&(milkQuery(query)&&!plainMilkQuery(query)||policy==='either'||policy===pack?.kind);
+}
+export function refinementFilters(draft){const filters={};for(const f of draft.facets){const i=draft.selected[f.key];if(Number.isInteger(i)&&f.values[i]&&(f.key!=='pack'||validPackChoice(draft.query,f.values[i].value)))filters[f.key]=f.values[i].value;}return filters;}
 
 export function filterLabels(filters={}){
  const labels=[];if(filters.type){const choice=types.flatMap(t=>t.choices).find(([,value])=>JSON.stringify(value)===JSON.stringify(filters.type));if(choice)labels.push(choice[0]);}
@@ -46,7 +50,7 @@ export function filterLabels(filters={}){
 export function restoreRefinement(draft,filters={}){
  const labels={type:'Вид',brand:'Бренд',pack:'Упаковка',fat:'Жирность',socket:'Цоколь'};
  for(const [key,value] of Object.entries(filters)){
-  if(!labels[key])continue;
+  if(!labels[key]||key==='pack'&&!validPackChoice(draft.query,value))continue;
   let facet=draft.facets.find(f=>f.key===key);if(!facet){facet={key,label:labels[key],values:[]};draft.facets.push(facet);}
   let index=facet.values.findIndex(v=>JSON.stringify(v.value)===JSON.stringify(value));
   if(index<0){const label=filterLabels({[key]:value})[0];if(!label)continue;if(facet.values.length>=24)facet.values.pop();facet.values.push({label,value});index=facet.values.length-1;}

@@ -94,3 +94,12 @@ test('an import resumed from legacy staging indexes missing quantities before pu
 test('a basket with an invalid requested dimension keeps its return path and is never changed silently',async()=>{
  const f=await fixture();await new Bot(f).handle(message(5,'/start'));await addList(f.store,5,'энергетик 200 г',902);await new Bot(f).handle(callback(5,'resolve:902-0'));assert(f.sent.at(-1).text.includes('Проверьте единицу'));assert(keys(f).some(k=>k.callback_data==='basket'));assert.equal((await compareBasket(f.store,5)).items[0].query,'энергетик 200 г');
 });
+
+test('legacy saved package choices cannot reintroduce grams for energy drinks or litres for donuts',async()=>{
+ const {restoreRefinement,refinementFilters}=await import('../tgcloud/lib/refinements.js');
+ for(const [query,pack]of [['энергетик',{kind:'weight',amount:200}],['энергитик',{kind:'weight',amount:200}],['пончик',{kind:'volume',amount:1000}],['лампочка',{kind:'weight',amount:100}]]){
+  const d={query,facets:[],selected:{}};restoreRefinement(d,{brand:'Known',pack});assert(!d.facets.some(f=>f.key==='pack'));assert.equal(refinementFilters(d).brand,'Known');
+  d.facets.push({key:'pack',values:[{value:pack}]});d.selected.pack=0;assert.equal(refinementFilters(d).pack,undefined);
+ }
+ const milk={query:'молоко',facets:[],selected:{}};restoreRefinement(milk,{type:['kisel','kis'],pack:{kind:'weight',amount:180}});assert.equal(refinementFilters(milk).pack.amount,180);
+});
