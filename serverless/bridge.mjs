@@ -73,12 +73,22 @@ import {Store} from '../lib/store.js';
 import {assertBot} from '../lib/domain.js';
 export default async function(input,ctx){
  if(ctx?.ownerRun!==true)throw Error('Private probe only');await assertBot(api);const store=new Store(db),queries=[];
- for(const query of ['молотый кофе','кофе в зернах','куриное филе','зелёный чай','Энергетик монстр 0.5','курица','сливы','соус песто','питьевое молоко']){const started=Date.now(),rows=await store.search(query),check={query,matches:rows.length,elapsed_ms:Date.now()-started};const chainStart=Date.now();check.network_count=(await store.searchChains(query)).length;check.networks_ms=Date.now()-chainStart;if(query==='питьевое молоко')check.refined_networks=(await store.searchChains('молоко',Date.now(),{type:['milkplain']})).length;if(['Энергетик монстр 0.5','курица'].includes(query)){const chains=await store.searchChains(query);check.networks=chains.length;check.products=chains.length?(await store.searchChain(query,chains[0].source_id)).length:0;}queries.push(check);}
+ for(const query of [input.query]){const started=Date.now(),rows=await store.search(query),check={query,matches:rows.length,elapsed_ms:Date.now()-started};const chainStart=Date.now();check.network_count=(await store.searchChains(query)).length;check.networks_ms=Date.now()-chainStart;if(query==='питьевое молоко')check.refined_networks=(await store.searchChains('молоко',Date.now(),{type:['milkplain']})).length;if(['Энергетик монстр 0.5','курица'].includes(query)){const chains=await store.searchChains(query);check.networks=chains.length;check.products=chains.length?(await store.searchChain(query,chains[0].source_id)).length:0;}queries.push(check);}
  const patchProbe=await db.get("SELECT json_patch(json_remove(:payload,'$.searchFilters'),:fields) AS value",{':payload':JSON.stringify({query:'probe',searchFilters:{brand:'Old'}}),':fields':JSON.stringify({searchFilters:{}})});const topLevelReplace=JSON.parse(patchProbe.value).searchFilters.brand===undefined;
  return {top_level_replace:topLevelReplace,queries};
 }`;
-  try{result.search={ok:true,...(await client.runFunction(token,'endpoints/search_probe',{'lib/domain':sources['lib/domain'],'lib/store':sources['lib/store'],'endpoints/search_probe':searchProbe},{},{ownerRun:true})).result};}
-  catch(error){const detail=String(error.message||'').toLowerCase();result.search={ok:false,status:Number.isInteger(error.status)?error.status:null,hints:['time','limit','memory','syntax'].filter(word=>detail.includes(word))};}
+  // Each family gets its own execution budget, just as separate user requests
+  // do. Keep all nine scenarios; a failed one still blocks the release.
+  const searchQueries=['молотый кофе','кофе в зернах','куриное филе','зелёный чай','Энергетик монстр 0.5','курица','сливы','соус песто','питьевое молоко'];
+  result.search={ok:true,top_level_replace:true,queries:[]};
+  for(const query of searchQueries){
+   try{
+    await new Promise(resolve=>setTimeout(resolve,2000));
+    const checked=(await client.runFunction(token,'endpoints/search_probe',{'lib/domain':sources['lib/domain'],'lib/store':sources['lib/store'],'endpoints/search_probe':searchProbe},{query},{ownerRun:true})).result;
+    if(checked?.top_level_replace!==true||checked?.queries?.length!==1||checked.queries[0].query!==query)throw Error('Invalid search probe result');
+    result.search.queries.push(...checked.queries);
+   }catch(error){const detail=String(error.message||'').toLowerCase();result.search={...result.search,ok:false,status:Number.isInteger(error.status)?error.status:null,hints:['time','limit','memory','syntax'].filter(word=>detail.includes(word)),failed_query:query};break;}
+  }
   const basketProbe=`import {api,db} from 'sdk';
 import {Store} from '../lib/store.js';
 import {compareBasket,saveBasketFilters,initBasket} from '../lib/basket.js';
