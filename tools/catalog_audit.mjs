@@ -1,12 +1,13 @@
 import {readFileSync,writeFileSync} from 'node:fs';
 import {fixture} from '../serverless/tests/fixtures.js';
 import {ingest} from '../serverless/tgcloud/lib/ingest.js';
-import {shoppingLexicon,packageMeasure,unitPrice,normalize,day} from '../serverless/tgcloud/lib/domain.js';
+import {shoppingLexicon,packageMeasure,unitPrice,normalize,day,emptyQuality,auditOffer,queryGroups} from '../serverless/tgcloud/lib/domain.js';
 import {bilingual,fallbackName,localName} from '../serverless/tgcloud/lib/product-names.js';
 const data=JSON.parse(readFileSync(process.argv[2]||'work/catalog-snapshot.json','utf8')),f=await fixture();
-const report={date:day(),sources:[],offers:0,measurable:0,unit_prices:0,metadata_dimension_conflicts:0,dictionary_fallback_names:0,no_dictionary_words:0,conflict_examples:[],dictionary_queries:[],controls:{}};
-for(const [index,[alias,{offers}]] of Object.entries(data).entries()){
- report.sources.push({alias,offers:offers.length,date:offers[0]?.date||null});report.offers+=offers.length;
+const report={spelling_forms_checked:0,spelling_mismatches:[],date:day(),sources:[],offers:0,measurable:0,unit_prices:0,metadata_dimension_conflicts:0,dictionary_fallback_names:0,no_dictionary_words:0,conflict_examples:[],dictionary_queries:[],controls:{}};
+for(const entry of shoppingLexicon())for(const form of entry.forms){report.spelling_forms_checked++;if(JSON.stringify(queryGroups(form))!==JSON.stringify(queryGroups(entry.query)))report.spelling_mismatches.push({query:entry.query,form});}
+for(const [index,[alias,{offers,stats}]] of Object.entries(data).entries()){
+ const quality=emptyQuality();for(const offer of offers)auditOffer(quality,offer);report.sources.push({alias,offers:offers.length,date:offers[0]?.date||null,quality,parse:stats||null});report.offers+=offers.length;
  for(const o of offers){if(localName(o.name)||fallbackName(o.name))report.dictionary_fallback_names++;else report.no_dictionary_words++;const pack=packageMeasure(o.name);if(pack)report.measurable++;if(unitPrice(o))report.unit_prices++;
   const unit=normalize(o.unit||''),dim=/^(l|lit|ml|litar|litara)$/.test(unit)?'volume':/^(kg|g|gr|kilogram)$/.test(unit)?'weight':null;
   if(pack&&dim&&pack.kind!==dim){report.metadata_dimension_conflicts++;if(report.conflict_examples.length<20)report.conflict_examples.push({source:alias,name:o.name,metadata_unit:o.unit,title_kind:pack.kind});}
@@ -20,7 +21,7 @@ for(const [index,[alias,{offers}]] of Object.entries(data).entries()){
 for(const query of new Set(shoppingLexicon().map(x=>x.query))){
  const chains=await f.store.searchChains(query);report.dictionary_queries.push({query,offers:chains.reduce((n,s)=>n+s.offers,0),networks:chains.length});
 }
-for(const query of ['пончик','пончики','донат','Donat Mg','петрушка','питьевое молоко','соус песто','сливы']){
+for(const query of ['пончик','пончики','крофне','донат','Donat Mg','петрушка','пертушка','огурчики','энергитик','квас','хрен','питьевое молоко','соус песто','сливы']){
  const chains=await f.store.searchChains(query),rows=await f.store.search(query);report.controls[query]={networks:chains.map(s=>s.source_name),examples:rows.map(r=>{const o=JSON.parse(r.payload);return {name:o.name,translated:bilingual(null,o.name),unit:o.unit,unit_price:unitPrice(o)?.label||null};})};
 }
 report.matched_queries=report.dictionary_queries.filter(q=>q.offers).length;report.unmatched_queries=report.dictionary_queries.filter(q=>!q.offers).map(q=>q.query);

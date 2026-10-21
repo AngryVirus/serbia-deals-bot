@@ -1,4 +1,4 @@
-import { requireValue,day,cutoff } from './domain.js';
+import { requireValue,day,cutoff,emptyQuality,auditOffer,measuredOffer } from './domain.js';
 async function cleanupGeneration(store,source,gen){
  const db=store.db,p={':source':source,':gen':gen};
  const state=await db.get('SELECT current_gen,stage_gen FROM sd_sources WHERE id=:source',p);
@@ -43,7 +43,7 @@ export async function ingest(store,input){
    requireValue(Number.isSafeInteger(row.regular)&&row.regular>0&&row.regular<=1e9&&(!row.discount||Number.isSafeInteger(row.discount)&&row.discount>0&&row.discount<row.regular));
    requireValue(row.date>=cutoff(now)&&row.date<=day(now)&&Array.isArray(row.terms)&&row.terms.length<=35&&row.terms.every(t=>typeof t==='string'&&t.length<=100));
   }
-  const rows=JSON.stringify(input.rows);requireValue(rows.length<1200000);
+  const rows=JSON.stringify(input.rows.map(measuredOffer));requireValue(rows.length<1200000);
   await db.run(`INSERT INTO sd_offers(source,gen,id,product,name,regular,discount,begin,end,date,payload) SELECT :source,:gen,json_extract(value,'$.id'),json_extract(value,'$.product'),json_extract(value,'$.name'),json_extract(value,'$.regular'),json_extract(value,'$.discount'),json_extract(value,'$.begin'),json_extract(value,'$.end'),json_extract(value,'$.date'),json_remove(value,'$.terms','$.norm') FROM json_each(:rows) WHERE 1 ON CONFLICT(source,gen,id) DO UPDATE SET payload=excluded.payload,regular=excluded.regular,discount=excluded.discount,begin=excluded.begin,end=excluded.end`,{...p,':rows':rows});
   // CROSS JOIN fixes the loop order: one indexed offer lookup per input row.
   // Letting SQLite start from all source offers makes a large import quadratic.
@@ -56,14 +56,16 @@ export async function ingest(store,input){
   requireValue(count.n===state.expected&&Number.isInteger(input.count)&&input.count>0,'Incomplete source upload');
   const verifyKey='verify:'+source;
   let check=await store.meta(verifyKey);
-  if(check?.gen!==gen)check={gen,after:'',count:0,date:''};
-  const page=await db.all('SELECT id,date FROM sd_offers WHERE source=:source AND gen=:gen AND id>:after ORDER BY id LIMIT 1000',{...p,':after':check.after});
-  for(const row of page){check.after=row.id;check.count++;if(row.date>check.date)check.date=row.date;}
+  if(check?.gen!==gen||!check.quality)check={gen,after:'',count:0,date:'',quality:emptyQuality()};
+  const page=await db.all('SELECT o.id,o.date,o.payload,old.name AS previous_name,old.regular AS previous_regular FROM sd_offers o LEFT JOIN sd_offers old ON old.source=:source AND old.gen=:previous AND old.id=o.id WHERE o.source=:source AND o.gen=:gen AND o.id>:after ORDER BY o.id LIMIT 1000',{...p,':after':check.after,':previous':state.current_gen});
+  for(const row of page){check.after=row.id;check.count++;auditOffer(check.quality,JSON.parse(row.payload),{name:row.previous_name,regular:row.previous_regular});if(row.date>check.date)check.date=row.date;}
   await store.setMeta(verifyKey,check);
   if(page.length===1000)return {verifying:true,count:check.count};
   requireValue(check.count===input.count,'Offer count mismatch');
   const offers={n:check.count},snapshot={date:check.date};
   await store.setMeta('catalog_count:'+source+':'+gen,offers.n);
+  const previousCount=state.current_gen?await store.meta('catalog_count:'+source+':'+state.current_gen):null;
+  await store.setMeta('catalog_quality:'+source,{gen,date:check.date,checked:now,...check.quality,coverage_drop:previousCount>100&&offers.n<previousCount/2});
   if(state.current_gen&&state.current_gen!==gen)await enqueue(state.current_gen);
   const result=await db.run(`UPDATE sd_sources SET current_gen=:gen,stage_gen=NULL,lease=NULL,owner=NULL,date=:date,checked=:now,status='ok' WHERE id=:source AND owner=:owner AND stage_gen=:gen AND lease>:now`,{...p,':date':snapshot.date});requireValue(result.rowsAffected===1,'Publication lost lease');
   return {published:true,count:offers.n};

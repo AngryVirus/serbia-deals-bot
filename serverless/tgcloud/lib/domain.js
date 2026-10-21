@@ -58,7 +58,12 @@ shoppingWords.push(['пончик пончики пончиков пончика
  ['средство средства','sredstv'],['посудомойка посудомойки','sudomasin'],['кондиционер кондиционера','omeksiv regenerator'],['отбеливатель отбеливателя','izbeljiv belil'],['пятновыводитель пятновыводителя','fleke'],['перчатки перчаток','rukavic'],['фольга фольги','folij'],['плёнка пленка пленки','folij'],['пергамент пергамента','papir pecenj'],['полотенца полотенец','ubrus peskir'],['щётка щетка щетки щётки','cetk'],['расчёска расческа расчески','cesalj'],['бритва бритву бритвы','brijac'],['прокладки прокладок','ulosci'],['тампоны тампонов','tampon'],['дезодорант дезодоранты','dezodor dezodorans'],['антиперспирант','antiperspir'],['гель геля','gel'],['крем крема','krem'],['лосьон лосьона','losion'],['бальзам бальзама','balzam'],['зубы зубов','zub'],['ополаскиватель ополаскивателя','vodic tecnost'],['линзы линз','sociv'],['подгузник подгузников','pelen'],['пелёнки пеленки пеленок','pelen podlog'],
  ['розетка розетки','uticnic'],['выключатель выключателя','prekidac'],['удлинитель удлинителя','produzn'],['отвёртка отвертка отвертки','odvijac srafciger'],['дрель дрели','busilic'],['шуруповёрт шуруповерт','busilic odvijac'],['молоток молотка','cekic'],['гвозди гвоздей','ekser'],['шуруп шурупы саморез саморезы','sraf vijak'],['плоскогубцы пассатижи','klest'],['нож ножи ножей','noz'],['ножницы ножниц','makaz'],['рулетка рулетки','metar'],['клей клея','lepak ljepilo'],['скотч скотча','trak'],['краска краски','boj farb'],['кисть кисти кисточка','cetk'],['валик валики','valjak'],['шпатель шпателя','spahtl'],['наждачка наждачная','smirgl'],['пила пилы','testera'],
  ['кастрюля кастрюлю кастрюли','serp lonac'],['сковорода сковороду сковородки','tiganj'],['тарелка тарелки тарелку','tanjir'],['миска миски миску','cinij'],['чашка чашки кружка кружки','solj'],['стакан стаканы стакана','casa case'],['ложка ложки ложку','kasik'],['вилка вилки вилку','viljusk'],['чайник чайники чайника','kuval cajnik'],['блендер блендера','blender'],['миксер миксера','mikser'],['тостер тостера','toster'],['утюг утюга','pegl'],['пылесос пылесоса','usisivac'],['весы весов','vaga'],['вентилятор вентилятора','ventilator'],['обогреватель обогревателя','grejalic'],['шланг шланга','crevo'],['ведро ведра','kant kofa'],['швабра швабры','brisac mop'],['веник веника','metla'],['тряпка тряпки','krpa'],['коврик коврика','otirac prostirk'],['подушка подушки','jastuk'],['одеяло одеяла','ceb jorgan'],['простыня простыни','carsav'],['полка полки полку','polic'],['стул стулья стула','stolic'],['стол столы стола','sto stol'],['горшок горшка горшки','saksij'],['семена семян','seme sjeme'],['удобрение удобрения','djubriv'],['земля землю земли','zemlj supstrat']);
-export const shoppingLexicon=()=>shoppingWords.map(([forms,terms])=>({query:forms.split(' ')[0],terms:terms.split(' ')}));
+// Reviewed spelling variants only: no fuzzy widening of brands or barcodes.
+const extraForms={огурец:'огурчик огурчики огурчиков огурцом',помидор:'помидорки томата томатов помидорами',морковь:'моркови морковку',энергетик:'енергетик энергитик энеретик энергетиk',пончик:'крофна крофне krofna krofne крофни',петрушка:'першун першунь першин пертушка',кофе:'коффе кофe',шампуни:'шампуней шампунью',сметана:'сметаны сметанка',сливки:'сливочки',салфетки:'салфетку салфетками',колбаса:'колбаски колбасок',сосиски:'сосиска сосиску',макарон:'макарошки',зелень:'зелени'};
+shoppingWords.push(['зелень','persun mirodj kopar korijand bosilj rukol']);
+for(const row of shoppingWords){const more=extraForms[row[0].split(' ')[0]];if(more)row[0]+=' '+more;}
+shoppingWords.push(['редбулл редбул redbull','redbull'],['монстер манстер','monster']);
+export const shoppingLexicon=()=>shoppingWords.map(([forms,terms])=>({query:forms.split(' ')[0],forms:forms.split(' '),terms:terms.split(' ')}));
 const phrases=[
  ['питьевое молоко','молоко'],['обычное молоко','молоко'],['кисломолочное молоко','молоко kisel'],['шоколадное молоко','молоко cokolad'],
  ['наждачка','brusni papir'],['наждачная бумага','brusni papir'],['шлифовальная бумага','brusni papir'],
@@ -128,7 +133,7 @@ export const oilQuery=query=>queryGroups(query).some(group=>group.length===1&&gr
 export const bulbQuery=query=>queryGroups(query).some(group=>group.some(word=>/^sijalic|^zarulj|^bulbs?$/.test(word)));
 // Catalogue units describe categories in several feeds, not the sale basis.
 // Derive a comparable unit price only from an unambiguous title quantity.
-export function packageMeasure(name){
+export function rawPackageMeasure(name){
  const text=String(name),pattern=/(?<![\p{L}\p{N}.,])(\d+(?:[.,]\d+)?)\s*(kg|кг|ml|мл|cl|gr|гр|g|г|l|л)(?![\p{L}\p{N}])/giu;
  if(/\+\s*\d/.test(text))return null;
  const multi=text.match(/(?<![\p{L}\p{N}])(\d{1,3})\s*[xх×*]\s*(\d+(?:[.,]\d+)?)\s*(kg|кг|ml|мл|cl|gr|гр|g|г|l|л)(?![\p{L}\p{N}])/iu)||text.match(/(?<![\p{L}\p{N}.,])(\d+(?:[.,]\d+)?)\s*(kg|кг|ml|мл|cl|gr|гр|g|г|l|л)\s*[xх×*]\s*(\d{1,3})(?!\d)/iu);
@@ -138,11 +143,61 @@ export function packageMeasure(name){
  if(!values.length||values.some(v=>v.kind!==values[0].kind||v.amount!==values[0].amount))return null;
  const result={...values[0],amount:values[0].amount*multiplier};
  if(!Number.isSafeInteger(result.amount)||result.amount<=0||result.amount>1000000)return null;
- if(result.kind==='volume'&&/(?:^| )(?:donut\w*|donat\w*|doughnut\w*|krofn\w*|persun\w*|hleb\w*|keks\w*|cips\w*|kolac\w*)(?: |$)/.test(normalize(text))&&!/(?:^| )(?:voda|sok|napitak|pice|solja|sapun)(?: |$)/.test(normalize(text)))return null;
  return result;
 }
+// Source fields often contain category units; a title can also contain capacity,
+// load limits or a mistyped dimension. Never convert weight into volume.
+export function measurePolicy(name){
+ const t=normalize(name),ru=String(name).toLowerCase();
+ const has=roots=>new RegExp('(?:^| )(?:'+roots+')[a-z0-9]*(?: |$)').test(t);
+ const exact=words=>new RegExp('(?:^| )(?:'+words+')(?: |$)').test(t);
+ const head=t.replace(/^(?:[0-9]+ )?[0-9]+(?:ml|l|cl|kg|gr|g) /,'');
+ if(/kasika ljubavi/.test(t))return 'either';
+ // A vessel's capacity and an appliance's load limit are specifications.
+ if(/^(?:solj|casa|case|flas|boc|termos|lonac|lonc|posud|serp|tiganj|kanta|kante|kantu|kofa|saksij|kalup|kutij|aparat|kuval|frizider|zamrzivac|sporet|rerna|usisivac|vesmasin|masina|mikser|blender|toster|noz|kasik|viljusk|tanjir|makaz|odvijac|cekic|busilic|merdevin|laptop|memorij|telefon|top za punjenje)/.test(head)||has('sijalic|zarulj|plafonjer|baterij|nosivost')||/лампоч|батарей|кастрюл|сковород|чайник|бутыл|кружк|стакан|ведро|горшок|пылесос|ноутбук|телефон/.test(ru))return 'piece';
+ if(exact('donat mg'))return 'volume';
+ // Both units are legitimate for these forms. Ingredients and flavour words
+ // cannot establish the physical form of a product, so uncertain titles stay open.
+ if(has('sladoled|icecream|med|honey|jogurt|yogurt|kefir|pavlak|krem|sapun|sampon|gel|balzam|prah|prasak|instant|kapsul|supa|corba|kisel|kondenz|evapor|suvo|susen|latte|cappucc|kapuc|ledena|iced|sos|sirup|sredstv|deterdz|pranj|namaz|cedevita|ciobar|nesquik|milkshake|sejk|ice(?= |$)|kras express|bebe|bebelac|humana|optipro|nutrino|kokos|piling|flasice|mix|crem|arom|protein|vitamin|kakao|hipp|combiotic|odoj|formul|barista|shake|tuna|tunjevin|skus|incun|pasta|zamena|dodatak|kafu|barni|napolit|stapic|karamel')||exact('kis|pra|kap')||/морожен|м[её]д|йогурт|кефир|сметан|мыло|шампун|гель|порош|растворим|капсул|суп/.test(ru))return 'either';
+ const solid=has('donut|donat|doughnut|krofn|hleb|kruh|baget|keks|biskvit|cips|chips|kolac|torta|mafin|kroasan|peciv|pilet|pilec|goved|junec|svinj|curet|meso|kobasic|salam|virsl|jetr|persun|brasno|pirinac|testenin|maslac|bombon|pralin|smoki|focacc')||/пончик|петруш|хлеб|печенье|чипс|куриц|говядин|свинин|мясо|колбас|мука/.test(ru);
+ const drink=exact('napitak|napitci|drink|drinks|voda|water|sok|juice|pivo|beer|vino|wine|ulje|sirce|mleko|mlijeko|cola|kola')||has('rakij|vodka|votka|whisky|whiskey|tequila|tekila|liker|limunad|lemonad|cider|sajder|somersby')||has('energet|energ(?= |$)|energy')&&has('napitak|pice|drink')||/энергетик|напиток|молоко|лимонад|пиво|вино/.test(ru);
+ if(exact('sok')&&has('paradajz'))return 'either';
+ if(drink&&solid)return 'either';
+ if(drink)return /^(?:энергетик|напиток|молоко)/.test(ru)||/^(?:napitak |drink |voda |water |sok |juice |pivo |beer |vino |wine |mleko |mlijeko |ulje |cola |kola |red bull |redbull |energetik|energetsk|napitok|moloko)/.test(head)||has('energet|energy')&&has('napitak|pice|drink')?'volume':'either';
+ if(solid||/^(?:secer |so |soli |kafa |coffee )/.test(head)||/сахар|кофе/.test(ru))return 'weight';
+ return 'either';
+}
+export function measurementIssue(name){
+ const raw=rawPackageMeasure(name);if(!raw)return null;
+ const policy=measurePolicy(name);
+ return policy==='piece'?'capacity_or_specification':policy!=='either'&&policy!==raw.kind?'wrong_dimension':null;
+}
+export function packageMeasure(name){
+ return measurementIssue(name)?null:rawPackageMeasure(name);
+}
+// Keep a validated quantity beside the original title. It lets SQL compare
+// complete multipacks without guessing from a unit substring or source field.
+export function measuredOffer(offer){
+ const pack=packageMeasure(offer.name),n=pack?.amount,forms=!pack?[]:pack.kind==='volume'?[n+'ml',(n/1000)+'l',(n/10)+'cl']:[n+'g',n+'gr',(n/1000)+'kg'];
+ return {...offer,_measure:pack,terms:[...new Set([...(offer.terms||[]),...forms.flatMap(f=>normalize(f).split(' '))])]};
+}
+// Bounded aggregate over public catalogue data; no user input or identity.
+export const emptyQuality=()=>({offers:0,measurable:0,wrong_dimension:0,specifications:0,metadata_conflicts:0,price_compared:0,price_jumps:0,examples:[]});
+export function auditOffer(quality,offer,previous=null){
+ quality.offers++;const raw=rawPackageMeasure(offer.name),issue=measurementIssue(offer.name),pack=issue?null:raw;
+ if(pack)quality.measurable++;
+ if(issue==='wrong_dimension')quality.wrong_dimension++;
+ if(issue==='capacity_or_specification')quality.specifications++;
+ const unit=normalize(offer.unit||''),dimension=/^(l|lit|ml|cl|litar|litara)$/.test(unit)?'volume':/^(kg|g|gr|kilogram)$/.test(unit)?'weight':null;
+ if(raw&&dimension&&raw.kind!==dimension)quality.metadata_conflicts++;
+ const comparable=previous?.name===offer.name&&Number.isSafeInteger(previous.regular)&&previous.regular>0;
+ const jump=comparable&&(offer.regular>=previous.regular*3||offer.regular*3<=previous.regular);
+ if(comparable)quality.price_compared++;if(jump)quality.price_jumps++;
+ if((issue==='wrong_dimension'||jump)&&quality.examples.length<6)quality.examples.push({kind:jump?'price_jump':'dimension',name:String(offer.name).slice(0,120)});
+ return quality;
+}
 export function unitPrice(offer,price=currentPrice(offer)){
- const title=normalize(offer.name);if(/^(?:solj|casa|case|flasa|termos|lonac|lonc|posud|serp|tiganj|kant|kofa|saksij|aparat|kuval|kalup|kutij)/.test(title)||/(?:^| )(?:sijalica|plafonjerka|igracka|saksija|termos)(?: |$)/.test(title))return null;
+ const title=normalize(offer.name);if(/^(?:solj|casa|case|flasa|termos|lonac|lonc|posud|serp|tiganj|kanta|kante|kantu|kofa|saksij|aparat|kuval|kalup|kutij)/.test(title)||/(?:^| )(?:sijalica|plafonjerka|igracka|saksija|termos)(?: |$)/.test(title))return null;
  const pack=packageMeasure(offer.name);if(!pack||!Number.isSafeInteger(price)||!Number.isSafeInteger(price*1000)||price<=0)return null;
  const amount=Math.round(price*1000/pack.amount);if(!Number.isSafeInteger(amount)||amount<=0)return null;
  return {price:amount,unit:pack.kind==='weight'?'кг':'л',label:money(amount)+'/'+(pack.kind==='weight'?'кг':'л')};

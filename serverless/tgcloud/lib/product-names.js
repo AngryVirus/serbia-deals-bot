@@ -1,4 +1,4 @@
-import {shoppingLexicon,normalize,packageMeasure} from './domain.js';
+import {shoppingLexicon,normalize,rawPackageMeasure} from './domain.js';
 // Translate public catalogue titles only; never send private searches or basket input.
 const local=new Map(Object.entries({krastavac:'Огурец',paradajz:'Помидор',krompir:'Картофель',sargarepa:'Морковь',luk:'Лук',jabuka:'Яблоко',banana:'Банан',mleko:'Молоко',jaja:'Яйца',kafa:'Кофе',secer:'Сахар',brasno:'Мука',hleb:'Хлеб',voda:'Вода',piletina:'Курица',maslac:'Сливочное масло',pirinac:'Рис',so:'Соль'}));
 const latin=value=>String(value).toLowerCase().normalize('NFKD').replace(/\p{M}/gu,'').replace(/đ/g,'dj');
@@ -20,7 +20,7 @@ export function briefName(text,max=180){const parts=String(text).split(' / '),sh
 export function validTranslation(ru,sr){
  if(typeof ru!=='string'||!ru.trim()||ru.length>500||/[<>\x00-\x1f]/.test(ru))return false;
  const numbers=s=>String(s).replace(/,/g,'.').match(/\d+(?:\.\d+)?/g)||[];
- const before=packageMeasure(sr),after=packageMeasure(ru);
+ const before=rawPackageMeasure(sr),after=rawPackageMeasure(ru);
  return numbers(sr).every(n=>numbers(ru).includes(n))&&(!before?!after:after&&before.kind===after.kind&&before.amount===after.amount);
 }
 export async function productNames(store,fetch,offers,now=Date.now()){

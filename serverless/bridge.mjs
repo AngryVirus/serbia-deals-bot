@@ -41,7 +41,7 @@ export default async function(input,ctx){
  bot.store=new Store(db);await bot.store.init();bot.store.patch=async()=>{};
  bot.user={};await adminRoute(bot,'admin');bot.user={};await adminRoute(bot,'admin:stats');
  const adminPhotos=photoCalls-home.photoCalls,adminTexts=textCalls-home.textCalls;
- bot.user={};await adminRoute(bot,'admin:sources');bot.user={};await adminRoute(bot,'admin:sources:1');
+ bot.user={};await adminRoute(bot,'admin:sources');bot.user={};await adminRoute(bot,'admin:sources:1');bot.user={};await adminRoute(bot,'admin:quality');
  const sourcePhotos=photoCalls-home.photoCalls-adminPhotos,sourceTexts=textCalls-home.textCalls-adminTexts;
  const beforePhotos=photoCalls,beforeTexts=textCalls;bot.store.rate=async()=>0;
  bot.user={};await bot.prompt();bot.user={};await bot.basket();bot.user={};await bot.notifications();
@@ -143,6 +143,17 @@ export default async function(input,ctx){
 }`;
   try{result.handler=(await client.runFunction(token,'endpoints/handler_probe',{...sources,'endpoints/handler_probe':handlerProbe},{},{ownerRun:true})).result;}
   catch(error){const detail=String(error.message||'').toLowerCase();result.handler={ok:false,status:Number.isInteger(error.status)?error.status:null,hints:['time','limit','memory','syntax'].filter(word=>detail.includes(word))};}
+  const qualityProbe=`import {api,db} from 'sdk';
+import {manage} from '../lib/manage.js';
+import {Store} from '../lib/store.js';
+import {packageMeasure,measurementIssue,assertBot} from '../lib/domain.js';
+export default async function(input,ctx){
+ if(ctx?.ownerRun!==true)throw Error('Private probe only');await assertBot(api);
+ const store=new Store(db),sources=(await store.sources()).filter(s=>s.active),page=sources.length?await manage({operation:'quality_page',source:sources[0].id},{ownerRun:true},{db,api}):null;
+ return {ok:true,page,invalid_drink:packageMeasure('Energetski napitak 200g')===null,invalid_donut:packageMeasure('Donut 1l')===null,powder_preserved:packageMeasure('Cedevita napitak 200g')?.kind==='weight',vessel_excluded:measurementIssue('Posuda 2l')==='capacity_or_specification'};
+}`;
+  try{result.quality=(await client.runFunction(token,'endpoints/quality_probe',{...sources,'endpoints/quality_probe':qualityProbe},{},{ownerRun:true})).result;}
+  catch(error){const detail=String(error.message||'').toLowerCase();result.quality={ok:false,status:Number.isInteger(error.status)?error.status:null,hints:['time','limit','memory','syntax','column','table','json','function','update','from'].filter(word=>detail.includes(word))};}
  }else if(input.command==='remote'){const r=await client.getFiles(token);result={revision:r.revision,canonical_modules:r.canonical_modules};}
  else if(input.command==='deploy'){
   const remote=await client.getFiles(token);

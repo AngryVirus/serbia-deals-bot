@@ -115,6 +115,9 @@ def main():
                 except (OSError,ValueError,SourceUnavailable) as exc:error=exc
             else:raise ValueError('No usable current resource') from error
             result=upload(source,offers,stats,body,deadline) if args.publish else {'dry_run':True}
+            if args.publish:
+                try:invoke('source_audit',source=source['id'],gen=hashlib.sha256(b'prices-v2\0'+body).hexdigest()[:32],stats={key:stats[key] for key in ['rows','accepted','rejected','conflicts','duplicates']})
+                except RuntimeError:print('Catalog audit counters deferred; published prices retained',flush=True)
             report.append({'source':source['alias'],'state':'ok',**stats,**result});successful+=1
             print(json.dumps(report[-1],ensure_ascii=False),flush=True)
         except (OSError,ValueError,RuntimeError) as error:

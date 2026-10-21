@@ -1,7 +1,7 @@
 import {checkHealth} from './health.js';
 import { Store } from './store.js';
 import { cartItems,compareBasket } from './basket.js';
-import { OWNER_ID,assertBot,requireValue } from './domain.js';
+import { OWNER_ID,assertBot,requireValue,emptyQuality,auditOffer,measuredOffer } from './domain.js';
 import { ingest } from './ingest.js';
 import { prepareNotifications,deliverNotifications } from './notifications.js';
 import { unzlibSync } from './image-codec.js';
@@ -41,6 +41,33 @@ export async function manage(input,ctx,{db,api}){
    if(Number.isSafeInteger(pages?.page_count)&&Number.isSafeInteger(size?.page_size))storage={bytes:pages.page_count*size.page_size};
   }catch{/* Some hosted SQLite environments restrict PRAGMA inspection. */}
   return {active:await store.meta('active'),sources,queue,catalog,storage,last_collection:await store.meta('last_collection')};
+ }
+ if(operation==='source_audit'){
+  requireValue(/^[a-f0-9]{24}$/.test(input.source||'')&&/^[a-f0-9]{32}$/.test(input.gen||''));
+  const stats={};for(const key of ['rows','accepted','rejected','conflicts','duplicates']){const n=input.stats?.[key];requireValue(Number.isSafeInteger(n)&&n>=0&&n<=10000000);stats[key]=n;}
+  const source=await db.get('SELECT current_gen FROM sd_sources WHERE id=:source',{':source':input.source});
+  if(source?.current_gen!==input.gen)return {changed:true};
+  await store.setMeta('catalog_parse:'+input.source,{gen:input.gen,...stats});return {saved:true};
+ }
+ if(operation==='quality_page'){
+  requireValue(/^[a-f0-9]{24}$/.test(input.source||''));
+  const source=await db.get('SELECT current_gen,date FROM sd_sources WHERE id=:source',{':source':input.source});if(!source?.current_gen)return {skipped:true};
+  const key='quality_scan:'+input.source,summaryKey='catalog_quality:'+input.source,current=await store.meta(summaryKey);
+  if(current?.gen===source.current_gen&&current.offers>0)return {done:true,offers:current.offers};
+  await db.run("INSERT INTO sd_meta(key,value) VALUES(:key,'null') ON CONFLICT DO NOTHING",{':key':key});
+  const old=await store.meta(key),next=old?.gen===source.current_gen?{...old,quality:{...old.quality,examples:[...old.quality.examples]}}:{gen:source.current_gen,after:'',quality:emptyQuality()};
+  const rows=await db.all('SELECT id,payload FROM sd_offers WHERE source=:source AND gen=:gen AND id>:after ORDER BY id LIMIT 500',{':source':input.source,':gen':source.current_gen,':after':next.after});
+  for(const row of rows){auditOffer(next.quality,JSON.parse(row.payload));next.after=row.id;}
+  if(rows.length){
+   const measured=JSON.stringify(rows.map(row=>measuredOffer(JSON.parse(row.payload)))),params={':rows':measured,':source':input.source,':gen':source.current_gen};
+   await db.run("UPDATE sd_offers AS o SET payload=json_set(o.payload,'$._measure',json_extract(r.value,'$._measure')) FROM json_each(:rows) r WHERE o.source=:source AND o.gen=:gen AND o.id=json_extract(r.value,'$.id')",params);
+   await db.run("INSERT INTO sd_terms(offer,term) SELECT o.rowid,t.value FROM json_each(:rows) r CROSS JOIN sd_offers o CROSS JOIN json_each(r.value,'$.terms') t WHERE o.source=:source AND o.gen=:gen AND o.id=json_extract(r.value,'$.id') ON CONFLICT DO NOTHING",params);
+  }
+  const live=await db.get('SELECT current_gen FROM sd_sources WHERE id=:source',{':source':input.source});if(live.current_gen!==next.gen)return {changed:true};
+  const saved=await db.run('UPDATE sd_meta SET value=:next WHERE key=:key AND value=:old',{':key':key,':next':JSON.stringify(next),':old':JSON.stringify(old)});if(saved.rowsAffected!==1)return {busy:true};
+  if(rows.length===500)return {more:true,offers:next.quality.offers};
+  await store.setMeta(summaryKey,{gen:next.gen,date:source.date,checked:Date.now(),...next.quality,coverage_drop:false});
+  await db.run('DELETE FROM sd_meta WHERE key=:key AND value=:next',{':key':key,':next':JSON.stringify(next)});return {done:true,offers:next.quality.offers};
  }
  if(operation==='basket_check'){
   const items=await cartItems(store,OWNER_ID),report=await compareBasket(store,OWNER_ID);

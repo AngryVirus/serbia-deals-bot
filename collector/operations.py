@@ -5,7 +5,7 @@ from .cloud import call,invoke
 
 def main():
     parser=argparse.ArgumentParser()
-    parser.add_argument('action',choices=['stage','check','activate','pause','notify','health','diagnose','moderation','commands'])
+    parser.add_argument('action',choices=['stage','check','activate','pause','notify','health','diagnose','moderation','commands','quality'])
     parser.add_argument('--expected-revision',type=int)
     args=parser.parse_args()
     if args.action=='stage':
@@ -32,6 +32,17 @@ def main():
         print('Safe runtime diagnostics:',call('diagnose'),flush=True)
         print('Owner basket summary:',invoke('basket_check'),flush=True)
         print('Access notice image check:',call('moderation',args={'operation':'preview'}),flush=True)
+    elif args.action=='quality':
+        import time
+        deadline=time.monotonic()+1800
+        for index,source in enumerate(invoke('status')['sources']):
+            if not source.get('active'):continue
+            for _ in range(2000):
+                if time.monotonic()>deadline:raise RuntimeError('Catalog audit budget; checkpoint retained')
+                result=invoke('quality_page',source=source['id'])
+                if result.get('done') or result.get('skipped'):break
+            else:raise RuntimeError('Catalog audit page bound')
+            print('Catalog audit source',index+1,result,flush=True)
     elif args.action=='moderation':
         result=invoke('notices_due')
         if result['due']:

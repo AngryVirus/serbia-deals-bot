@@ -5,7 +5,7 @@ import {adminRoute} from './admin.js';
 import {roleOf,banned,snapshot,trackUser,lockUser,unlockUser} from './moderation-state.js';
 import {deliverNotice} from './moderation-notices.js';
 import { Store } from './store.js';
-import { OWNER_ID,assertBot,positive,safe,money,bulbQuery,unitPrice } from './domain.js';
+import { OWNER_ID,assertBot,positive,safe,money,bulbQuery,unitPrice,measurementIssue,measurePolicy } from './domain.js';
 import { renderImage,IMAGE_VERSION } from './image-renderer.js';
 import { cartItems,addList,addOffer,compareBasket,parseList,expandPendingList,resetProduct,saveBasketFilters,basketDemand,basketQuery } from './basket.js';
 const button=(text,data)=>({text,callback_data:data});
@@ -69,6 +69,7 @@ export class Bot{
   return this.panel(text,[...rows,...(this.user.cartTarget?[[button('🛒 Корзина','basket')]]:BACK)]);
  }
  async search(query,offset=0,source=null){
+  if(measurementIssue(query)==='wrong_dimension')return this.panel('<b>Проверьте единицу измерения</b>\n\n'+(measurePolicy(query)==='volume'?'Для этого напитка укажите объём в мл или л.':'Для этого товара укажите вес в г или кг.')+' Мы не пересчитываем граммы в литры.',[[button('🔎 Изменить запрос','search')],...BACK]);
   const wait=await this.store.rate(this.uid);if(wait)return this.panel(`<b>Небольшая пауза</b>\n\nПовторите поиск через ${wait} сек.`,BACK);
   try{
    if(!this.allowAll&&!source&&!offset){
@@ -113,7 +114,7 @@ export class Bot{
   const specs=[traits.socket&&'Цоколь: '+traits.socket,traits.lumens&&'Яркость: '+traits.lumens+' лм',traits.kelvin&&'Цвет света: '+traits.kelvin+' K',traits.pack&&'В упаковке: '+traits.pack+' шт.'].filter(Boolean).join('\n');
   const names=await this.names([o]),name=names.get(o.name)||bilingual(null,o.name);
   const locations=await this.store.productLocations(o.product,o.source);this.metrics.lookup_ms=Date.now()-lookupStart;
-  const text=`<b>Карточка товара</b>\n\n${safe(name)}\n\n<b>Цена:</b> ${money(row.price)}${unitPrice(o,row.price)?'\nЗа кг/литр: '+unitPrice(o,row.price).label:''}\n<b>Магазин:</b> ${safe(o.format)}\n<b>Прайс:</b> ${o.date}`+(row.price<o.regular?`\nСкидка до: ${safe(o.end||'не указано')}`:'')+(specs?'\n\n'+specs:'')+(o.product.startsWith('gtin:')&&best&&best.price<row.price?`\n\nВыгоднее: ${money(best.price)} · ${safe(JSON.parse(best.payload).format)}`:'')+'\n\nНаличие и цена филиала могут отличаться.';
+  const text=`<b>Карточка товара</b>\n\n${safe(name)}\n\n<b>Цена:</b> ${money(row.price)}${unitPrice(o,row.price)?'\nЗа кг/литр: '+unitPrice(o,row.price).label:''}\n<b>Магазин:</b> ${safe(o.format)}\n<b>Прайс:</b> ${o.date}`+(measurementIssue(o.name)==='wrong_dimension'?'\n<b>Упаковка:</b> размер в прайсе требует проверки':'')+(row.price<o.regular?`\nСкидка до: ${safe(o.end||'не указано')}`:'')+(specs?'\n\n'+specs:'')+(o.product.startsWith('gtin:')&&best&&best.price<row.price?`\n\nВыгоднее: ${money(best.price)} · ${safe(JSON.parse(best.payload).format)}`:'')+'\n\nНаличие и цена филиала могут отличаться.';
   const rows=[[button(this.user.cartTarget?'✅ Выбрать для корзины':'🛒 Добавить в корзину','basketadd:'+o.id+':'+(this.user.cartTarget||''))],[button('🔔 Следить за ценой','watch:'+o.id)]];
   if(locations.length>1)rows.push([button('🏪 Цены внутри сети','locations:'+o.id)]);
   rows.push([button(this.translationRequested?'🇷🇸 Оригинал':'🇷🇺 Перевести название',(this.translationRequested?'offer:':'translate:offer:')+id)]);
@@ -216,7 +217,14 @@ export class Bot{
    }
    if(/^page[0-3]$/.test(value))return this.refine(draft,facet.key,Number(value.slice(4)));
    if(value==='any')delete draft.selected[facet.key];else if(/^\d{1,2}$/.test(value)&&facet.values[Number(value)])draft.selected[facet.key]=Number(value);else return this.refine(draft);
-   if(['brand','type'].includes(facet.key)){delete draft.selected.pack;delete draft.selected.fat;delete draft.selected.socket;}await this.store.patch(uid,{refinement:draft});return this.refine(draft);
+   if(['brand','type'].includes(facet.key)){
+    delete draft.selected.pack;delete draft.selected.fat;delete draft.selected.socket;
+    try{
+     const filters=refinementFilters(draft),samples=await this.store.refinementSamples(draft.query,Date.now(),filters),next=buildRefinement(draft.query,samples.map(r=>JSON.parse(r.payload)),Math.random().toString(36).slice(2,10),Date.now(),true);
+     if(next){restoreRefinement(next,filters);await this.store.patch(uid,{refinement:next});this.user.refinement=next;return this.refine(next);}
+    }catch{/* Keep existing choices if the optional refresh fails. */}
+   }
+   await this.store.patch(uid,{refinement:draft});return this.refine(draft);
   }
   if(/^relax:[a-z0-9]{7}$/.test(action)){
    if(action.slice(6)!==this.user.searchRev||!this.user.query)return this.panel('<b>Поиск уже изменился</b>',[[button('🔎 Поиск','search')]]);

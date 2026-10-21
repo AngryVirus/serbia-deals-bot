@@ -1,8 +1,8 @@
-import {normalize,energyQuery,volumeQuery,weightQuery,queryGroups,plainMilkQuery} from './domain.js';
+import {normalize,energyQuery,volumeQuery,weightQuery,queryGroups,plainMilkQuery,packageMeasure} from './domain.js';
 export function measure(text){
- const volume=volumeQuery(text);if(volume)return {kind:'volume',amount:volume.ml,label:volume.ml>=1000?(volume.ml/1000)+' л':volume.ml+' мл',forms:volume.forms};
- const m=weightQuery(text);if(!m)return null;const grams=m.grams;
- return {kind:'weight',amount:grams,label:grams>=1000?(grams/1000)+' кг':grams+' г',forms:m.forms};
+ const m=packageMeasure(text);if(!m)return null;
+ const {kind,amount}=m,label=amount>=1000?(amount/1000)+(kind==='volume'?' л':' кг'):amount+(kind==='volume'?' мл':' г');
+ return {kind,amount,label};
 }
 const types=[
  {query:/(?:^|\s)(?:молоко|молока|mleko|mlijeko)(?=\s|$)/i,choices:[['Питьевое',['milkplain']],['Кисломолочное',['kisel','kis']],['Шоколадное',['cokolad']]]},
@@ -14,15 +14,20 @@ const types=[
  {query:/(?:^|\s)(?:рис|риса|pirinac)(?=\s|$)/i,choices:[['Длиннозёрный',['dugo']],['Круглозёрный',['okrug']],['Басмати',['basmati']],['Жасмин',['jasmin']]]},
  {query:/(?:^|\s)(?:вода|воды|voda)(?=\s|$)/i,choices:[['Газированная',['gazirana','gaziran']],['Негазированная',['negaz']]]}
 ];
+export function matchesType(offer,terms){
+ const t=normalize(offer.name),tokens=t.split(' ');
+ if(terms[0]==='milkplain')return !tokens.some(w=>/^(kisel|kis$|cokolad|coko|cok$|kakao|arom|ukus|prah|suvo|susen|kondenz|evapor|badem|kokos|soj|ovsen|pirinac|pocet|adapt|formul)/.test(w));
+ return terms.some(term=>tokens.some(w=>w.startsWith(term)));
+}
 const meaningfulBrand=brand=>typeof brand==='string'&&brand.length<=80&&!/^(brend|brand|unknown|n\/a|bez brenda|-|nepoznat)$/i.test(brand.trim());
 export function buildRefinement(query,offers,token,now=Date.now(),single=false){
  if(!offers.length||/^\d{8,14}$/.test(query.trim()))return null;
  const normalized=normalize(query),facets=[],options=(key,label,values)=>{if(values.length>(single?0:1))facets.push({key,label,values:values.slice(0,24)});};
  const category=types.find(x=>x.query.test(query));
- if(category&&!plainMilkQuery(query)){const groups=queryGroups(query);if(!category.choices.some(([,terms])=>groups.some(g=>g.length<=2&&g.some(t=>terms.includes(t)))))options('type','Вид',category.choices.map(([label,terms])=>({label,value:terms})));}
+ if(category&&!plainMilkQuery(query)){const groups=queryGroups(query);if(!category.choices.some(([,terms])=>groups.some(g=>g.length<=2&&g.some(t=>terms.includes(t)))))options('type','Вид',category.choices.filter(([,terms])=>offers.some(o=>matchesType(o,terms))).map(([label,terms])=>({label,value:terms})));}
  const brands=[...new Set(offers.map(o=>o.brand).filter(meaningfulBrand))];
  if(!brands.some(b=>normalized.includes(normalize(b))))options('brand','Бренд',brands.map(b=>({label:b,value:b})));
- if(!measure(query)){const packs=new Map();for(const o of offers){const m=measure(o.name);if(m&&(!energyQuery(query)||m.kind==='volume'))packs.set(m.kind+':'+m.amount,m);}const sizes=[...packs.values()],label=sizes.every(m=>m.kind==='volume')?'Объём':sizes.every(m=>m.kind==='weight')?'Вес':'Упаковка';options('pack',label,[...packs.values()].sort((a,b)=>a.kind.localeCompare(b.kind)||a.amount-b.amount).map(m=>({label:m.label,value:{kind:m.kind,amount:m.amount}})));}
+ if(!volumeQuery(query)&&!weightQuery(query)){const packs=new Map();for(const o of offers){const m=measure(o.name);if(m&&(!energyQuery(query)||m.kind==='volume'))packs.set(m.kind+':'+m.amount,m);}const sizes=[...packs.values()],label=sizes.every(m=>m.kind==='volume')?'Объём':sizes.every(m=>m.kind==='weight')?'Вес':'Упаковка';options('pack',label,[...packs.values()].sort((a,b)=>a.kind.localeCompare(b.kind)||a.amount-b.amount).map(m=>({label:m.label,value:{kind:m.kind,amount:m.amount}})));}
  if(!/\d\s*[.,]?\d*\s*%/.test(query)&&/(молок|mlek|jogurt|йогурт|сметан|pavlak|сливк)/i.test(query)){const fat=[...new Set(offers.flatMap(o=>{const m=o.name.match(/(\d+(?:[.,]\d+)?)\s*%/);return m?[m[1].replace(',','.')]:[];}))];options('fat','Жирность',fat.sort((a,b)=>Number(a)-Number(b)).map(f=>({label:f+'%',value:f})));}
  if(!/(?:e14|e27|gu10|g9|g4|h4|h7)/i.test(query)){const sockets=[...new Set(offers.map(o=>o.traits?.socket).filter(Boolean))];options('socket','Цоколь',sockets.map(s=>({label:s,value:s})));}
  return facets.length?{query,token,facets,selected:{},expires:now+15*60000}:null;
