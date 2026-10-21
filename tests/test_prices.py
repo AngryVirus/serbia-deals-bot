@@ -32,6 +32,33 @@ class PricesTests(unittest.TestCase):
     def test_valid_gtin_is_shared_and_internal_codes_are_local(self):
         self.assertEqual(gtin('4006381333931'),'04006381333931')
         for value in ['4006381333932','0000020240332','2012345678903','123']:self.assertIsNone(gtin(value))
+    def test_canonical_gtin_formats_preserve_leading_zero_equivalence(self):
+        for value in ['96385074','000096385074','0000096385074','00000096385074']:
+            self.assertEqual(gtin(value),'00000096385074')
+        for value in ['036000291452','0036000291452','00036000291452']:
+            self.assertEqual(gtin(value),'00036000291452')
+        self.assertEqual(gtin('4006381333931'),gtin('04006381333931'))
+        self.assertEqual(gtin('14006381333938'),'14006381333938')
+        # The first digit is packaging, not the GS1 prefix of a GTIN-14.
+        self.assertEqual(gtin('20012345678909'),'20012345678909')
+    def test_all_restricted_circulation_formats_remain_local(self):
+        # Each number has a valid check digit; the prefix prevents a global key.
+        values=['20000004','01234565','00000000','000020000004','0000020000004','00000020000004',
+                '200123456788','400123456782','0201234567899','0401234567893',
+                '2012345678903','00401234567893','42012345678901']
+        for value in values:
+            with self.subTest(value=value):self.assertIsNone(gtin(value))
+    def test_ean8_reclassification_does_not_change_offer_identity(self):
+        body=csv_body([{'Barkod proizvoda':'96385074'}])
+        offers,_=parse_prices(body,SOURCE,today=TODAY)
+        self.assertEqual(offers[0]['product'],'gtin:00000096385074')
+        import hashlib
+        expected=hashlib.sha256((SOURCE['id']+'|'+SOURCE['name']+'|96385074').encode()).hexdigest()[:32]
+        self.assertEqual(offers[0]['id'],expected)
+        other={**SOURCE,'id':'b'*24}
+        alternatives,_=parse_prices(body,other,today=TODAY)
+        self.assertNotEqual(offers[0]['id'],alternatives[0]['id'])
+        self.assertEqual(offers[0]['product'],alternatives[0]['product'])
     def test_duplicates_and_conflicting_prices(self):
         offers,stats=parse_prices(csv_body([{},{}]),SOURCE,today=TODAY);self.assertEqual(len(offers),1);self.assertEqual(stats['duplicates'],1)
         with self.assertRaises(ValueError):parse_prices(csv_body([{}, {'Redovna cena':'100'}]),SOURCE,today=TODAY)
@@ -41,6 +68,17 @@ class PricesTests(unittest.TestCase):
         row={'Snižena cena':'99.99','Datum početka sniženja':'19.10.2026','Datum kraja sniženja':'01.01.2200'}
         offers,_=parse_prices(csv_body([row]),SOURCE,today=TODAY);self.assertEqual(offers[0]['discount'],9999);self.assertIsNone(offers[0]['end'])
         offers,_=parse_prices(csv_body([{**row,'Datum kraja sniženja':'18.10.2026'}]),SOURCE,today=TODAY);self.assertIsNone(offers[0]['discount'])
+    def test_future_promotion_is_preserved_for_runtime_activation(self):
+        row={'Snižena cena':'99.99','Datum početka sniženja':'20.10.2026','Datum kraja sniženja':'25.10.2026'}
+        offers,_=parse_prices(csv_body([row]),SOURCE,today=TODAY)
+        self.assertEqual(offers[0]['discount'],9999)
+        self.assertEqual(offers[0]['begin'],'2026-10-20')
+        self.assertEqual(offers[0]['end'],'2026-10-25')
+        for changes in ({'Datum početka sniženja':''},{'Datum kraja sniženja':''},
+                        {'Datum kraja sniženja':'19.10.2026'},{'Snižena cena':'199.99'}):
+            with self.subTest(changes=changes):
+                invalid,_=parse_prices(csv_body([{**row,**changes}]),SOURCE,today=TODAY)
+                self.assertIsNone(invalid[0]['discount'])
     def test_truncated_or_wrong_schema_fails(self):
         for body in [b'name;price\na;1\n',csv_body([{}]).rsplit(b';',1)[0]]:
             with self.assertRaises(ValueError):parse_prices(body,SOURCE,today=TODAY)
