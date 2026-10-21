@@ -98,7 +98,7 @@ export async function adminRoute(bot,action,text){
   }else if((action==='admin:quality'||/^admin:quality:[0-9]{1,3}$/.test(action))&&role==='owner'){
    const sources=(await bot.store.sources()).filter(s=>s.active),page=Math.min(Math.floor(Math.max(0,sources.length-1)/2),Number(action.split(':')[2])||0),rows=[],parts=[];
    for(const source of sources.slice(page*2,page*2+2)){
-    const quality=await bot.store.meta('catalog_quality:'+source.id),raw=await bot.store.meta('catalog_parse:'+source.id),valid=quality?.gen===source.current_gen,parsed=raw?.gen===source.current_gen?raw:null;
+    const quality=await bot.store.meta('catalog_quality:'+source.id),raw=await bot.store.meta('catalog_parse:'+source.id),valid=quality?.gen===source.current_gen&&quality.version===MEASURE_VERSION,parsed=raw?.gen===source.current_gen?raw:null;
     parts.push('<b>'+safe(source.name)+'</b>\n'+sourceHealth(source).label+'\n'+(!valid?'Проверка этого прайса ещё не завершена.':
      'Проверено товаров: '+quality.offers+'\nСпорная размерность: '+quality.wrong_dimension+' · Скачки цены: '+quality.price_jumps+'\nСравнено с прошлым прайсом: '+quality.price_compared+'\nРасхождения единиц источника: '+quality.metadata_conflicts+(quality.coverage_drop?'\n⚠️ Каталог сократился более чем вдвое.':'')+(quality.examples.length?'\nПроверить: '+quality.examples.slice(0,2).map(e=>safe(e.name)).join('; '):''))+(parsed?'\nПовторы убраны: '+parsed.duplicates+' · Конфликтов: '+parsed.conflicts:'\nИсходные повторы: данные появятся после сбора.'));
    }

@@ -11,8 +11,8 @@ const keys=f=>f.sent.at(-1).reply_markup.inline_keyboard.flat();
 const run=(f,input)=>manage(input,{ownerRun:true},f);
 
 test('packaging and unit prices share dimension checks without converting or treating specifications as contents',()=>{
- for(const name of ['Donut 1l','Пончик 75 л','Energetski napitak 200g','Энергетик 200 г','Sijalica E27 200g','Posuda 2l','Laptop 16g']){assert.equal(packageMeasure(name),null,name);assert.equal(measure(name),null,name);assert.equal(unitPrice({name},10000),null,name);}
- for(const [name,kind,amount]of [['Donut 75g','weight',75],['Red Bull 0.5l','volume',500],['Cedevita napitak 200g','weight',200],['Sladoled 500ml','volume',500],['Mleko u prahu 400g','weight',400],['Kiselo mleko 180g','weight',180],['Voda Donat Mg 1l','volume',1000],['Kukuruz 3x212ml','volume',636],['Kafa iced coffee 230ml','volume',230]]){assert.deepEqual(packageMeasure(name),{kind,amount},name);assert.equal(measure(name).amount,amount,name);}
+ for(const name of ['Donut 1l','Пончик 75 л','Energetski napitak 200g','Энергетик 200 г','Sijalica E27 200g','Posuda 2l','Laptop 16g','Kese za smece 120l','Kanister za benzin 10l','Bokal 2l','Termo torba 7l','Torba za alat max 20kg','Kese za zamrzivac 1kg','Ugradna kanta za otpatke 16l']){assert.equal(packageMeasure(name),null,name);assert.equal(measure(name),null,name);assert.equal(unitPrice({name},10000),null,name);}
+ for(const [name,kind,amount]of [['Donut 75g','weight',75],['Red Bull 0.5l','volume',500],['Cedevita napitak 200g','weight',200],['Sladoled 500ml','volume',500],['Mleko u prahu 400g','weight',400],['Kiselo mleko 180g','weight',180],['Voda Donat Mg 1l','volume',1000],['Kukuruz 3x212ml','volume',636],['Kafa iced coffee 230ml','volume',230],['Silikon za akvarijume 310ml','volume',310],['Vino Vranac 1l','volume',1000],['Kafa kesa 200g','weight',200]]){assert.deepEqual(packageMeasure(name),{kind,amount},name);assert.equal(measure(name).amount,amount,name);}
  assert.equal(rawPackageMeasure('Donut 1l').kind,'volume');assert.equal(measurementIssue('Donut 1l'),'wrong_dimension');assert.equal(measurementIssue('Posuda 2l'),'capacity_or_specification');
 });
 test('refinements exclude wrong and conflicting packages and show only observed product types',()=>{
@@ -66,7 +66,7 @@ test('canonical package indexing matches a complete multipack and rejects a sing
  const row=await f.store.offer(offer(1).id);assert.deepEqual(JSON.parse(row.payload)._measure,{kind:'volume',amount:1500});
 });
 test('quality backfill adds canonical measures and searchable terms to legacy rows without changing source names or prices',async()=>{
- const f=await fixture();await publish(f,[offer(1,{name:'Energetski napitak 6x250ml',terms:['energetski','napitak','6x250ml']})]);await f.db.run("UPDATE sd_offers SET payload=json_remove(payload,'$._measure')");await f.db.run("DELETE FROM sd_terms WHERE term IN ('1500ml','5l','150cl')");await f.db.run('DELETE FROM sd_meta WHERE key=:key',{':key':'catalog_quality:'+source});
+ const f=await fixture();await publish(f,[offer(1,{name:'Energetski napitak 6x250ml',terms:['energetski','napitak','6x250ml']})]);await f.db.run("UPDATE sd_offers SET payload=json_remove(payload,'$._measure','$._measure_rev')");await f.db.run("DELETE FROM sd_terms WHERE term IN ('1500ml','5l','150cl')");await f.db.run('DELETE FROM sd_meta WHERE key=:key',{':key':'catalog_quality:'+source});
  assert((await run(f,{operation:'quality_page',source})).done);const row=await f.store.offer(offer(1).id),payload=JSON.parse(row.payload);assert.equal(payload.name,'Energetski napitak 6x250ml');assert.equal(row.price,offer().regular);assert.deepEqual(payload._measure,{kind:'volume',amount:1500});assert.equal((await f.store.search('энергетик 1,5 л')).length,1);
 });
 
@@ -87,6 +87,6 @@ test('every reviewed spelling form compiles to the same product groups as its ca
 
 test('an import resumed from legacy staging indexes missing quantities before publishing',async()=>{
  const f=await fixture(),{ingest}=await import('../tgcloud/lib/ingest.js'),context={source,gen:'b'.repeat(32),owner:'11111111-1111-4111-8111-111111111111'},o=offer(1,{name:'Energetski napitak 6x250ml',terms:['energetski','napitak','6x250ml']});
- await ingest(f.store,{operation:'begin',...context,name:'Example',url:`https://data.gov.rs/sr/datasets/${source}/`,date:o.date,chunks:1});await ingest(f.store,{operation:'chunk',...context,part:0,rows:[o]});await f.db.run("UPDATE sd_offers SET payload=json_remove(payload,'$._measure')");await f.db.run("DELETE FROM sd_terms WHERE term IN ('1500ml','5l','150cl')");await ingest(f.store,{operation:'finish',...context,count:1});
+ await ingest(f.store,{operation:'begin',...context,name:'Example',url:`https://data.gov.rs/sr/datasets/${source}/`,date:o.date,chunks:1});await ingest(f.store,{operation:'chunk',...context,part:0,rows:[o]});await f.db.run("UPDATE sd_offers SET payload=json_remove(payload,'$._measure','$._measure_rev')");await f.db.run("DELETE FROM sd_terms WHERE term IN ('1500ml','5l','150cl')");await ingest(f.store,{operation:'finish',...context,count:1});
  assert.equal((await f.store.search('энергетик 1.5 л')).length,1);assert.equal((await f.store.meta('catalog_quality:'+source)).offers,1);
 });

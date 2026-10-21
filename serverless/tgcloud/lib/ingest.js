@@ -1,8 +1,8 @@
-import { requireValue,day,cutoff,emptyQuality,auditOffer,measuredOffer } from './domain.js';
+import { requireValue,day,cutoff,emptyQuality,auditOffer,measuredOffer,MEASURE_VERSION } from './domain.js';
 export async function indexMeasures(db,source,gen,offers){
  if(!offers.length)return;
  const params={':rows':JSON.stringify(offers.map(measuredOffer)),':source':source,':gen':gen};
- await db.run("INSERT INTO sd_offers(source,gen,id,product,name,regular,discount,begin,end,date,payload) SELECT o.source,o.gen,o.id,o.product,o.name,o.regular,o.discount,o.begin,o.end,o.date,json_set(o.payload,'$._measure',json_extract(r.value,'$._measure')) FROM json_each(:rows) r CROSS JOIN sd_offers o WHERE o.source=:source AND o.gen=:gen AND o.id=json_extract(r.value,'$.id') ON CONFLICT(source,gen,id) DO UPDATE SET payload=excluded.payload",params);
+ await db.run("INSERT INTO sd_offers(source,gen,id,product,name,regular,discount,begin,end,date,payload) SELECT o.source,o.gen,o.id,o.product,o.name,o.regular,o.discount,o.begin,o.end,o.date,json_set(o.payload,'$._measure',json_extract(r.value,'$._measure'),'$._measure_rev',2) FROM json_each(:rows) r CROSS JOIN sd_offers o WHERE o.source=:source AND o.gen=:gen AND o.id=json_extract(r.value,'$.id') ON CONFLICT(source,gen,id) DO UPDATE SET payload=excluded.payload",params);
  await db.run("INSERT INTO sd_terms(offer,term) SELECT o.rowid,t.value FROM json_each(:rows) r CROSS JOIN sd_offers o CROSS JOIN json_each(r.value,'$.terms') t WHERE o.source=:source AND o.gen=:gen AND o.id=json_extract(r.value,'$.id') ON CONFLICT DO NOTHING",params);
 }
 async function cleanupGeneration(store,source,gen){
@@ -64,7 +64,7 @@ export async function ingest(store,input){
   let check=await store.meta(verifyKey);
   if(check?.gen!==gen||!check.quality)check={gen,after:'',count:0,date:'',quality:emptyQuality()};
   const page=await db.all('SELECT o.id,o.date,o.payload,old.name AS previous_name,old.regular AS previous_regular FROM sd_offers o LEFT JOIN sd_offers old ON old.source=:source AND old.gen=:previous AND old.id=o.id WHERE o.source=:source AND o.gen=:gen AND o.id>:after ORDER BY o.id LIMIT 1000',{...p,':after':check.after,':previous':state.current_gen});
-  const legacy=page.map(row=>JSON.parse(row.payload)).filter(offer=>!Object.hasOwn(offer,'_measure'));
+  const legacy=page.map(row=>JSON.parse(row.payload)).filter(offer=>!Object.hasOwn(offer,'_measure')||offer._measure_rev!==MEASURE_VERSION);
   await indexMeasures(db,source,gen,legacy);
   for(const row of page){check.after=row.id;check.count++;auditOffer(check.quality,JSON.parse(row.payload),{name:row.previous_name,regular:row.previous_regular});if(row.date>check.date)check.date=row.date;}
   await store.setMeta(verifyKey,check);
@@ -73,7 +73,7 @@ export async function ingest(store,input){
   const offers={n:check.count},snapshot={date:check.date};
   await store.setMeta('catalog_count:'+source+':'+gen,offers.n);
   const previousCount=state.current_gen?await store.meta('catalog_count:'+source+':'+state.current_gen):null;
-  await store.setMeta('catalog_quality:'+source,{gen,date:check.date,checked:now,...check.quality,coverage_drop:previousCount>100&&offers.n<previousCount/2});
+  await store.setMeta('catalog_quality:'+source,{gen,date:check.date,checked:now,version:MEASURE_VERSION,...check.quality,coverage_drop:previousCount>100&&offers.n<previousCount/2});
   if(state.current_gen&&state.current_gen!==gen)await enqueue(state.current_gen);
   const result=await db.run(`UPDATE sd_sources SET current_gen=:gen,stage_gen=NULL,lease=NULL,owner=NULL,date=:date,checked=:now,status='ok' WHERE id=:source AND owner=:owner AND stage_gen=:gen AND lease>:now`,{...p,':date':snapshot.date});requireValue(result.rowsAffected===1,'Publication lost lease');
   return {published:true,count:offers.n};

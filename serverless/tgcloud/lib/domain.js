@@ -153,6 +153,7 @@ export function measurePolicy(name){
  const exact=words=>new RegExp('(?:^| )(?:'+words+')(?: |$)').test(t);
  const head=t.replace(/^(?:[0-9]+ )?[0-9]+(?:ml|l|cl|kg|gr|g) /,'');
  if(/kasika ljubavi/.test(t))return 'either';
+ if(has('torb|ranac|ruksak|bokal|kanister|rezervoar|kant(?:a|e|u)|kofa|cinij')||/^(?:prskal|akvarijum)/.test(head)||exact('sprej boca')||has('kes[ae]|dzak')&&has('smec|djub|dj(?= |$)|zamrz|zipper|otpad')||has('prskalic')&&/[0-9]+cm/.test(t))return 'piece';
  // A vessel's capacity and an appliance's load limit are specifications.
  if(/^(?:solj|casa|case|flas|boc|termos|lonac|lonc|posud|serp|tiganj|kanta|kante|kantu|kofa|saksij|kalup|kutij|aparat|kuval|frizider|zamrzivac|sporet|rerna|usisivac|vesmasin|masina|mikser|blender|toster|noz|kasik|viljusk|tanjir|makaz|odvijac|cekic|busilic|merdevin|laptop|memorij|telefon|top za punjenje)/.test(head)||has('sijalic|zarulj|plafonjer|baterij|nosivost')||/лампоч|батарей|кастрюл|сковород|чайник|бутыл|кружк|стакан|ведро|горшок|пылесос|ноутбук|телефон/.test(ru))return 'piece';
  if(exact('donat mg'))return 'volume';
@@ -177,9 +178,10 @@ export function packageMeasure(name){
 }
 // Keep a validated quantity beside the original title. It lets SQL compare
 // complete multipacks without guessing from a unit substring or source field.
+export const MEASURE_VERSION=2;
 export function measuredOffer(offer){
  const pack=packageMeasure(offer.name),n=pack?.amount,forms=!pack?[]:pack.kind==='volume'?[n+'ml',(n/1000)+'l',(n/10)+'cl']:[n+'g',n+'gr',(n/1000)+'kg'];
- return {...offer,_measure:pack,terms:[...new Set([...(offer.terms||[]),...forms.flatMap(f=>normalize(f).split(' '))])]};
+ return {...offer,_measure:pack,_measure_rev:MEASURE_VERSION,terms:[...new Set([...(offer.terms||[]),...forms.flatMap(f=>normalize(f).split(' '))])]};
 }
 // Bounded aggregate over public catalogue data; no user input or identity.
 export const emptyQuality=()=>({offers:0,measurable:0,wrong_dimension:0,specifications:0,metadata_conflicts:0,price_compared:0,price_jumps:0,examples:[]});

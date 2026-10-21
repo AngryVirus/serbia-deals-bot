@@ -29,7 +29,7 @@ const termPrefixes=prefixes=>{const lengths=new Map();for(const p of prefixes){i
 const hasTerm=condition=>`EXISTS(SELECT 1 FROM sd_terms e WHERE e.offer=o.rowid AND (${condition}))`;
 // Preserve boundaries around stock codes (SK24 250ml); only join units to amounts.
 const COMPACT_TITLE=(()=>{let sql="replace(replace(replace(lower(o.name),char(9),' '),'  ',' '),'  ',' ')";for(const [from,to] of [[',','.'],['мл','ml'],['кг','kg'],['г','g'],['л','l'],[' ml','ml'],[' kg','kg'],[' cl','cl'],[' g','g'],[' l','l'],[' %','%']])sql=`replace(${sql},'${from}','${to}')`;return "(' '||"+sql+"||' ')";})();
-const PACK_KIND="json_extract(o.payload,'$._measure.kind')",PACK_AMOUNT="json_extract(o.payload,'$._measure.amount')",PACK_KNOWN="json_type(o.payload,'$._measure') IS NOT NULL";
+const PACK_KIND="json_extract(o.payload,'$._measure.kind')",PACK_AMOUNT="json_extract(o.payload,'$._measure.amount')",PACK_KNOWN="(json_type(o.payload,'$._measure') IS NOT NULL AND COALESCE(json_extract(o.payload,'$._measure_rev'),0)=2)";
 const packConstraint=(kind,amount,legacy)=>`((${PACK_KNOWN} AND ${PACK_KIND}='${kind}' AND ${PACK_AMOUNT}=${amount}) OR (NOT (${PACK_KNOWN}) AND (${legacy})))`;
 const ENERGY_TYPE=`(${hasTerm("e.term>='energet' AND e.term<'energeu'")} OR (${hasTerm("e.term='energy'")} AND ${hasTerm("e.term IN ('drink','drinks','napitak','pice')")}) OR (${hasTerm("e.term='red'")} AND ${hasTerm("e.term='bull'")}) OR ${hasTerm("e.term='redbull'")} OR lower(trim(json_extract(o.payload,'$.brand'))) IN ('red bull','redbull','guarana','monster','monster energy','hell','hell energy','ultra energy'))`;
 const ENERGY=`(${ENERGY_TYPE} AND (NOT ${hasTerm("e.term GLOB '[0-9]*g'")} OR ${hasTerm("e.term GLOB '[0-9]*ml' OR e.term GLOB '[0-9]*l' OR e.term GLOB '[0-9]*cl'")}))`;

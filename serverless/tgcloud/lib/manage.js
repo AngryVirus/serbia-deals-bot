@@ -1,7 +1,7 @@
 import {checkHealth} from './health.js';
 import { Store } from './store.js';
 import { cartItems,compareBasket } from './basket.js';
-import { OWNER_ID,assertBot,requireValue,emptyQuality,auditOffer } from './domain.js';
+import { OWNER_ID,assertBot,requireValue,emptyQuality,auditOffer,MEASURE_VERSION } from './domain.js';
 import { ingest,indexMeasures } from './ingest.js';
 import { prepareNotifications,deliverNotifications } from './notifications.js';
 import { unzlibSync } from './image-codec.js';
@@ -53,16 +53,16 @@ export async function manage(input,ctx,{db,api}){
   requireValue(/^[a-f0-9]{24}$/.test(input.source||''));
   const source=await db.get('SELECT current_gen,date FROM sd_sources WHERE id=:source',{':source':input.source});if(!source?.current_gen)return {skipped:true};
   const key='quality_scan:'+input.source,summaryKey='catalog_quality:'+input.source,current=await store.meta(summaryKey);
-  if(current?.gen===source.current_gen&&current.offers>0)return {done:true,offers:current.offers};
+  if(current?.gen===source.current_gen&&current.version===MEASURE_VERSION&&current.offers>0)return {done:true,offers:current.offers};
   await db.run("INSERT INTO sd_meta(key,value) VALUES(:key,'null') ON CONFLICT DO NOTHING",{':key':key});
-  const old=await store.meta(key),next=old?.gen===source.current_gen?{...old,quality:{...old.quality,examples:[...old.quality.examples]}}:{gen:source.current_gen,after:'',quality:emptyQuality()};
+  const old=await store.meta(key),next=old?.gen===source.current_gen&&old.version===MEASURE_VERSION?{...old,quality:{...old.quality,examples:[...old.quality.examples]}}:{gen:source.current_gen,version:MEASURE_VERSION,after:'',quality:emptyQuality()};
   const rows=await db.all('SELECT id,payload FROM sd_offers WHERE source=:source AND gen=:gen AND id>:after ORDER BY id LIMIT 500',{':source':input.source,':gen':source.current_gen,':after':next.after});
   for(const row of rows){auditOffer(next.quality,JSON.parse(row.payload));next.after=row.id;}
   await indexMeasures(db,input.source,source.current_gen,rows.map(row=>JSON.parse(row.payload)));
   const live=await db.get('SELECT current_gen FROM sd_sources WHERE id=:source',{':source':input.source});if(live.current_gen!==next.gen)return {changed:true};
   const saved=await db.run('UPDATE sd_meta SET value=:next WHERE key=:key AND value=:old',{':key':key,':next':JSON.stringify(next),':old':JSON.stringify(old)});if(saved.rowsAffected!==1)return {busy:true};
   if(rows.length===500)return {more:true,offers:next.quality.offers};
-  await store.setMeta(summaryKey,{gen:next.gen,date:source.date,checked:Date.now(),...next.quality,coverage_drop:false});
+  await store.setMeta(summaryKey,{gen:next.gen,date:source.date,checked:Date.now(),version:MEASURE_VERSION,...next.quality,coverage_drop:false});
   await db.run('DELETE FROM sd_meta WHERE key=:key AND value=:next',{':key':key,':next':JSON.stringify(next)});return {done:true,offers:next.quality.offers};
  }
  if(operation==='basket_check'){
