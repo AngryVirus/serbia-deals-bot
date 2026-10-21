@@ -15,5 +15,5 @@ export function basketSummary(result,{offset=0,itemOffset=0,names=new Map()}={})
    if(row?.ambiguous)return `↪ ${safe(name)} — выберите вид или упаковку`;
    return row?`${row.estimated?'~':'✓'} ${safe(name)}${row.demand?' · нужно '+safe(row.demand)+' / '+row.quantity+' уп.'+(row.supplied!==row.demand?' · получите '+safe(row.supplied):''):' × '+row.quantity} — ${row.estimated?'от ':''}${money(row.total)}${row.variant?' · '+safe(row.variant):''}${row.unitPrice?' · '+safe(row.unitPrice):''}`:`✕ ${safe(name)} — ${safe(reasons.get(item.id)||'не найдено')}`;
   }).join('\n')+(ready?`\n<b>${complete?'Весь список':'Найденные товары'}:</b> ${result.estimated?'от ':''}${money(s.total)}`:'\nИтог после выбора вида или упаковки');
- }).join('\n\n')+(result.estimated?'\n\nПодбор по названию: вид товара и упаковка могут различаться. Уточняемые позиции не входят в итог. Частичная сумма — только за найденное.':'\n\nСравниваем выбранные товары.')+'\nНаличие и цены филиала могут отличаться.';
+ }).join('\n\n')+(result.estimated?'\n\nПодбор по названию: вид товара и упаковка могут различаться. Уточняемые позиции не входят в итог.':'\n\nСравниваем выбранные товары.')+'\nНаличие и цены филиала могут отличаться.';
 }

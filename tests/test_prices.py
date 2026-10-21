@@ -33,7 +33,7 @@ class PricesTests(unittest.TestCase):
         self.assertEqual(gtin('4006381333931'),'04006381333931')
         for value in ['4006381333932','0000020240332','2012345678903','123']:self.assertIsNone(gtin(value))
     def test_duplicates_and_conflicting_prices(self):
-        offers,_=parse_prices(csv_body([{},{}]),SOURCE,today=TODAY);self.assertEqual(len(offers),1)
+        offers,stats=parse_prices(csv_body([{},{}]),SOURCE,today=TODAY);self.assertEqual(len(offers),1);self.assertEqual(stats['duplicates'],1)
         with self.assertRaises(ValueError):parse_prices(csv_body([{}, {'Redovna cena':'100'}]),SOURCE,today=TODAY)
     def test_formats_remain_separate(self):
         offers,_=parse_prices(csv_body([{'Naziv trgovca – formata':'Maxi'},{'Naziv trgovca – formata':'Maxi Online'}]),SOURCE,today=TODAY);self.assertEqual(len(offers),2)

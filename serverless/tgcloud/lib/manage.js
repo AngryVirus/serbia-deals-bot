@@ -60,7 +60,7 @@ export async function manage(input,ctx,{db,api}){
   for(const row of rows){auditOffer(next.quality,JSON.parse(row.payload));next.after=row.id;}
   if(rows.length){
    const measured=JSON.stringify(rows.map(row=>measuredOffer(JSON.parse(row.payload)))),params={':rows':measured,':source':input.source,':gen':source.current_gen};
-   await db.run("UPDATE sd_offers AS o SET payload=json_set(o.payload,'$._measure',json_extract(r.value,'$._measure')) FROM json_each(:rows) r WHERE o.source=:source AND o.gen=:gen AND o.id=json_extract(r.value,'$.id')",params);
+   await db.run("INSERT INTO sd_offers(source,gen,id,product,name,regular,discount,begin,end,date,payload) SELECT o.source,o.gen,o.id,o.product,o.name,o.regular,o.discount,o.begin,o.end,o.date,json_set(o.payload,'$._measure',json_extract(r.value,'$._measure')) FROM json_each(:rows) r CROSS JOIN sd_offers o WHERE o.source=:source AND o.gen=:gen AND o.id=json_extract(r.value,'$.id') ON CONFLICT(source,gen,id) DO UPDATE SET payload=excluded.payload",params);
    await db.run("INSERT INTO sd_terms(offer,term) SELECT o.rowid,t.value FROM json_each(:rows) r CROSS JOIN sd_offers o CROSS JOIN json_each(r.value,'$.terms') t WHERE o.source=:source AND o.gen=:gen AND o.id=json_extract(r.value,'$.id') ON CONFLICT DO NOTHING",params);
   }
   const live=await db.get('SELECT current_gen FROM sd_sources WHERE id=:source',{':source':input.source});if(live.current_gen!==next.gen)return {changed:true};

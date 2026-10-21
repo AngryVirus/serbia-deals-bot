@@ -149,11 +149,15 @@ import {Store} from '../lib/store.js';
 import {packageMeasure,measurementIssue,assertBot} from '../lib/domain.js';
 export default async function(input,ctx){
  if(ctx?.ownerRun!==true)throw Error('Private probe only');await assertBot(api);
- const store=new Store(db),sources=(await store.sources()).filter(s=>s.active),page=sources.length?await manage({operation:'quality_page',source:sources[0].id},{ownerRun:true},{db,api}):null;
+ let phase='source_list';
+ const traced=Object.fromEntries(['run','all','get'].map(method=>[method,async(sql,params)=>{phase=sql.startsWith('INSERT INTO sd_offers')?'canonical_update':sql.startsWith('INSERT INTO sd_terms')?'index_update':sql.startsWith('UPDATE sd_meta')?'checkpoint':method;return db[method](sql,params);} ]));
+ try{
+ const store=new Store(db),sources=(await store.sources()).filter(s=>s.active),page=sources.length?await manage({operation:'quality_page',source:sources[0].id},{ownerRun:true},{db:traced,api}):null;
  return {ok:true,page,invalid_drink:packageMeasure('Energetski napitak 200g')===null,invalid_donut:packageMeasure('Donut 1l')===null,powder_preserved:packageMeasure('Cedevita napitak 200g')?.kind==='weight',vessel_excluded:measurementIssue('Posuda 2l')==='capacity_or_specification'};
+ }catch(error){const text=String(error.message||'')+' '+JSON.stringify(error.parameters||{});return {ok:false,phase,hints:['syntax','column','table','sqlite','json','limit','instruction','memory','unsupported','allowed','denied','permission','rowid','ambiguous','function','invalid','binding','parameter'].filter(word=>text.toLowerCase().includes(word))};}
 }`;
   try{result.quality=(await client.runFunction(token,'endpoints/quality_probe',{...sources,'endpoints/quality_probe':qualityProbe},{},{ownerRun:true})).result;}
-  catch(error){const detail=String(error.message||'').toLowerCase();result.quality={ok:false,status:Number.isInteger(error.status)?error.status:null,hints:['time','limit','memory','syntax','column','table','json','function','update','from'].filter(word=>detail.includes(word))};}
+  catch(error){const detail=(String(error.message||'')+' '+JSON.stringify(error.parameters||{})).toLowerCase();result.quality={ok:false,status:Number.isInteger(error.status)?error.status:null,hints:['time','limit','memory','syntax','column','table','json','function','update','from'].filter(word=>detail.includes(word))};}
  }else if(input.command==='remote'){const r=await client.getFiles(token);result={revision:r.revision,canonical_modules:r.canonical_modules};}
  else if(input.command==='deploy'){
   const remote=await client.getFiles(token);
