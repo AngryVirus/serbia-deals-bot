@@ -16,7 +16,7 @@ const types=[
 ];
 export function matchesType(offer,terms){
  const t=normalize(offer.name),tokens=t.split(' ');
- if(terms[0]==='milkplain')return !tokens.some(w=>/^(kisel|kis$|cokolad|coko|cok$|kakao|arom|ukus|prah|suvo|susen|kondenz|evapor|badem|kokos|soj|ovsen|pirinac|pocet|adapt|formul)/.test(w));
+ if(terms[0]==='milkplain')return !tokens.some(w=>/^(kisel|kis|cokolad|coko|cok|kakao|arom|ukus|prah|suvo|susen|kondenz|evapor|badem|kokos|soj|ovsen|pirinac|pocet|adapt|formul)/.test(w));
  return terms.some(term=>tokens.some(w=>w.startsWith(term)));
 }
 const meaningfulBrand=brand=>typeof brand==='string'&&brand.length<=80&&!/^(brend|brand|unknown|n\/a|bez brenda|-|nepoznat)$/i.test(brand.trim());
