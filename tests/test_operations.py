@@ -98,6 +98,13 @@ class DiagnosticTests(unittest.TestCase):
                 self.assertEqual(call.call_count,2)
                 self.assertEqual(call.call_args.args,('moderation',))
 
+    def test_failure_summary_exposes_only_fixed_hints_and_valid_http_status(self):
+        result=diagnostics()
+        result['search']={'ok':False,'status':429,'hints':['limit','PRIVATE-VALUE',{'private':'value'}],'detail':'PRIVATE-ERROR'}
+        self.assertEqual(operations.diagnostic_failure_summary(result,['search']),'search (HTTP 429, limit)')
+        result['search']={'ok':False,'status':'PRIVATE-VALUE','hints':'PRIVATE-VALUE'}
+        self.assertEqual(operations.diagnostic_failure_summary(result,['search']),'')
+
 
 if __name__=='__main__':
     unittest.main()
