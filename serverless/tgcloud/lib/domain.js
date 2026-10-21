@@ -152,10 +152,15 @@ export function measurePolicy(name){
  const has=roots=>new RegExp('(?:^| )(?:'+roots+')[a-z0-9]*(?: |$)').test(t);
  const exact=words=>new RegExp('(?:^| )(?:'+words+')(?: |$)').test(t);
  const head=t.replace(/^(?:[0-9]+ )?[0-9]+(?:ml|l|cl|kg|gr|g) /,'');
+ const contents=/^(?:sredstvo |sred |sprej |silikon |mast |lepak |lepilo |boja |lak |ulje |tecnost |pasta |sampon |sapun |deterdzent |pena |mleko |jogurt |kefir |sok |voda |vino |rakija |pivo |keks |cokolad|med |kafa |dzem |pekmez |so )/.test(head);
+ // Identify the main object, not a container mentioned after a food or cleaner.
+ // Repeated prefixes cover sets, materials, dimensions and appliance adjectives.
+ const object=head.replace(/^(?:[0-9]+ )+/,'').replace(/^(?:(?:garn|gar|garnitura|set|dubok[a-z]*|plitk[a-z]*|pvc|inox|staklen[a-z]*|plasticn[a-z]*|metaln[a-z]*|keramic[a-z]*|porcelan[a-z]*|decij[a-z]*|termo|vatrost[a-z]*|ugradn[a-z]*|elektric[a-z]*|rucn[a-z]*|digitaln[a-z]*|kuhinjsk[a-z]*|bravar[a-z]*|ekspres|el|smart) )+/,'');
+ if(/[0-9]\s*(?:g|gr|г)\s*\/\s*(?:m[²2]|м[²2])/iu.test(String(name)))return 'piece';
  if(/kasika ljubavi/.test(t))return 'either';
- if(has('torb|ranac|ruksak|bokal|kanister|rezervoar|kant(?:a|e|u)|kofa|cinij')||/^(?:prskal|akvarijum)/.test(head)||exact('sprej boca')||has('kes[ae]|dzak')&&has('smec|djub|dj(?= |$)|zamrz|zipper|otpad')||has('prskalic')&&/[0-9]+cm/.test(t))return 'piece';
- // A vessel's capacity and an appliance's load limit are specifications.
- if(/^(?:solj|casa|case|flas|boc|termos|lonac|lonc|posud|serp|tiganj|kanta|kante|kantu|kofa|saksij|kalup|kutij|aparat|kuval|frizider|zamrzivac|sporet|rerna|usisivac|vesmasin|masina|mikser|blender|toster|noz|kasik|viljusk|tanjir|makaz|odvijac|cekic|busilic|merdevin|laptop|memorij|telefon|top za punjenje)/.test(head)||has('sijalic|zarulj|plafonjer|baterij|nosivost')||/лампоч|батарей|кастрюл|сковород|чайник|бутыл|кружк|стакан|ведро|горшок|пылесос|ноутбук|телефон/.test(ru))return 'piece';
+ if(/^(?:solj|(?:casa|case)(?= |$)|flas|boc|termos|lonac|lonc|posud|serp|tiganj|kant(?:a|e|u)(?= |$)|kofa|saksij|kalup|kutij|aparat|kuval|frizider|zamrzivac|sporet|rerna|usisivac|vesmasin|masina|mikser|blender|toster|noz|kasik|viljusk|tanjir|makaz|odvijac|cekic|busilic|merdevin|laptop|memorij|telefon|top za punjenje|bojler|vaga|korpa|dozer|dozator|cinij|tegl|prskal|akvarijum|kanister|bokal|ranac|ruksak|torba|rezervoar)/.test(object))return 'piece';
+ if(!contents&&(has('majic|pantalon|tregeric|jakn|dukseric|prsluk|trenerk|bluz|peskir|cebe|prekrivac|jorgan|posteljin|carsav|jastuk|bojler|vaga(?= |$)|vage(?= |$)|opterec|kapacitet|nosivost|sijalic|zarulj|plafonjer|baterij')||exact('sef')||has('frizider')||has('kes[ae]|dzak')&&has('smec|djub|dj(?= |$)|zamrz|zipper|otpad')||has('prskalic')&&/[0-9]+cm/.test(t)))return 'piece';
+ if(/лампоч|батарей|кастрюл|сковород|чайник|бутыл|кружк|стакан|ведро|горшок|пылесос|ноутбук|телефон|бойлер|весы|нагрузк|фритюрниц|кувшин|термос|рюкзак|футболк|куртк|брюк|полотенц/.test(ru))return 'piece';
  if(exact('donat mg'))return 'volume';
  // Both units are legitimate for these forms. Ingredients and flavour words
  // cannot establish the physical form of a product, so uncertain titles stay open.
@@ -178,7 +183,7 @@ export function packageMeasure(name){
 }
 // Keep a validated quantity beside the original title. It lets SQL compare
 // complete multipacks without guessing from a unit substring or source field.
-export const MEASURE_VERSION=2;
+export const MEASURE_VERSION=3;
 export function measuredOffer(offer){
  const pack=packageMeasure(offer.name),n=pack?.amount,forms=!pack?[]:pack.kind==='volume'?[n+'ml',(n/1000)+'l',(n/10)+'cl']:[n+'g',n+'gr',(n/1000)+'kg'];
  return {...offer,_measure:pack,_measure_rev:MEASURE_VERSION,terms:[...new Set([...(offer.terms||[]),...forms.flatMap(f=>normalize(f).split(' '))])]};

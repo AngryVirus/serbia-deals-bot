@@ -2,7 +2,7 @@ import { requireValue,day,cutoff,emptyQuality,auditOffer,measuredOffer,MEASURE_V
 export async function indexMeasures(db,source,gen,offers){
  if(!offers.length)return;
  const params={':rows':JSON.stringify(offers.map(measuredOffer)),':source':source,':gen':gen};
- await db.run("INSERT INTO sd_offers(source,gen,id,product,name,regular,discount,begin,end,date,payload) SELECT o.source,o.gen,o.id,o.product,o.name,o.regular,o.discount,o.begin,o.end,o.date,json_set(o.payload,'$._measure',json_extract(r.value,'$._measure'),'$._measure_rev',2) FROM json_each(:rows) r CROSS JOIN sd_offers o WHERE o.source=:source AND o.gen=:gen AND o.id=json_extract(r.value,'$.id') ON CONFLICT(source,gen,id) DO UPDATE SET payload=excluded.payload",params);
+ await db.run("INSERT INTO sd_offers(source,gen,id,product,name,regular,discount,begin,end,date,payload) SELECT o.source,o.gen,o.id,o.product,o.name,o.regular,o.discount,o.begin,o.end,o.date,json_set(o.payload,'$._measure',json_extract(r.value,'$._measure'),'$._measure_rev',3) FROM json_each(:rows) r CROSS JOIN sd_offers o WHERE o.source=:source AND o.gen=:gen AND o.id=json_extract(r.value,'$.id') ON CONFLICT(source,gen,id) DO UPDATE SET payload=excluded.payload",params);
  await db.run("INSERT INTO sd_terms(offer,term) SELECT o.rowid,t.value FROM json_each(:rows) r CROSS JOIN sd_offers o CROSS JOIN json_each(r.value,'$.terms') t WHERE o.source=:source AND o.gen=:gen AND o.id=json_extract(r.value,'$.id') ON CONFLICT DO NOTHING",params);
 }
 async function cleanupGeneration(store,source,gen){
