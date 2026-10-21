@@ -79,7 +79,7 @@ export async function adminRoute(bot,action,text){
   if(action==='admin'){
    const rows=[[b('🚫 Заблокировать','admin:ban')]];
    if(rank(role)>=2)rows.push([b('✅ Блокировки / разбаны','admin:list:bans:0')],[b('👥 Команда','admin:list:team:0')]);
-   if(role==='owner')rows.push([b('📊 Пользователи','admin:stats')],[b('📋 Журнал команды','admin:list:audit:0')],[b('🏪 Состояние магазинов','admin:sources')]);
+   if(role==='owner')rows.push([b('📣 Реклама','ads')],[b('📊 Пользователи','admin:stats')],[b('📋 Журнал команды','admin:list:audit:0')],[b('🏪 Состояние магазинов','admin:sources')]);
    await show(bot,`<b>Администрирование</b>\n\nВаша роль: ${ROLE_NAMES[role]}\n`+(role==='moderator'?'Вы можете блокировать пользователей.':role==='admin'?'Баны, разбаны и управление модераторами.':'Управление пользователями, командой и магазинами.'),[...rows,[b('🏠 Меню','home')]]);
   }else if(action==='admin:ban'||action==='admin:find'){
    if(action==='admin:find'&&rank(role)<2)throw Error('Недостаточно прав.');

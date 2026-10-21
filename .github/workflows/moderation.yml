@@ -1,4 +1,4 @@
-name: Deliver access notices
+name: Deliver access notices and queued ads
 on:
   workflow_dispatch:
   schedule:
@@ -24,5 +24,8 @@ jobs:
           python-version: '3.12'
       - run: npm ci --ignore-scripts --no-audit --no-fund --prefix serverless
       - run: python3 -m collector.operations moderation
+        env:
+          TGCLOUD_TOKEN: ${{ secrets.SERBIA_DEALS_CLOUD_TOKEN }}
+      - run: python3 -m collector.operations ads
         env:
           TGCLOUD_TOKEN: ${{ secrets.SERBIA_DEALS_CLOUD_TOKEN }}

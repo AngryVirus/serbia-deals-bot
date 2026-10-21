@@ -1,7 +1,8 @@
 import {buildRefinement,refinementFilters,filterLabels,restoreRefinement} from './refinements.js';
-import {basketSummary,basketNetworks} from './shopping-ui.js';
+import {basketSummary,basketNetworks,storeLabel,storePriceLabel,productIcon} from './shopping-ui.js';
 import {productNames,bilingual,briefName} from './product-names.js';
 import {adminRoute} from './admin.js';
+import {adInput,adRoute} from './ads.js';
 import {roleOf,banned,snapshot,trackUser,lockUser,unlockUser} from './moderation-state.js';
 import {deliverNotice} from './moderation-notices.js';
 import { Store } from './store.js';
@@ -59,10 +60,10 @@ export class Bot{
   if(facet){
    for(let i=page*6;i<Math.min(facet.values.length,page*6+6);i++)rows.push([button((draft.selected[key]===i?'✓ ':'')+facet.values[i].label,`ref:${draft.token}:${key}:${i}`)]);
    rows.push([button('Любой вариант',`ref:${draft.token}:${key}:any`)]);const nav=[];if(page)nav.push(button('⬅️ Варианты',`ref:${draft.token}:${key}:page${page-1}`));if(facet.values.length>(page+1)*6)nav.push(button('Варианты ➡️',`ref:${draft.token}:${key}:page${page+1}`));if(nav.length)rows.push(nav);
-   return this.panel(`<b>${safe(facet.label)}</b>\n\n${safe(draft.query)}\n\n${facet.values.length?'Выберите вариант или оставьте любой.':'С этими уточнениями вариантов нет. Оставьте любой вариант.'}`,[...rows,[button('⬅️ К уточнениям',`ref:${draft.token}:back`)]]);
+   return this.panel(`<b>${safe(facet.label)}</b>\n\n${productIcon(draft.query)} ${safe(draft.query)}\n\n${facet.values.length?'Выберите вариант или оставьте любой.':'С этими уточнениями вариантов нет. Оставьте любой вариант.'}`,[...rows,[button('⬅️ К уточнениям',`ref:${draft.token}:back`)]]);
   }
   const selected=Object.keys(draft.selected).length;
-  const text='<b>Уточнить товар?</b>\n\n'+safe(draft.query)+'\n\n'+draft.facets.map(f=>`${safe(f.label)}: ${safe(f.values[draft.selected[f.key]]?.label||'любой вариант')}`).join('\n')+'\n\nНеобязательно: без выбора покажем все варианты.';
+  const text='<b>Уточнить товар?</b>\n\n'+productIcon(draft.query)+' '+safe(draft.query)+'\n\n'+draft.facets.map(f=>`${safe(f.label)}: ${safe(f.values[draft.selected[f.key]]?.label||'любой вариант')}`).join('\n')+'\n\nНеобязательно: без выбора покажем все варианты.';
   for(const f of draft.facets)rows.push([button(f.label+': '+(f.values[draft.selected[f.key]]?.label||'любой'),`ref:${draft.token}:${f.key}:open`)]);
   rows.push([button(selected?'🔎 Показать цены':'🔎 Показать все',`ref:${draft.token}:apply`)]);if(selected)rows.push([button('Показать всё без уточнений',`ref:${draft.token}:all`)]);
   if(this.user.cartTarget)rows.push([button('✅ Сохранить в корзину',`ref:${draft.token}:save`)]);
@@ -93,16 +94,16 @@ export class Bot{
     return this.panel(text,[...buttons,[button('🛒 Моя корзина','basket')],...BACK]);
    }
    if(!source){
-    const shown=rows.slice(offset,offset+8),buttons=shown.map(row=>[button(`${row.source_name} · ${row.min_price===row.max_price?money(row.min_price):money(row.min_price).replace(' RSD','')+'–'+money(row.max_price)}`.slice(0,90),`chainsel:${rev}:${row.source_id}:0`)]);
+    const shown=rows.slice(offset,offset+8),buttons=shown.map(row=>[button(storePriceLabel(row.source_name,row.min_price,row.max_price),`chainsel:${rev}:${row.source_id}:0`)]);
     const nav=[];if(offset)nav.push(button('⬅️ Назад',`chains:${rev}:${Math.max(0,offset-8)}`));if(rows.length>offset+8)nav.push(button('Далее ➡️',`chains:${rev}:${offset+8}`));if(nav.length)buttons.push(nav);
-    buttons.push([button('⚙️ Уточнить','refine:again'),button('🔎 Поиск','search')],...(this.user.cartTarget?[[button('🛒 К корзине','basket')]]:[]),...BACK);
-    return this.panel(`<b>Выберите магазин</b>\nПоиск: ${safe(query)}${selection}\n\nНайдено сетей: ${rows.length}\n\nНа кнопках — диапазон цен.\nВнутри — товары и упаковки.`,buttons);
+    buttons.push([button('⚙️ Фильтры','refine:again'),button('🔎 Другой товар','search')],...(this.user.cartTarget?[[button('🛒 К корзине','basket')]]:[]),...BACK);
+    return this.panel(`<b>${productIcon(query)} ${safe([query,...selected].join(' · '))}</b>\n<b>Выберите магазин</b>\nДиапазон цен разных вариантов.`,buttons);
    }
    const shown=rows.slice(0,3),offers=shown.map(row=>JSON.parse(row.payload)),names=await this.names(offers),buttons=shown.map((row,index)=>[button(`${offset+index+1} · ${money(row.min_price)} · Открыть`,'offer:'+offers[index].id)]);
    const nav=[];if(offset)nav.push(button('⬅️ Товары',`chainsel:${rev}:${source}:${Math.max(0,offset-3)}`));if(rows.length>3)nav.push(button('Товары ➡️',`chainsel:${rev}:${source}:${offset+3}`));if(nav.length)buttons.push(nav);
    buttons.push([button(this.translationRequested?'🇷🇸 Оригинал':'🇷🇺 Перевести названия',this.translationRequested?'results':`translate:results:${rev}:${offset}`)]);
-   buttons.push([button('⬅️ Магазины','chains'),button('🔎 Поиск','search')],...(this.user.cartTarget?[[button('🛒 Корзина','basket')]]:[]));
-   const text=`<b>${safe(rows[0].source_name)}</b>\nПоиск: ${safe(query)}${selection}\n\n`+shown.map((row,index)=>`<b>${offset+index+1}. ${safe(briefName(names.get(offers[index].name)||bilingual(null,offers[index].name)))}</b>\nЦена: ${money(row.min_price)}${row.min_price===row.max_price?'':' — '+money(row.max_price)}${unitPrice(offers[index],row.min_price)?' · '+unitPrice(offers[index],row.min_price).label:''}`).join('\n\n');
+   buttons.push([button('⬅️ Магазины','chains'),button('🔎 Другой товар','search')],...(this.user.cartTarget?[[button('🛒 Корзина','basket')]]:[]));
+   const text=`<b>${safe(storeLabel(rows[0].source_name))}</b>\n${productIcon(query)} ${safe(query)}${selection}\n\n`+shown.map((row,index)=>`<b>${productIcon(offers[index].name)} ${offset+index+1}. ${safe(briefName(names.get(offers[index].name)||bilingual(null,offers[index].name)))}</b>\nЦена: ${money(row.min_price)}${row.min_price===row.max_price?'':' — '+money(row.max_price)}${unitPrice(offers[index],row.min_price)?' · '+unitPrice(offers[index],row.min_price).label:''}`).join('\n\n');
    return this.panel(text,buttons);
 
   }catch(error){if(/Введите название/.test(error.message))return this.panel('<b>Уточните запрос</b>\n\nВведите название короче 120 символов.',BACK);throw error;}
@@ -114,7 +115,7 @@ export class Bot{
   const specs=[traits.socket&&'Цоколь: '+traits.socket,traits.lumens&&'Яркость: '+traits.lumens+' лм',traits.kelvin&&'Цвет света: '+traits.kelvin+' K',traits.pack&&'В упаковке: '+traits.pack+' шт.'].filter(Boolean).join('\n');
   const names=await this.names([o]),name=names.get(o.name)||bilingual(null,o.name);
   const locations=await this.store.productLocations(o.product,o.source);this.metrics.lookup_ms=Date.now()-lookupStart;
-  const text=`<b>Карточка товара</b>\n\n${safe(name)}\n\n<b>Цена:</b> ${money(row.price)}${unitPrice(o,row.price)?'\nЗа кг/литр: '+unitPrice(o,row.price).label:''}\n<b>Магазин:</b> ${safe(o.format)}\n<b>Прайс:</b> ${o.date}`+(measurementIssue(o.name)==='wrong_dimension'?'\n<b>Упаковка:</b> размер в прайсе требует проверки':'')+(row.price<o.regular?`\nСкидка до: ${safe(o.end||'не указано')}`:'')+(specs?'\n\n'+specs:'')+(o.product.startsWith('gtin:')&&best&&best.price<row.price?`\n\nВыгоднее: ${money(best.price)} · ${safe(JSON.parse(best.payload).format)}`:'')+'\n\nНаличие и цена филиала могут отличаться.';
+  const text=`<b>Карточка товара</b>\n\n${productIcon(o.name)} ${safe(name)}\n\n<b>Цена:</b> ${money(row.price)}${unitPrice(o,row.price)?'\nЗа кг/литр: '+unitPrice(o,row.price).label:''}\n<b>Магазин:</b> ${safe(o.format)}\n<b>Прайс:</b> ${o.date}`+(measurementIssue(o.name)==='wrong_dimension'?'\n<b>Упаковка:</b> размер в прайсе требует проверки':'')+(row.price<o.regular?`\nСкидка до: ${safe(o.end||'не указано')}`:'')+(specs?'\n\n'+specs:'')+(o.product.startsWith('gtin:')&&best&&best.price<row.price?`\n\nВыгоднее: ${money(best.price)} · ${safe(JSON.parse(best.payload).format)}`:'')+'\n\nНаличие и цена филиала могут отличаться.';
   const rows=[[button(this.user.cartTarget?'✅ Выбрать для корзины':'🛒 Добавить в корзину','basketadd:'+o.id+':'+(this.user.cartTarget||''))],[button('🔔 Следить за ценой','watch:'+o.id)]];
   if(locations.length>1)rows.push([button('🏪 Цены внутри сети','locations:'+o.id)]);
   rows.push([button(this.translationRequested?'🇷🇸 Оригинал':'🇷🇺 Перевести название',(this.translationRequested?'offer:':'translate:offer:')+id)]);
@@ -131,9 +132,9 @@ export class Bot{
   const items=await cartItems(this.store,this.uid),page=Math.min(Math.floor(Math.max(0,items.length-1)/5),Math.floor(offset/5)),shown=items.slice(page*5,page*5+5),rows=[],names=await this.names(shown.filter(x=>x.product));
   if(items.length)rows.push([button('💰 Сравнить цены','basketcompare')]);
   rows.push([button('➕ Добавить товары','basketinput')]);
-  for(const [i,item] of shown.entries())rows.push([button(`${page*5+i+1} · ${briefName(item.query,32)} · × ${item.quantity}`,'cartitem:'+item.id)]);
+  for(const [i,item] of shown.entries())rows.push([button(`${productIcon(item.product?item.name:item.query)} ${page*5+i+1} · ${briefName(item.query,32)} · × ${item.quantity}`,'cartitem:'+item.id)]);
   const nav=[];if(page)nav.push(button('⬅️ Назад','basket:'+((page-1)*5)));if(items.length>(page+1)*5)nav.push(button('Далее ➡️','basket:'+((page+1)*5)));if(nav.length)rows.push(nav);
-  const text=items.length?`<b>Моя корзина</b>\nТоваров: ${items.length} из 30\n${this.basketFeedback?'\n'+this.basketFeedback+'\n':''}\n`+shown.map((x,i)=>`${page*5+i+1}. ${safe(briefName(x.product?names.get(x.name)||bilingual(null,x.name):x.query))} × ${x.quantity}${!x.product&&filterLabels(x.filters).length?' · '+safe(filterLabels(x.filters).join(' · ')):''}`).join('\n')+(items.length>5?`\n\nСтраница ${page+1} из ${Math.ceil(items.length/5)}`:'')+'\n\nНажмите товар, чтобы изменить его.\nСравнение по названию — предварительное.':'<b>Моя корзина</b>\n\nКорзина пока пуста.\nДобавьте товары одним сообщением:\nогурцы, курица, молоко × 2';
+  const text=items.length?`<b>Моя корзина</b>\nТоваров: ${items.length} из 30\n${this.basketFeedback?'\n'+this.basketFeedback+'\n':''}\n`+shown.map((x,i)=>`${productIcon(x.product?x.name:x.query)} ${page*5+i+1}. ${safe(briefName(x.product?names.get(x.name)||bilingual(null,x.name):x.query))} × ${x.quantity}${!x.product&&filterLabels(x.filters).length?' · '+safe(filterLabels(x.filters).join(' · ')):''}`).join('\n')+(items.length>5?`\n\nСтраница ${page+1} из ${Math.ceil(items.length/5)}`:'')+'\n\nНажмите товар, чтобы изменить его.\nСравнение по названию — предварительное.':'<b>Моя корзина</b>\n\nКорзина пока пуста.\nДобавьте товары одним сообщением:\nогурцы, курица, молоко × 2';
   return this.panel(text,[...rows,...BACK]);
  }
  async basketItem(id){
@@ -143,7 +144,7 @@ export class Bot{
   if(item.product)rows.push([button('🔄 Выбрать другой товар','cartchange:'+id)]);
   if(!item.product&&Object.keys(item.filters||{}).length)rows.push([button('Сбросить уточнения','cartfilters:'+id)]);
   rows.push([button('− 1','quantity:'+id+':-1'),button('＋ 1','quantity:'+id+':1')],[button('🗑 Удалить из корзины','cartremove:'+id)],[button('⬅️ К корзине','basket:'+(Math.floor(index/5)*5))]);
-  return this.panel(`<b>Товар в корзине</b>\n\n${safe(item.product?names.get(item.name)||bilingual(null,item.name):item.query)}\n\n<b>Количество:</b> ${item.quantity}\n`+(item.product?'Выбрана конкретная упаковка.':'Подбор по названию. Упаковка ещё не выбрана.')+(filterLabels(item.filters).length?'\n<b>Уточнения:</b> '+safe(filterLabels(item.filters).join(' · ')):'')+(need?'\nНужно всего: '+need.label+'; считаем полные упаковки. Кнопки меняют количество таких порций.':'\nКоличество — упаковки или штуки.'),rows);
+  return this.panel(`<b>Товар в корзине</b>\n\n${productIcon(item.product?item.name:item.query)} ${safe(item.product?names.get(item.name)||bilingual(null,item.name):item.query)}\n\n<b>Количество:</b> ${item.quantity}\n`+(item.product?'Выбрана конкретная упаковка.':'Подбор по названию. Упаковка ещё не выбрана.')+(filterLabels(item.filters).length?'\n<b>Уточнения:</b> '+safe(filterLabels(item.filters).join(' · ')):'')+(need?'\nНужно всего: '+need.label+'; считаем полные упаковки. Кнопки меняют количество таких порций.':'\nКоличество — упаковки или штуки.'),rows);
  }
  async comparison(source=null,offset=0,itemOffset=0){
   const wait=await this.store.rate(this.uid);if(wait)return this.panel(`<b>Небольшая пауза</b>\nПовторите через ${wait} сек.`,[[button('🛒 Корзина','basket')]]);
@@ -152,7 +153,7 @@ export class Bot{
   for(const item of (report.unresolved||[]).slice(0,3))if(/^[a-z0-9-]{1,20}$/.test(item.id))rows.push([button('⚙️ Уточнить: '+item.query.slice(0,35),(report.items.find(i=>i.id===item.id)?.product?'cartitem:':'resolve:')+item.id)]);
   if(!source){
    const start=Math.min(Math.floor(offset/2)*2,Math.floor(Math.max(0,networks.length-1)/2)*2),itemStart=Math.min(Math.floor(itemOffset/5)*5,Math.floor(Math.max(0,report.items.length-1)/5)*5),names=await this.names(report.items.slice(itemStart,itemStart+5).filter(i=>i.product));
-   for(const store of networks.slice(start,start+2))rows.push([button('🏪 Товары: '+(store.chain||store.name).slice(0,40),'basketshop:'+store.source+':0')]);
+   for(const store of networks.slice(start,start+2))rows.push([button('🏪 Товары: '+storeLabel(store.chain||store.name).slice(0,25),'basketshop:'+store.source+':0')]);
    const nav=[];if(start)nav.push(button('⬅️ Магазины',`basketoverview:${start-2}:${itemStart}`));if(networks.length>start+2)nav.push(button('Магазины ➡️',`basketoverview:${start+2}:${itemStart}`));if(nav.length)rows.push(nav);
    const products=[];if(itemStart)products.push(button('⬅️ Товары',`basketoverview:${start}:${itemStart-5}`));if(report.items.length>itemStart+5)products.push(button('Товары ➡️',`basketoverview:${start}:${itemStart+5}`));if(products.length)rows.push(products);
    if(report.split?.complete&&report.split.items.length)rows.push([button('🛍 В разных магазинах · '+(report.estimated?'от ':'')+money(report.split.total),'basketsplit:0')]);
@@ -160,9 +161,9 @@ export class Bot{
   }
   const shop=source==='split'?report.split:networks.find(x=>x.source===source);if(!shop?.items?.length)return this.comparison();
   const start=Math.min(offset,Math.floor((shop.items.length-1)/5)*5),shown=shop.items.slice(start,start+5),names=await this.names(shown.filter(i=>!i.estimated));
-  const title=source==='split'?'Покупки в разных магазинах':shop.chain||shop.name;
+  const title=source==='split'?'Покупки в разных магазинах':storeLabel(shop.chain||shop.name);
   const missing=shop.missing||[],missingText=missing.length?'\nНе найдено или нужно уточнить: '+missing.slice(0,3).map(q=>safe(q.slice(0,60))).join(', ')+(missing.length>3?' и ещё '+(missing.length-3):''):'';
-  const text=`<b>${safe(title)}</b>\n\n`+shown.map(i=>`${safe(i.estimated?i.name:briefName(names.get(i.name)||bilingual(null,i.name)))}${i.ambiguous?' — выберите вид или упаковку':i.estimated?' — выберите товар':' · точное совпадение'}\n${i.ambiguous?'Варианты: '+safe(i.choices.join(', ')):i.demand?'Нужно '+safe(i.demand)+' · '+i.quantity+' × '+safe(i.pack)+' = '+safe(i.supplied)+' · '+(i.estimated?'от ':'')+money(i.total):'× '+i.quantity+' · '+(i.estimated?'от ':'')+money(i.total)}${!i.ambiguous&&i.variant?' · '+safe(i.variant):''}${!i.ambiguous&&i.unitPrice?' · '+safe(i.unitPrice):''}${source==='split'?' · '+safe(i.store):''}`).join('\n\n')+((shop.ready??shop.items.length)===0?'\n\nИтог после выбора вида или упаковки':`\n\n<b>${shop.complete===false?'Рассчитанная часть:':report.estimated?'Предварительно от:':'Итого:'}</b> ${money(shop.total)}`)+((shop.ready??shop.found)<report.items.length&&shop.found?`\nРассчитано ${shop.ready??shop.found} из ${report.items.length} товаров`+missingText:'')+(shop.items.length>5?`\nСтраница ${Math.floor(start/5)+1} из ${Math.ceil(shop.items.length/5)}`:'')+(report.estimated?'\n\nПроверьте вид товара и упаковку.':'')+(source==='split'?'\nСтоимость поездок не включена.':'');
+  const text=`<b>${safe(title)}</b>\n\n`+shown.map(i=>`${productIcon(i.name)} ${safe(i.estimated?i.name:briefName(names.get(i.name)||bilingual(null,i.name)))}${i.ambiguous?' — выберите вид или упаковку':i.estimated?' — выберите товар':' · точное совпадение'}\n${i.ambiguous?'Варианты: '+safe(i.choices.join(', ')):i.demand?'Нужно '+safe(i.demand)+' · '+i.quantity+' × '+safe(i.pack)+' = '+safe(i.supplied)+' · '+(i.estimated?'от ':'')+money(i.total):'× '+i.quantity+' · '+(i.estimated?'от ':'')+money(i.total)}${!i.ambiguous&&i.variant?' · '+safe(i.variant):''}${!i.ambiguous&&i.unitPrice?' · '+safe(i.unitPrice):''}${source==='split'?' · '+safe(i.store):''}`).join('\n\n')+((shop.ready??shop.items.length)===0?'\n\nИтог после выбора вида или упаковки':`\n\n<b>${shop.complete===false?'Рассчитанная часть:':report.estimated?'Предварительно от:':'Итого:'}</b> ${money(shop.total)}`)+((shop.ready??shop.found)<report.items.length&&shop.found?`\nРассчитано ${shop.ready??shop.found} из ${report.items.length} товаров`+missingText:'')+(shop.items.length>5?`\nСтраница ${Math.floor(start/5)+1} из ${Math.ceil(shop.items.length/5)}`:'')+(report.estimated?'\n\nПроверьте вид товара и упаковку.':'')+(source==='split'?'\nСтоимость поездок не включена.':'');
   for(const item of shown)if(item.estimated&&/^[a-z0-9-]{1,20}$/.test(item.id)&&/^[a-f0-9]{24}$/.test(item.source))rows.push([button((item.ambiguous?'⚙️ Уточнить: ':'🔎 Выбрать: ')+item.name.slice(0,35),item.ambiguous?'resolve:'+item.id:`basketpick:${item.id}:${item.source}`)]);
   const prefix=source==='split'?'basketsplit:':'basketshop:'+source+':',nav=[];if(start)nav.push(button('⬅️ Товары',prefix+(start-5)));if(shop.items.length>start+5)nav.push(button('Товары ➡️',prefix+(start+5)));if(nav.length)rows.push(nav);
   return this.panel(text,[...rows,[button('⬅️ Сравнение','basketcompare'),button('🛒 Корзина','basket')]]);
@@ -201,6 +202,12 @@ export class Bot{
   const cb=update.callback_query,msg=cb?.message||update.message,uid=this.uid;
   const action=cb?.data||'',text=update.message?.text?.trim();
   if(action==='home'||['/start','/menu','/cancel'].includes(text)){await this.store.patch(uid,{pending:null,cartTarget:null,adminInput:null,adminDraft:null,refinement:null});return this.home();}
+  if(action==='ads'||action.startsWith('ads:')){
+   if(uid===OWNER_ID){await this.store.patch(uid,{adminInput:null,adminDraft:null,pending:null,cartTarget:null});this.user={...this.user,adminInput:null,adminDraft:null,pending:null,cartTarget:null};}
+   return adRoute(this,action);
+  }
+  if(update.message&&await adInput(this,update.message))return;
+  if(['ad_post','ad_link'].includes(this.user.pending)&&(action||text?.startsWith('/'))){await this.store.patch(uid,{pending:null});this.user.pending=null;}
   if(await adminRoute(this,action,text))return;
   if(action&&!action.startsWith('admin'))await this.store.patch(uid,{adminInput:null,adminDraft:null,pending:null});
   if(action.startsWith('ref:')){
