@@ -5,6 +5,7 @@ import {Store} from '../serverless/tgcloud/lib/store.js';
 import {ingest} from '../serverless/tgcloud/lib/ingest.js';
 import {shoppingLexicon,queryGroups,groceryQuery,normalize,day,measurementIssue} from '../serverless/tgcloud/lib/domain.js';
 import {productIcon} from '../serverless/tgcloud/lib/shopping-ui.js';
+import {buildRefinement,matchesType} from '../serverless/tgcloud/lib/refinements.js';
 const [input='work/family-audit-catalogue.json',output='work/product-search-audit.json',database='work/product-search-audit.sqlite',mode]=process.argv.slice(2),reuse=mode==='--reuse';
 if(existsSync(database)&&!reuse)throw Error('Use a new disposable public audit database');
 const data=JSON.parse(readFileSync(input,'utf8')),connection=new DatabaseSync(database,{readOnly:reuse});
@@ -61,6 +62,15 @@ try{
   }
  }
  report.fish_by_network=await store.searchChains('рыба');
+ report.type_queries=[];
+ for(const query of ['молоко','курица','мясо','кофе','масло','чай','рис','вода']){
+  const p=await store.searchPlan(query),all=(await store.db.all(p.sql,p.params)).map(r=>JSON.parse(r.payload)),draft=buildRefinement(query,all,'offline-audit',Date.now(),true);
+  for(const choice of draft?.facets.find(f=>f.key==='type')?.values||[]){
+   const plan=await store.searchPlan(query,Date.now(),null,{type:choice.value}),rows=(await store.db.all(plan.sql,plan.params)).map(r=>JSON.parse(r.payload)),invalid=rows.filter(o=>!matchesType(o,choice.value));
+   report.type_queries.push({query,type:choice.label,offers:rows.length,violations:invalid.length});
+   if(invalid.length)report.violations.push({query,type:choice.label,count:invalid.length,examples:invalid.slice(0,20).map(o=>o.name)});
+  }
+ }
  report.fish_one_kg=await store.searchChains('рыба',Date.now(),{pack:{kind:'weight',amount:1000}});
  const cabbage=await store.db.get("SELECT id FROM sd_offers WHERE lower(name) LIKE '%kupus%ribanac%' LIMIT 1");
  report.reported_cabbage={found:!!cabbage,matched:cabbage?await store.matchesOffer('рыба',cabbage.id):null,icon:productIcon('Ribanac kiseli kupus 1kg')};

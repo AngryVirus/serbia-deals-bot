@@ -2041,5 +2041,169 @@
       "min_price": 106350,
       "max_price": 106499
     }
+  ],
+  "type_queries": [
+    {
+      "query": "молоко",
+      "type": "Питьевое",
+      "offers": 303,
+      "violations": 0
+    },
+    {
+      "query": "молоко",
+      "type": "Кисломолочное",
+      "offers": 144,
+      "violations": 0
+    },
+    {
+      "query": "молоко",
+      "type": "Шоколадное",
+      "offers": 76,
+      "violations": 0
+    },
+    {
+      "query": "курица",
+      "type": "Филе",
+      "offers": 87,
+      "violations": 0
+    },
+    {
+      "query": "курица",
+      "type": "Крылья",
+      "offers": 34,
+      "violations": 0
+    },
+    {
+      "query": "курица",
+      "type": "Бёдра",
+      "offers": 53,
+      "violations": 0
+    },
+    {
+      "query": "курица",
+      "type": "Грудка",
+      "offers": 104,
+      "violations": 0
+    },
+    {
+      "query": "курица",
+      "type": "Печень и сердце",
+      "offers": 15,
+      "violations": 0
+    },
+    {
+      "query": "курица",
+      "type": "Колбаса и сосиски",
+      "offers": 93,
+      "violations": 0
+    },
+    {
+      "query": "курица",
+      "type": "Снеки со вкусом курицы",
+      "offers": 20,
+      "violations": 0
+    },
+    {
+      "query": "мясо",
+      "type": "Курица",
+      "offers": 278,
+      "violations": 0
+    },
+    {
+      "query": "мясо",
+      "type": "Говядина",
+      "offers": 117,
+      "violations": 0
+    },
+    {
+      "query": "мясо",
+      "type": "Свинина",
+      "offers": 183,
+      "violations": 0
+    },
+    {
+      "query": "мясо",
+      "type": "Индейка",
+      "offers": 4,
+      "violations": 0
+    },
+    {
+      "query": "кофе",
+      "type": "В зёрнах",
+      "offers": 36,
+      "violations": 0
+    },
+    {
+      "query": "кофе",
+      "type": "Молотый",
+      "offers": 134,
+      "violations": 0
+    },
+    {
+      "query": "кофе",
+      "type": "Растворимый",
+      "offers": 201,
+      "violations": 0
+    },
+    {
+      "query": "кофе",
+      "type": "Капсулы",
+      "offers": 35,
+      "violations": 0
+    },
+    {
+      "query": "чай",
+      "type": "Чёрный",
+      "offers": 51,
+      "violations": 0
+    },
+    {
+      "query": "чай",
+      "type": "Зелёный",
+      "offers": 77,
+      "violations": 0
+    },
+    {
+      "query": "чай",
+      "type": "Травяной",
+      "offers": 5,
+      "violations": 0
+    },
+    {
+      "query": "рис",
+      "type": "Длиннозёрный",
+      "offers": 32,
+      "violations": 0
+    },
+    {
+      "query": "рис",
+      "type": "Круглозёрный",
+      "offers": 6,
+      "violations": 0
+    },
+    {
+      "query": "рис",
+      "type": "Басмати",
+      "offers": 21,
+      "violations": 0
+    },
+    {
+      "query": "рис",
+      "type": "Жасмин",
+      "offers": 9,
+      "violations": 0
+    },
+    {
+      "query": "вода",
+      "type": "Газированная",
+      "offers": 149,
+      "violations": 0
+    },
+    {
+      "query": "вода",
+      "type": "Негазированная",
+      "offers": 149,
+      "violations": 0
+    }
   ]
 }

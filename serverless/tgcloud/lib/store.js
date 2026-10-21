@@ -101,7 +101,7 @@ export class Store{
   let refinement='';
   if(typeof filters.brand==='string'&&filters.brand.length<=80){params[':brand']=filters.brand;refinement+=" AND json_extract(o.payload,'$.brand')=:brand";}
   if(milkQuery(query)&&Array.isArray(filters.type)&&filters.type.length===1&&filters.type[0]==='milkplain')refinement+=' AND '+PLAIN_MILK;
-  else if(Array.isArray(filters.type)&&filters.type.length<=4&&filters.type.every(t=>/^[a-z]{2,20}$/.test(t))){refinement+=' AND '+hasTerm(filters.type.map((t,i)=>{params[':type'+i]=t;params[':typeend'+i]=t+'\uffff';return `(e.term>=:type${i} AND e.term<:typeend${i})`;}).join(' OR '));}
+  else if(Array.isArray(filters.type)&&filters.type.length>0&&filters.type.length<=4&&filters.type.every(t=>/^[a-z]{2,20}$/.test(t))){refinement+=' AND '+hasTerm(filters.type.flatMap(searchPatterns).map((pattern,i)=>{params[':type'+i]=pattern.term;if(pattern.exact)return `e.term=:type${i}`;params[':typeend'+i]=pattern.term+'\uffff';return `(e.term>=:type${i} AND e.term<:typeend${i})`;}).join(' OR '));}
   if(typeof filters.socket==='string'&&/^(E14|E27|GU10|G9|G4|H4|H7)$/i.test(filters.socket)){params[':socket']=filters.socket;refinement+=" AND json_extract(o.payload,'$.traits.socket')=:socket";}
   const compact=COMPACT_TITLE;
   if(filters.pack&&['volume','weight'].includes(filters.pack.kind)&&Number.isInteger(filters.pack.amount)&&filters.pack.amount>0&&filters.pack.amount<=100000){const n=filters.pack.amount,forms=filters.pack.kind==='volume'?[n+'ml',(n/1000)+'l',(n/10)+'cl']:[n+'g',n+'gr',n+'гр',(n/1000)+'kg'];const legacy=forms.map((f,i)=>{params[':pack'+i]='*[^0-9.]'+f+'[^a-z0-9]*';return compact+' GLOB :pack'+i;}).join(' OR ');refinement+=' AND '+packConstraint(filters.pack.kind,n,legacy);}
