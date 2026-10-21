@@ -45,10 +45,17 @@ def gtin(value):
     if len(value) not in (8, 12, 13, 14) or not value.isascii() or not value.isdigit():
         return None
     padded = value.zfill(14)
-    # Retailer-internal restricted circulation codes must not join across chains.
-    short = padded[-13:]
-    if short.startswith('00000') or short.startswith('02') or short[:2] in {str(i) for i in range(20, 30)}:
-        return None
+    # GS1 General Specifications 26.0, tables 1-4 through 1-6 and 1-9:
+    # zero padding does not change the key. GTIN-8 needs its own prefix rules;
+    # rejecting every zero-padded 00000... value incorrectly rejects all GTIN-8s.
+    if padded.startswith('000000'):
+        prefix = int(padded[6:9])
+        if not (100 <= prefix <= 199 or 300 <= prefix <= 951 or 953 <= prefix <= 976):
+            return None  # RCN-8 (0/2), demonstration prefix, or reserved range.
+    else:
+        short = padded[1:]  # Skip the GTIN-14 packaging indicator, if present.
+        if short.startswith(('00000', '02', '04')) or '20' <= short[:2] <= '29':
+            return None  # RCN-12/13 may not join across retailers.
     check = (10 - sum(int(n) * (3 if i % 2 == 0 else 1)
                       for i, n in enumerate(reversed(padded[:-1]))) % 10) % 10
     return padded if check == int(padded[-1]) else None
@@ -120,7 +127,9 @@ def parse_prices(body, source, *, today=None):
         key = hashlib.sha256((source['id']+'|'+fmt+'|'+identity).encode()).hexdigest()[:32]
         discount = cents(get(row, 'discount'))
         begin, end = parse_date(get(row, 'begin')), parse_date(get(row, 'end'))
-        if not begin or begin > today or not end or end < today or discount is None or discount >= regular:
+        # Preserve a future promotion: an unchanged CSV can remain current for
+        # two days, and runtime pricing activates it only once begin is reached.
+        if not begin or not end or begin > end or end < today or discount is None or discount >= regular:
             discount = None
         # A sentinel means unknown end, not a promotion lasting until 2200.
         end_iso = end.isoformat() if end and end.year < 2100 else None

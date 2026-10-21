@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture,offer,publish,message,callback,source} from './fixtures.js';
 import {Bot} from '../tgcloud/lib/bot.js';
-import {addList,addOffer,cartItems,resetProduct} from '../tgcloud/lib/basket.js';
+import {addList,addOffer,cartItems,resetProduct,compareBasket,basketParts,expandPendingList} from '../tgcloud/lib/basket.js';
 
 test('replacement keeps query and quantity; concurrent and stale buttons cannot reset or overwrite it',async()=>{
- const f=await fixture(),a=offer(),b=offer(2,{product:'local:other'});
+ const f=await fixture(),a=offer(),b=offer(2,{product:'local:'+'2'.repeat(32)});await publish(f,[a,b]);
  await addList(f.store,5,'лампочка × 3',900);await addOffer(f.store,5,a,'900-0');
  assert.equal(await resetProduct(f.store,6,'900-0'),null);
  const results=await Promise.all([resetProduct(f.store,5,'900-0'),resetProduct(f.store,5,'900-0')]);
@@ -17,6 +17,17 @@ test('replacement keeps query and quantity; concurrent and stale buttons cannot 
  assert.equal(await resetProduct(f.store,5,'900-0'),null);
  assert.equal(await addOffer(f.store,5,a,next),false);
  saved=(await cartItems(f.store,5))[0];assert.equal(saved.product,b.product);assert.equal(saved.quantity,3);
+});
+test('changing a catalogue SKU preserves commas and trailing quantity-like title text as one item',async()=>{
+ for(const name of ['LED sijalica E27 9W, 806lm','LED sijalica E27 9W × 2']){
+  const f=await fixture(),a=offer(1,{name,terms:['led','sijalica','e27','9w','806lm','2']});await publish(f,[a]);await new Bot(f).handle(message(5,'/start'));await addOffer(f.store,5,a);let item=(await cartItems(f.store,5))[0];await f.db.run('UPDATE sd_basket SET quantity=3 WHERE uid=5');
+  await new Bot(f).handle(callback(5,'cartchange:'+item.id));item=(await cartItems(f.store,5))[0];assert.deepEqual(basketParts(item),[{query:name,quantity:1}]);assert.equal(await expandPendingList(f.store,5,item.id),false);
+  const report=await compareBasket(f.store,5);assert.equal(report.items.length,1,name);assert.equal(report.items[0].query,name);assert.equal(report.items[0].quantity,3);assert.equal(report.split.total,3*a.regular);assert(!f.sent.at(-1).reply_markup.inline_keyboard.flat().some(b=>b.text==='Разделить список на товары'));
+  await new Bot(f).handle(callback(5,'resolve:'+item.id));assert.equal((await f.store.user(5)).cartTarget,item.id);assert.equal((await cartItems(f.store,5)).length,1);assert.equal((await cartItems(f.store,5))[0].quantity,3);
+ }
+});
+test('genuine legacy combined rows still split and retain their requested quantities',async()=>{
+ const f=await fixture();await cartItems(f.store,5);await f.db.run("INSERT INTO sd_basket(uid,id,query,quantity) VALUES(5,'legacy','огурцы, курица × 2',3)");const legacy=(await cartItems(f.store,5))[0];assert.deepEqual(basketParts(legacy),[{query:'огурцы',quantity:1},{query:'курица',quantity:2}]);assert.equal(await expandPendingList(f.store,5,legacy.id),true);const rows=await cartItems(f.store,5);assert.equal(rows.length,2);assert.deepEqual(rows.map(x=>[x.query,x.quantity]),[['огурцы',3],['курица',6]]);
 });
 test('a directly added product can be changed through the bot without deleting its basket position',async()=>{
  const f=await fixture(),a=offer();await publish(f,[a]);await new Bot(f).handle(message(5,'/start'));await addOffer(f.store,5,a);

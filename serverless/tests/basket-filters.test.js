@@ -35,7 +35,7 @@ test('removing a position or deleting an account also deletes its saved criteria
  const f=await fixture();await new Bot(f).handle(message(5,'/start'));await addList(f.store,5,'молоко, молоко',900);await saveBasketFilters(f.store,5,'900-0',filters);await saveBasketFilters(f.store,5,'900-1',filters);
  await new Bot(f).handle(callback(6,'cartfilters:900-0'));assert.deepEqual((await cartItems(f.store,5))[0].filters,filters);
  await new Bot(f).handle(callback(5,'cartremove:900-0'));assert.equal((await f.db.get('SELECT COUNT(*) n FROM sd_basket_filters WHERE uid=5')).n,1);
- await new Bot(f).handle(callback(5,'delete:confirm'));assert.equal((await f.db.get('SELECT COUNT(*) n FROM sd_basket_filters WHERE uid=5')).n,0);
+ await new Bot(f).handle(message(5,'/delete'));await new Bot(f).handle(callback(5,f.sent.at(-1).reply_markup.inline_keyboard.flat().find(b=>b.callback_data.startsWith('delete:confirm:')).callback_data));assert.equal((await f.db.get('SELECT COUNT(*) n FROM sd_basket_filters WHERE uid=5')).n,0);
 });
 
 test('an existing basket schema upgrades without rewriting old rows or quantities',async()=>{

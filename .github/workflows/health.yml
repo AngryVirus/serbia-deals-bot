@@ -6,7 +6,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: serbia-deals-maintenance
+  group: serbia-deals-health
   cancel-in-progress: false
 jobs:
   health:

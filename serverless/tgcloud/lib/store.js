@@ -30,6 +30,9 @@ const hasTerm=condition=>`EXISTS(SELECT 1 FROM sd_terms e WHERE e.offer=o.rowid 
 // Preserve boundaries around stock codes (SK24 250ml); only join units to amounts.
 const COMPACT_TITLE=(()=>{let sql="replace(replace(replace(lower(o.name),char(9),' '),'  ',' '),'  ',' ')";for(const [from,to] of [[',','.'],['мл','ml'],['кг','kg'],['г','g'],['л','l'],[' ml','ml'],[' kg','kg'],[' cl','cl'],[' g','g'],[' l','l'],[' %','%']])sql=`replace(${sql},'${from}','${to}')`;return "(' '||"+sql+"||' ')";})();
 const PACK_KIND="json_extract(o.payload,'$._measure.kind')",PACK_AMOUNT="json_extract(o.payload,'$._measure.amount')",PACK_KNOWN="(json_type(o.payload,'$._measure') IS NOT NULL AND COALESCE(json_extract(o.payload,'$._measure_rev'),0)=3)";
+// Older imports stored valid, zero-padded EAN-8 as local identities. Resolve a
+// saved selection through its stable offer ID without rewriting users' baskets.
+const canonicalProduct=column=>`CASE WHEN ${column} LIKE 'local:%' THEN COALESCE((SELECT legacy.product FROM sd_offers legacy JOIN sd_sources live ON live.id=legacy.source AND live.current_gen=legacy.gen WHERE legacy.id=substr(${column},7) AND legacy.product LIKE 'gtin:%' AND legacy.date>=:cutoff AND legacy.date<=:today LIMIT 1),${column}) ELSE ${column} END`;
 const packConstraint=(kind,amount,legacy)=>`((${PACK_KNOWN} AND ${PACK_KIND}='${kind}' AND ${PACK_AMOUNT}=${amount}) OR (NOT (${PACK_KNOWN}) AND (${legacy})))`;
 const ENERGY_TYPE=`(${hasTerm("e.term>='energet' AND e.term<'energeu'")} OR (${hasTerm("e.term='energy'")} AND ${hasTerm("e.term IN ('drink','drinks','napitak','pice')")}) OR (${hasTerm("e.term='red'")} AND ${hasTerm("e.term='bull'")}) OR ${hasTerm("e.term='redbull'")} OR lower(trim(json_extract(o.payload,'$.brand'))) IN ('red bull','redbull','guarana','monster','monster energy','hell','hell energy','ultra energy'))`;
 const ENERGY=`(${ENERGY_TYPE} AND (NOT ${hasTerm("e.term GLOB '[0-9]*g'")} OR ${hasTerm("e.term GLOB '[0-9]*ml' OR e.term GLOB '[0-9]*l' OR e.term GLOB '[0-9]*cl'")}))`;
@@ -129,9 +132,14 @@ export class Store{
   if(!/^[a-f0-9]{32}$/.test(id||''))return null;
   return this.db.get(`SELECT o.payload,s.name AS source_name,s.url AS source_url,s.checked AS downloaded,${PRICE} AS price FROM sd_offers o ${ACTIVE} AND o.id=:id ORDER BY price LIMIT 1`,{':id':id,':today':day(now),':cutoff':cutoff(now)});
  }
- async cheapest(product,now=Date.now()){return this.db.get(`SELECT o.payload,s.name AS source_name,s.url AS source_url,s.checked AS downloaded,${PRICE} AS price FROM sd_offers o ${ACTIVE} AND o.product=:product ORDER BY price,o.id LIMIT 1`,{':product':product,':today':day(now),':cutoff':cutoff(now)});}
+ async basketSelectedRows(uid,now=Date.now()){return this.db.all(`SELECT o.payload,s.name AS source_name,b.id AS cart_id FROM sd_basket b JOIN sd_offers o ON o.product=(${canonicalProduct('b.product')}) JOIN sd_sources s ON s.id=o.source AND s.current_gen=o.gen WHERE b.uid=:uid AND o.date>=:cutoff AND o.date<=:today LIMIT 6001`,{':uid':uid,':cutoff':cutoff(now),':today':day(now)});}
+ async cheapest(product,now=Date.now()){return this.db.get(`SELECT o.payload,s.name AS source_name,s.url AS source_url,s.checked AS downloaded,${PRICE} AS price FROM sd_offers o ${ACTIVE} AND o.product=(${canonicalProduct(':product')}) ORDER BY price,o.id LIMIT 1`,{':product':product,':today':day(now),':cutoff':cutoff(now)});}
  async watch(uid,id){const row=await this.offer(id);if(!row)return false;const offer=JSON.parse(row.payload);const best=await this.cheapest(offer.product);
-  await this.db.run(`INSERT INTO sd_watches(uid,product,name,baseline) SELECT :uid,:product,:name,:price WHERE (SELECT COUNT(*) FROM sd_watches WHERE uid=:uid)<100 ON CONFLICT(uid,product) DO NOTHING`,{':uid':uid,':product':offer.product,':name':offer.name,':price':best.price});return true;
+  if(!best)return false;
+  const params={':uid':uid,':product':offer.product,':today':day(),':cutoff':cutoff(Date.now())};
+  if(await this.db.get(`SELECT 1 AS present FROM sd_watches w WHERE w.uid=:uid AND (${canonicalProduct('w.product')})=:product LIMIT 1`,params))return true;
+  const added=await this.db.run(`INSERT INTO sd_watches(uid,product,name,baseline) SELECT :uid,:product,:name,:price WHERE (SELECT COUNT(*) FROM sd_watches WHERE uid=:uid)<100 ON CONFLICT(uid,product) DO NOTHING`,{...params,':name':offer.name,':price':best.price});
+  requireValue(added.rowsAffected===1||await this.db.get('SELECT 1 AS present FROM sd_watches WHERE uid=:uid AND product=:product',params),'Можно отслеживать до 100 товаров.');return true;
  }
  async watches(uid){return this.db.all('SELECT product,name,baseline FROM sd_watches WHERE uid=:uid ORDER BY name LIMIT 100',{':uid':uid});}
  async removeWatch(uid,product){await this.db.run('DELETE FROM sd_watches WHERE uid=:uid AND product=:product',{':uid':uid,':product':product});await this.db.run("UPDATE sd_queue SET state='cancelled' WHERE uid=:uid AND product=:product AND state='pending'",{':uid':uid,':product':product});}

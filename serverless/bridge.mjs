@@ -2,6 +2,7 @@
 import {readFileSync,readdirSync} from 'node:fs';
 import {relative,join} from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {compareModuleSources} from './deployment-state.mjs';
 for(const key of ['TGCLOUD_DEBUG','TG_CLOUD_API_URL','TGCLOUD_BETA'])delete process.env[key];
 const client=await import('./node_modules/@tgcloud/cli/src/api/endpoints.js');
 const token=process.env.TGCLOUD_TOKEN;
@@ -22,7 +23,7 @@ try{
  }else if(input.command==='diagnose'){
   const routing=await client.getWebhook(token),remote=await client.getFiles(token);
   const text=String(routing.last_error_message||'');
-  result={revision:remote.revision,routing:{in_sync:routing.in_sync,pending:routing.pending_update_count,last_error_date:routing.last_error_date||null,error_hints:['500','502','503','timeout','failed','error','limit','memory'].filter(word=>text.toLowerCase().includes(word))}};
+  result={revision:remote.revision,deployed:compareModuleSources(sources,remote.canonical_modules),routing:{in_sync:routing.in_sync,pending:routing.pending_update_count,last_error_date:routing.last_error_date||null,error_hints:['500','502','503','timeout','failed','error','limit','memory'].filter(word=>text.toLowerCase().includes(word))}};
   const probe=`import {api,db,fetch,InputFile} from 'sdk';
 import {Bot} from '../lib/bot.js';
 import {assertBot,OWNER_ID} from '../lib/domain.js';
@@ -88,12 +89,13 @@ export default async function(input,ctx){
  await initBasket(db);if((await db.get('SELECT COUNT(*) AS n FROM sd_basket WHERE uid=-2')).n)throw Error('Probe identity occupied');const saveGuard=!await saveBasketFilters(new Store(db),-2,'syntax-probe',{type:['milkplain']});
  let items=['энергетик','молоко','сливы','соус песто'].map((query,i)=>({uid:-2,id:'probe-'+i,query,product:null,name:null,quantity:1,filters:'{}'}));
  const virtualDb={run:async()=>({rowsAffected:0}),get:(...args)=>db.get(...args),all:(sql,params)=>sql.startsWith('SELECT b.*,COALESCE(f.payload,')?Promise.resolve(items):db.all(sql,params)};
+ const publicStore=new Store(db),selectedSql=(await publicStore.basketSelectedRows(-2)).length===0,first=(await publicStore.search('энергетик'))[0],localIdentity=!first||Boolean(await publicStore.cheapest('local:'+JSON.parse(first.payload).id));
  const report=await compareBasket(new Store(virtualDb),-2);
  items=[{uid:-2,id:'filtered',query:'молоко',product:null,name:null,quantity:2,filters:JSON.stringify({type:['milkplain'],pack:{kind:'volume',amount:1000}})}];const filtered=await compareBasket(new Store(virtualDb),-2);
  items=[{uid:-2,id:'amount',query:'молоко 2 л',product:null,name:null,quantity:1,filters:JSON.stringify({type:['milkplain']})}];const quantityReport=await compareBasket(new Store(virtualDb),-2);
- return {items:report.items.length,quantity_networks:basketNetworks(quantityReport).map(s=>({name:s.chain,complete:s.complete,quantity:s.items[0]?.quantity,demand:s.items[0]?.demand,pack:s.items[0]?.pack,supplied:s.items[0]?.supplied})),quantity_unresolved:quantityReport.unresolved.length,save_without_row_rejected:saveGuard,filtered_networks:basketNetworks(filtered).map(s=>({name:s.chain,found:s.found,variant:s.items[0]?.variant,unit_price:s.items[0]?.unitPrice})),plum_samples:(await new Store(virtualDb).basketCandidates('сливы')).map(r=>({store:r.source_name,name:JSON.parse(r.payload).name})),milk_samples:(await new Store(virtualDb).basketCandidates('молоко')).map(r=>({store:r.source_name,name:JSON.parse(r.payload).name})),networks:basketNetworks(report).map(s=>({name:s.chain,found:s.found,items:s.items.map(i=>({query:i.name,price:i.total,variant:i.variant,unit_price:i.unitPrice})),missing:s.missing}))};
+ return {selected_sql:selectedSql,local_identity_lookup:localIdentity,items:report.items.length,quantity_networks:basketNetworks(quantityReport).map(s=>({name:s.chain,complete:s.complete,quantity:s.items[0]?.quantity,demand:s.items[0]?.demand,pack:s.items[0]?.pack,supplied:s.items[0]?.supplied})),quantity_unresolved:quantityReport.unresolved.length,save_without_row_rejected:saveGuard,filtered_networks:basketNetworks(filtered).map(s=>({name:s.chain,found:s.found,variant:s.items[0]?.variant,unit_price:s.items[0]?.unitPrice})),plum_samples:(await new Store(virtualDb).basketCandidates('сливы')).map(r=>({store:r.source_name,name:JSON.parse(r.payload).name})),milk_samples:(await new Store(virtualDb).basketCandidates('молоко')).map(r=>({store:r.source_name,name:JSON.parse(r.payload).name})),networks:basketNetworks(report).map(s=>({name:s.chain,found:s.found,items:s.items.map(i=>({query:i.name,price:i.total,variant:i.variant,unit_price:i.unitPrice})),missing:s.missing}))};
 }`;
-  try{result.basket={ok:true,...(await client.runFunction(token,'endpoints/basket_probe',{...Object.fromEntries(['lib/domain','lib/store','lib/basket','lib/shopping-ui','lib/product-names'].map(name=>[name,sources[name]])),'endpoints/basket_probe':basketProbe}, {},{ownerRun:true})).result};}
+  try{const checked=(await client.runFunction(token,'endpoints/basket_probe',{...Object.fromEntries(['lib/domain','lib/store','lib/basket','lib/shopping-ui','lib/product-names'].map(name=>[name,sources[name]])),'endpoints/basket_probe':basketProbe}, {},{ownerRun:true})).result;result.basket={ok:checked.selected_sql===true&&checked.local_identity_lookup===true&&checked.save_without_row_rejected===true,...checked};}
   catch(error){const detail=String(error.message||'').toLowerCase();result.basket={ok:false,hints:['time','limit','memory','syntax'].filter(word=>detail.includes(word))};}
   const languageProbe=`import {api,db,fetch} from 'sdk';
 import {Store} from '../lib/store.js';
@@ -155,7 +157,8 @@ export default async function(input,ctx){
  const traced=Object.fromEntries(['run','all','get'].map(method=>[method,async(sql,params)=>{phase=sql.startsWith('INSERT INTO sd_offers')?'canonical_update':sql.startsWith('INSERT INTO sd_terms')?'index_update':sql.startsWith('UPDATE sd_meta')?'checkpoint':method;return db[method](sql,params);} ]));
  try{
  const store=new Store(db),sources=(await store.sources()).filter(s=>s.active);let target=sources[0];for(const source of sources){const quality=await store.meta('catalog_quality:'+source.id);if(quality?.gen!==source.current_gen||quality.version!==MEASURE_VERSION){target=source;break;}}const page=target?await manage({operation:'quality_page',source:target.id,pages:5},{ownerRun:true},{db:traced,api}):null;
- return {ok:true,page,invalid_drink:packageMeasure('Energetski napitak 200g')===null,invalid_donut:packageMeasure('Donut 1l')===null,powder_preserved:packageMeasure('Cedevita napitak 200g')?.kind==='weight',vessel_excluded:measurementIssue('Posuda 2l')==='capacity_or_specification'};
+ const invalidDrink=packageMeasure('Energetski napitak 200g')===null,invalidDonut=packageMeasure('Donut 1l')===null,powder=packageMeasure('Cedevita napitak 200g')?.kind==='weight',vessel=measurementIssue('Posuda 2l')==='capacity_or_specification';
+ return {ok:invalidDrink&&invalidDonut&&powder&&vessel,page,invalid_drink:packageMeasure('Energetski napitak 200g')===null,invalid_donut:packageMeasure('Donut 1l')===null,powder_preserved:packageMeasure('Cedevita napitak 200g')?.kind==='weight',vessel_excluded:measurementIssue('Posuda 2l')==='capacity_or_specification'};
  }catch(error){const text=String(error.message||'')+' '+JSON.stringify(error.parameters||{});return {ok:false,phase,hints:['syntax','column','table','sqlite','json','limit','instruction','memory','unsupported','allowed','denied','permission','rowid','ambiguous','function','invalid','binding','parameter'].filter(word=>text.toLowerCase().includes(word))};}
 }`;
   try{result.quality=(await client.runFunction(token,'endpoints/quality_probe',{...sources,'endpoints/quality_probe':qualityProbe},{},{ownerRun:true})).result;}
@@ -166,8 +169,10 @@ export default async function(input,ctx){
  else if(input.command==='deploy'){
   const remote=await client.getFiles(token);
   if(Object.keys(remote.canonical_modules||{}).length&&input.expected_revision!==remote.revision)throw Error('Existing remote code requires explicit revision review');
-  result=await client.batchDeploy(token,{expected_revision:remote.revision,manifest:Object.keys(sources),changed_sources:sources});
-  result={revision:result.revision,modules:Object.keys(sources).length};
+  const deployed=await client.batchDeploy(token,{expected_revision:remote.revision,manifest:Object.keys(sources),changed_sources:sources});
+  const installed=await client.getFiles(token),comparison=compareModuleSources(sources,installed.canonical_modules);
+  if(installed.revision!==deployed.revision||!comparison.matches_local)throw Error('Installed module verification failed');
+  result={revision:installed.revision,modules:Object.keys(sources).length,verified:true};
  }else if(input.command==='routing')result=await client.getWebhook(token);
  else if(input.command==='sync')result=await client.syncWebhook(token);
  else throw Error('Unsupported command');

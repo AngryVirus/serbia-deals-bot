@@ -3,6 +3,7 @@ import {banned} from './moderation-state.js';
 const button=(text,callback_data)=>({text,callback_data});
 const BACK=[[button('📣 Реклама','ads')],[button('⚙️ Админка','admin')]];
 const prefix='📣 Реклама\n\n';
+const AD_WORKER_ID=-3; // Health uses -1; user leases always use positive IDs.
 const token=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const read=async(store,kind,key)=>{const r=await store.db.get('SELECT payload FROM sd_admin_records WHERE kind=:kind AND key=:key',{':kind':kind,':key':key});return r?JSON.parse(r.payload):null;};
 const currentId=async store=>(await read(store,'ad_control','current'))?.id || await store.meta('ad_current');
@@ -27,12 +28,12 @@ const launchSQL=`WITH existing AS (
         SELECT 'ad_campaign',:id,json_object('id',:id,'post',json(:post),'state','running','cursor',0,'max_id',COALESCE((SELECT MAX(id) FROM audience),0),'total',(SELECT COUNT(*) FROM audience),'created_at',:created)
       ) INSERT INTO sd_admin_records(kind,key,payload,at)
       SELECT kind,key,payload,:now FROM entries WHERE EXISTS(SELECT 1 FROM permitted)
-      AND EXISTS(SELECT 1 FROM sd_locks WHERE id=-1 AND owner=:lock AND expires>:now)
+      AND EXISTS(SELECT 1 FROM sd_locks WHERE id=:worker AND owner=:lock AND expires>:now)
       ON CONFLICT(kind,key) DO UPDATE SET payload=excluded.payload WHERE excluded.kind='ad_control'`;
 // The impossible worker owner makes the real statement affect zero rows. Unlike
 // EXPLAIN this also exercises the hosted write API, without reserving a launch.
 export async function checkAds(store){
- const checked=await store.db.run(launchSQL,{':lock':'probe-without-worker-lease',':now':Date.now(),':id':'probe',':prefix':'probe:%',':day':new Date().toISOString().slice(0,10),':limit':1,':audit_key':'probe:start',':audit':'{}',':post':'{}',':created':new Date().toISOString()});
+ const checked=await store.db.run(launchSQL,{':worker':AD_WORKER_ID,':lock':'probe-without-worker-lease',':now':Date.now(),':id':'probe',':prefix':'probe:%',':day':new Date().toISOString().slice(0,10),':limit':1,':audit_key':'probe:start',':audit':'{}',':post':'{}',':created':new Date().toISOString()});
  const current=await currentId(store),campaign=current&&await read(store,'ad_campaign',current);
  return {ok:checked.rowsAffected===0,launch_sql_checked:checked.rowsAffected===0,changed_rows:checked.rowsAffected,campaign_state:campaign?.state||'none',draft_present:Boolean(await store.meta('ad_draft'))};
 }
@@ -45,8 +46,8 @@ function adsStore(store){
   async record(kind,key,value){await store.db.run('INSERT INTO sd_admin_records(kind,key,payload,at) VALUES(:kind,:key,:payload,:at) ON CONFLICT(kind,key) DO UPDATE SET payload=excluded.payload,at=excluded.at',{':kind':kind,':key':key,':payload':JSON.stringify(value),':at':Date.now()});},
   async user(uid){const u=await store.user(uid);return u?{...u,chat_id:uid,created_at:u.first_seen}:null;},
   isBanned:uid=>banned(store,uid),
-  async lock(name,owner,seconds){const id=name==='ad_worker'?-1:Number(name.slice(5)),now=Date.now();return (await store.db.run('INSERT INTO sd_locks(id,owner,expires) VALUES(:id,:owner,:expires) ON CONFLICT(id) DO UPDATE SET owner=excluded.owner,expires=excluded.expires WHERE sd_locks.expires<=:now OR sd_locks.owner=:owner',{':id':id,':owner':owner,':expires':now+seconds*1000,':now':now})).rowsAffected===1;},
-  async unlock(name,owner){await store.db.run('DELETE FROM sd_locks WHERE id=:id AND owner=:owner',{':id':name==='ad_worker'?-1:Number(name.slice(5)),':owner':owner});},
+  async lock(name,owner,seconds){const id=name==='ad_worker'?AD_WORKER_ID:Number(name.slice(5)),now=Date.now();return (await store.db.run('INSERT INTO sd_locks(id,owner,expires) VALUES(:id,:owner,:expires) ON CONFLICT(id) DO UPDATE SET owner=excluded.owner,expires=excluded.expires WHERE sd_locks.expires<=:now OR sd_locks.owner=:owner',{':id':id,':owner':owner,':expires':now+seconds*1000,':now':now})).rowsAffected===1;},
+  async unlock(name,owner){await store.db.run('DELETE FROM sd_locks WHERE id=:id AND owner=:owner',{':id':name==='ad_worker'?AD_WORKER_ID:Number(name.slice(5)),':owner':owner});},
   async forbidden(uid,error){await store.patch(uid,{delivery_blocked:/bot was blocked by the user/i.test(error.description||error.message||'')});await store.db.run('UPDATE sd_users SET blocked=1,enabled=0 WHERE id=:uid',{':uid':uid});}
  };
 }
@@ -160,7 +161,7 @@ export async function adRoute(bot,action) {
       // and current pointer. ad_current in metadata is only a compatibility cache.
       // An interrupted older release may have reserved this ID already; finish that
       // initialization using its existing snapshot rather than consume another launch.
-      const launched=await bot.store.db.run(launchSQL,{':lock':lock,':now':Date.now(),':id':id,':prefix':id+':%',':day':day,':limit':await bot.store.meta('ad_daily_limit') || 3,':audit_key':id+':start',':audit':JSON.stringify({owner:OWNER_ID,action:'start',id,at:requestedAt}),':post':JSON.stringify(draft),':created':requestedAt});
+      const launched=await bot.store.db.run(launchSQL,{':worker':AD_WORKER_ID,':lock':lock,':now':Date.now(),':id':id,':prefix':id+':%',':day':day,':limit':await bot.store.meta('ad_daily_limit') || 3,':audit_key':id+':start',':audit':JSON.stringify({owner:OWNER_ID,action:'start',id,at:requestedAt}),':post':JSON.stringify(draft),':created':requestedAt});
       if(launched.rowsAffected===0) return bot.panel('Суточный лимит запусков исчерпан. Новый лимит — после 00:00 UTC.',BACK);
       await bot.store.setMeta('ad_current',id);
     } finally {await bot.store.unlock('ad_worker',lock);}

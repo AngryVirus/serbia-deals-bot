@@ -3,10 +3,38 @@ import argparse
 from .cloud import call,invoke
 
 
+def diagnostic_failures(result,require_deployed=False):
+    """Validate release evidence, reporting only fixed safe group/flag names."""
+    if not isinstance(result,dict):
+        return ['diagnostics.shape']
+    failures=[]
+    revision=result.get('revision')
+    if type(revision) is not int or revision<=0:
+        failures.append('revision')
+    for name in ('ui','search','basket','language','handler','quality','advertising'):
+        section=result.get(name)
+        if not isinstance(section,dict) or section.get('ok') is not True:
+            failures.append(name)
+    handler=result.get('handler')
+    active=handler.get('active') if isinstance(handler,dict) else None
+    if type(active) is not bool:
+        failures.append('handler.active')
+    # A paused installation may intentionally have no synchronized webhook yet.
+    # A nonzero pending count is normal live traffic, not a failed release.
+    routing=result.get('routing')
+    if active is True and (not isinstance(routing,dict) or routing.get('in_sync') is not True):
+        failures.append('routing.in_sync')
+    deployed=result.get('deployed')
+    if require_deployed and (not isinstance(deployed,dict) or deployed.get('matches_local') is not True):
+        failures.append('deployed')
+    return failures
+
+
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument('action',choices=['stage','check','activate','pause','notify','health','diagnose','moderation','commands','quality','ads'])
     parser.add_argument('--expected-revision',type=int)
+    parser.add_argument('--require-deployed',action='store_true')
     args=parser.parse_args()
     if args.action=='stage':
         # Identity check executes against this bot's SDK before deployment.
@@ -34,7 +62,11 @@ def main():
         for query in ['огурцы','энергетик','энергетик Red Bull','курица','сливочное масло','оливковое масло','минеральная вода','корм для кошек','krastavac','piletina']:
             print('Search check:',invoke('search_check',query=query),flush=True)
     elif args.action=='diagnose':
-        print('Safe runtime diagnostics:',call('diagnose'),flush=True)
+        result=call('diagnose')
+        failures=diagnostic_failures(result,require_deployed=args.require_deployed)
+        if failures:
+            raise SystemExit('Runtime diagnostics failed: '+', '.join(failures))
+        print('Safe runtime diagnostics:',result,flush=True)
         print('Owner basket summary:',invoke('basket_check'),flush=True)
         print('Access notice image check:',call('moderation',args={'operation':'preview'}),flush=True)
     elif args.action=='quality':

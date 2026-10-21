@@ -16,6 +16,12 @@ from .cloud import invoke
 ROOT=Path(__file__).resolve().parents[1]
 
 
+def generation(body):
+    # Include parser semantics: an unchanged publisher CSV must still be
+    # reindexed when canonical product identities change.
+    return hashlib.sha256(b'prices-v3\0'+body).hexdigest()[:32]
+
+
 def resources(dataset,source):
     if dataset.get('id')!=source['id'] or dataset.get('license')!='sodl':
         raise ValueError('Dataset identity or license changed')
@@ -28,7 +34,7 @@ def resources(dataset,source):
 
 
 def upload(source,offers,stats,body,deadline=None):
-    generation=hashlib.sha256(b'prices-v2\0'+body).hexdigest()[:32]
+    gen=generation(body)
     owner=str(uuid.uuid4())
     # Compress bounded batches so broad coverage does not require one Cloud
     # management request per few dozen products. Raw batch stays below 1.2 MiB.
@@ -38,7 +44,7 @@ def upload(source,offers,stats,body,deadline=None):
         if batch and (len(batch)>=500 or size+amount>600000):batches.append(batch);batch=[];size=2
         batch.append(offer);size+=amount
     if batch:batches.append(batch)
-    context={'source':source['id'],'gen':generation,'owner':owner}
+    context={'source':source['id'],'gen':gen,'owner':owner}
     while True:
         if deadline and time.monotonic()>deadline-15:raise RuntimeError('Import budget; checkpoint retained')
         state=invoke('begin',**context,name=source['name'],url=f"https://data.gov.rs/sr/datasets/{source['id']}/",date=stats['date'],chunks=len(batches))
@@ -116,7 +122,7 @@ def main():
             else:raise ValueError('No usable current resource') from error
             result=upload(source,offers,stats,body,deadline) if args.publish else {'dry_run':True}
             if args.publish:
-                try:invoke('source_audit',source=source['id'],gen=hashlib.sha256(b'prices-v2\0'+body).hexdigest()[:32],stats={key:stats[key] for key in ['rows','accepted','rejected','conflicts','duplicates']})
+                try:invoke('source_audit',source=source['id'],gen=generation(body),stats={key:stats[key] for key in ['rows','accepted','rejected','conflicts','duplicates']})
                 except RuntimeError:print('Catalog audit counters deferred; published prices retained',flush=True)
             report.append({'source':source['alias'],'state':'ok',**stats,**result});successful+=1
             print(json.dumps(report[-1],ensure_ascii=False),flush=True)
