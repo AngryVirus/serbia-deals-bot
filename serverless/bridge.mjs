@@ -3,12 +3,14 @@ import {readFileSync,readdirSync} from 'node:fs';
 import {relative,join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {compareModuleSources} from './deployment-state.mjs';
+import {pacedManagement} from './management-pacing.mjs';
 for(const key of ['TGCLOUD_DEBUG','TG_CLOUD_API_URL','TGCLOUD_BETA'])delete process.env[key];
-const client=await import('./node_modules/@tgcloud/cli/src/api/endpoints.js');
+const rawClient=await import('./node_modules/@tgcloud/cli/src/api/endpoints.js');
 const token=process.env.TGCLOUD_TOKEN;
 try{
  if(!/^app\d+:[A-Za-z0-9_-]+$/.test(token||''))throw Error('Missing dedicated Cloud credential');
  const input=JSON.parse(readFileSync(0,'utf8')),root=fileURLToPath(new URL('./tgcloud/',import.meta.url)),sources={};
+ const client=['diagnose','deploy'].includes(input.command)?pacedManagement(rawClient):rawClient;
  const walk=dir=>{for(const entry of readdirSync(dir,{withFileTypes:true})){const path=join(dir,entry.name);if(entry.isDirectory())walk(path);else if(entry.name.endsWith('.js'))sources[relative(root,path).slice(0,-3)]=readFileSync(path,'utf8');}};walk(root);
  let result;
  if(input.command==='run'){
