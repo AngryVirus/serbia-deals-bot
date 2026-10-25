@@ -11,7 +11,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: serbia-deals-collect
+  group: ${{ inputs.verify_only == true && 'serbia-deals-collect-verify' || 'serbia-deals-collect' }}
   cancel-in-progress: false
 jobs:
   prepare:
