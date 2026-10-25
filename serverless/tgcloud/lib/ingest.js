@@ -23,10 +23,13 @@ export async function ingest(store,input){
  const pending=async()=>{const value=await store.meta(cleanupKey);return Array.isArray(value)?value:value?[value]:[];};
  const enqueue=async old=>{const list=await pending();if(old&&!list.includes(old))await store.setMeta(cleanupKey,[...list,old]);};
  const clean=async()=>{let list=await pending();const live=await db.get('SELECT current_gen,stage_gen FROM sd_sources WHERE id=:source',p);const safe=list.filter(g=>g!==live?.current_gen&&g!==live?.stage_gen);if(safe.length!==list.length){list=safe;await store.setMeta(cleanupKey,list);}if(!list.length)return false;const done=await cleanupGeneration(store,source,list[0]);if(done){await db.run('DELETE FROM sd_meta WHERE key=:key',{':key':'catalog_count:'+source+':'+list[0]});list.shift();await store.setMeta(cleanupKey,list);}return !done||list.length>0;};
+ // Keep every SQL deletion at 250 offers, amortizing gateway round trips.
+ // One request removes at most 1000 obsolete offers and never a live/staged set.
+ const cleanPage=async()=>{for(let batch=0;batch<4;batch++)if(!await clean())return false;return true;};
  if(operation==='cleanup'){
   const lock=await db.run('UPDATE sd_sources SET owner=:owner,lease=:lease WHERE id=:source AND (owner IS NULL OR owner=:owner OR lease<=:now)',{...p,':lease':now+120000});
   requireValue(lock.rowsAffected===1,'Source busy');
-  try{return {cleanup:await clean()};}finally{await db.run('UPDATE sd_sources SET owner=NULL,lease=NULL WHERE id=:source AND owner=:owner AND stage_gen IS NULL',p);}
+  try{return {cleanup:await cleanPage()};}finally{await db.run('UPDATE sd_sources SET owner=NULL,lease=NULL WHERE id=:source AND owner=:owner AND stage_gen IS NULL',p);}
  }
  if(operation==='begin'){
   requireValue(typeof input.name==='string'&&input.name.length<=160&&Number.isSafeInteger(input.chunks)&&input.chunks>0&&input.chunks<=5000);
@@ -39,7 +42,7 @@ export async function ingest(store,input){
   requireValue(state.owner===owner,'Source busy');
   if(state.current_gen===gen){await db.run("UPDATE sd_sources SET stage_gen=NULL,lease=NULL,owner=NULL,checked=:now,status='ok' WHERE id=:source AND owner=:owner",p);return {unchanged:true};}
   if(previous?.stage_gen&&previous.stage_gen!==gen&&previous.stage_gen!==previous.current_gen)await enqueue(previous.stage_gen);
-  if(await clean())return {cleanup:true};
+  if(await cleanPage())return {cleanup:true};
   const done=await db.all('SELECT part FROM sd_chunks WHERE source=:source AND gen=:gen',p);
   return {done:done.map(x=>x.part)};
  }

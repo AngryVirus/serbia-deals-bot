@@ -7,17 +7,50 @@ on:
         type: boolean
         default: false
   schedule:
-    - cron: '21 5 * * *'
+    - cron: '21 */6 * * *'
 permissions:
   contents: read
 concurrency:
-  group: serbia-deals-collect
+  group: ${{ inputs.verify_only == true && 'serbia-deals-collect-verify' || 'serbia-deals-collect' }}
   cancel-in-progress: false
 jobs:
-  collect:
+  prepare:
     if: vars.SERBIA_DEALS_COLLECTION_ENABLED != 'false'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      sources: ${{ steps.selection.outputs.sources }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - name: Verify bounded source selection
+        id: selection
+        run: |
+          python3 - <<'PYCODE'
+          import json,os
+          from collector.collect import ROOT,select_sources
+          sources=select_sources(json.loads((ROOT/'collector/sources.json').read_text()),'enabled')
+          # Small catalogues first; every network still has its own time budget.
+          sources.sort(key=lambda source:source['alias'] in {'maxi','okov'})
+          aliases=[source['alias'] for source in sources]
+          print('Scheduled sources:', ', '.join(aliases))
+          with open(os.environ['GITHUB_OUTPUT'],'a') as output:
+              output.write('sources='+json.dumps(aliases)+'\n')
+          PYCODE
+  collect:
+    needs: prepare
+    if: inputs.verify_only != true
+    runs-on: ubuntu-latest
     timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        source: ${{ fromJSON(needs.prepare.outputs.sources) }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -29,19 +62,43 @@ jobs:
         with:
           python-version: '3.12'
       - run: npm ci --ignore-scripts --no-audit --no-fund --prefix serverless
-      - name: Verify bounded source selection
+      - name: Register all expected stores
+        env:
+          TGCLOUD_TOKEN: ${{ secrets.SERBIA_DEALS_CLOUD_TOKEN }}
         run: |
           python3 - <<'PYCODE'
           import json
           from collector.collect import ROOT,select_sources
+          from collector.cloud import invoke
           sources=select_sources(json.loads((ROOT/'collector/sources.json').read_text()),'enabled')
-          print('Scheduled sources:', ', '.join(source['alias'] for source in sources))
+          invoke('register_sources',rows=[{'id':s['id'],'name':s['name']} for s in sources],expected=True)
           PYCODE
-      - if: inputs.verify_only != true
-        run: python3 -m collector.collect --publish --sources enabled --budget 2100
+      - name: Refresh one store
+        run: python3 -m collector.collect --publish --sources "$PRICE_SOURCE" --budget 2400
         env:
           TGCLOUD_TOKEN: ${{ secrets.SERBIA_DEALS_CLOUD_TOKEN }}
-      - if: inputs.verify_only != true
-        run: python3 -m collector.operations notify
+          PRICE_SOURCE: ${{ matrix.source }}
+      - name: Check source recovery
+        if: always() && !cancelled()
+        run: python3 -m collector.operations health
+        env:
+          TGCLOUD_TOKEN: ${{ secrets.SERBIA_DEALS_CLOUD_TOKEN }}
+  notifications:
+    needs: [prepare, collect]
+    if: always() && !cancelled() && needs.prepare.result == 'success' && inputs.verify_only != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - run: npm ci --ignore-scripts --no-audit --no-fund --prefix serverless
+      - run: python3 -m collector.operations notify
         env:
           TGCLOUD_TOKEN: ${{ secrets.SERBIA_DEALS_CLOUD_TOKEN }}

@@ -22,9 +22,10 @@ def call(command='run', **fields):
     if not env.get('TGCLOUD_TOKEN'):
         raise RuntimeError('Add the separate SERBIA_DEALS_CLOUD_TOKEN GitHub secret')
     for attempt in range(3):
-        time.sleep(max(0,LAST+2-time.monotonic())); LAST=time.monotonic()
+        time.sleep(max(0,LAST+6-time.monotonic())); LAST=time.monotonic()
         try:
-            result=subprocess.run(['node',str(ROOT/'bridge.mjs')],input=json.dumps({'command':command,**fields}),text=True,capture_output=True,cwd=ROOT,env=env,timeout=90)
+            timeout=600 if command=='diagnose' else 300 if command=='deploy' else 90
+            result=subprocess.run(['node',str(ROOT/'bridge.mjs')],input=json.dumps({'command':command,**fields}),text=True,capture_output=True,cwd=ROOT,env=env,timeout=timeout)
             output=json.loads(result.stdout)
         except (OSError,ValueError,subprocess.TimeoutExpired):
             raise RuntimeError('Management result uncertain; inspect before retrying') from None

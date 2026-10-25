@@ -9,11 +9,41 @@ import base64
 import zlib
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from urllib.error import HTTPError,URLError
 from .fetch import Fetcher,SourceUnavailable
 from .prices import parse_prices
 from .cloud import invoke
 
 ROOT=Path(__file__).resolve().parents[1]
+POST_PUBLISH_CLEANUP_CALLS=4
+
+
+def failure_category(error):
+    """Keep useful diagnoses without URLs, SAS credentials or response bodies."""
+    reasons={'Price list older than two days':'stale_prices','No current dated price list':'no_current_prices',
+             'No unambiguous current prices':'ambiguous_prices','Unsupported CSV columns':'unsupported_columns',
+             'Unreadable CSV structure':'invalid_csv','Malformed CSV rows':'invalid_csv',
+             'Empty or truncated CSV':'incomplete_csv','Dataset identity or license changed':'dataset_changed',
+             'Import budget; checkpoint retained':'import_budget','Upload budget; checkpoint retained':'import_budget',
+             'Verification budget; checkpoint retained':'import_budget'}
+    for _ in range(4):
+        if isinstance(error,HTTPError):return 'http_'+str(error.code) if error.code in {401,403,404,410,429,500,502,503,504} else 'http_error'
+        if isinstance(error,URLError):return 'network_error'
+        if isinstance(error,SourceUnavailable):
+            value=str(error)
+            if value in {'unapproved_url','dns_unavailable','nonpublic_host','time_budget','robots_unavailable','robots_disallowed','size_budget','incomplete_download'}:return value
+        if isinstance(error,(ValueError,RuntimeError)) and str(error) in reasons:return reasons[str(error)]
+        error=error.__cause__
+        if error is None:break
+    return 'source_error'
+
+
+def cleanup(context,deadline):
+    """Retire a bounded tail; a successful publication must not drain the clock."""
+    for _ in range(POST_PUBLISH_CLEANUP_CALLS):
+        if deadline and time.monotonic()>=deadline-15:return True
+        if not invoke('cleanup',**context).get('cleanup'):return False
+    return True
 
 
 def generation(body):
@@ -52,9 +82,7 @@ def upload(source,offers,stats,body,deadline=None):
     if state.get('unchanged'):
         result={'unchanged':True}
         try:
-            while not deadline or time.monotonic()<deadline-15:
-                if not invoke('cleanup',**context).get('cleanup'):break
-            else:result['cleanup_deferred']=True
+            if cleanup(context,deadline):result['cleanup_deferred']=True
         except RuntimeError:result['cleanup_deferred']=True
         return result
     done=set(state.get('done',[]))
@@ -69,9 +97,7 @@ def upload(source,offers,stats,body,deadline=None):
         result=invoke('finish',**context,count=len(offers))
         if not result.get('verifying'):break
     try:
-        while not deadline or time.monotonic()<deadline-15:
-            if not invoke('cleanup',**context).get('cleanup'):break
-        else:result['cleanup_deferred']=True
+        if cleanup(context,deadline):result['cleanup_deferred']=True
     except RuntimeError:
         result['cleanup_deferred']=True
     return result
@@ -106,8 +132,12 @@ def main():
         offset=datetime.now(ZoneInfo('Europe/Belgrade')).toordinal()%len(sources)
         sources=sources[offset:]+sources[:offset]
     report=[];successful=0
-    for source in sources[:max(1,min(100,args.limit))]:
-        if time.monotonic()>deadline-30:break
+    selected=sources[:max(1,min(100,args.limit))]
+    for source in selected:
+        if time.monotonic()>deadline-30:
+            report.append({'source':source['alias'],'state':'deferred','reason':'collection_budget'})
+            print(json.dumps(report[-1]),flush=True)
+            continue
         try:
             dataset=json.loads(fetcher.read('https://data.gov.rs/api/1/datasets/'+source['id']+'/',{'data.gov.rs'},metadata=True))
             candidates=resources(dataset,source)
@@ -128,7 +158,7 @@ def main():
             print(json.dumps(report[-1],ensure_ascii=False),flush=True)
         except (OSError,ValueError,RuntimeError) as error:
             # URLs can contain publisher SAS credentials. Never print exceptions.
-            report.append({'source':source['alias'],'state':'unavailable','reason':type(error).__name__})
+            report.append({'source':source['alias'],'state':'unavailable','reason':type(error).__name__,'category':failure_category(error)})
             from .cloud import ManagementError
             if isinstance(error,ManagementError):
                 report[-1].update(http_status=error.status,category=error.category,hints=error.hints,operation=error.operation)
@@ -140,6 +170,7 @@ def main():
     ROOT.joinpath('work/source-report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2))
     if args.publish and successful:invoke('collection_complete',successful=successful)
     if not successful:raise SystemExit('No successful price source')
+    if successful<len(selected):raise SystemExit('Incomplete price refresh; unavailable/deferred sources are listed above')
 
 
 if __name__=='__main__':main()
