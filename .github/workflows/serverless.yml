@@ -47,7 +47,7 @@ jobs:
           REQUIRE_DEPLOYED: ${{ inputs.require_deployed }}
         run: |
           case "$OPERATION" in
-            collect) python3 -m collector.collect --publish --sources "$SOURCE_SELECTION" --budget 2100 ;;
+            collect) python3 -m collector.collect --publish --sources "$SOURCE_SELECTION" --budget 2400 ;;
             stage)
               if [ -n "$EXPECTED_REVISION" ]; then
                 python3 -m collector.operations stage --expected-revision "$EXPECTED_REVISION"

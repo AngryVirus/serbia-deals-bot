@@ -94,7 +94,7 @@ def upload(source,offers,stats,body,deadline=None):
             invoke('chunk',**context,part=part,packed=packed)
     while True:
         if deadline and time.monotonic()>deadline-15:raise RuntimeError('Verification budget; checkpoint retained')
-        result=invoke('finish',**context,count=len(offers))
+        result=invoke('finish',**context,count=len(offers),pages=4)
         if not result.get('verifying'):break
     try:
         if cleanup(context,deadline):result['cleanup_deferred']=True

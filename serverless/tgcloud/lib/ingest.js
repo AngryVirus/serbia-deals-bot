@@ -16,6 +16,16 @@ async function cleanupGeneration(store,source,gen){
  await db.run('DELETE FROM sd_chunks WHERE source=:source AND gen=:gen',p);return true;
 }
 export async function ingest(store,input){
+ const pages=input.operation==='finish'?(input.pages??1):1;
+ requireValue(Number.isInteger(pages)&&pages>=1&&pages<=4,'Invalid verification budget');
+ let result;
+ for(let page=0;page<pages;page++){
+  result=await ingestStep(store,input);
+  if(!result.verifying)return result;
+ }
+ return result;
+}
+async function ingestStep(store,input){
  const {operation,source,gen,owner}=input;
  requireValue(/^[a-f0-9]{24}$/.test(source||'')&&/^[a-f0-9]{32}$/.test(gen||'')&&/^[a-f0-9-]{36}$/.test(owner||''));
  const db=store.db,now=Date.now(),p={':source':source,':gen':gen,':owner':owner,':now':now};
