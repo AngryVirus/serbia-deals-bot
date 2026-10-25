@@ -19,7 +19,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: ${{ inputs.action == 'collect' && 'serbia-deals-collect' || 'serbia-deals-maintenance' }}
+  group: ${{ contains(fromJSON('["collect","stage","diagnose","check","quality"]'), inputs.action) && 'serbia-deals-collect' || 'serbia-deals-maintenance' }}
   cancel-in-progress: false
 jobs:
   cloud:

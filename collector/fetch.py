@@ -51,7 +51,11 @@ class Fetcher:
                 rules = RobotFileParser(); rules.parse(body.decode(errors='replace').splitlines())
                 self.robots[host] = rules
             except HTTPError as e:
-                if e.code != 404:
+                # RFC 9309 §2.3.1.3: unavailable robots.txt is distinct from
+                # an unreachable server. Object-storage service roots return
+                # 400 for this unsupported path; target CSV authorization still
+                # applies. Keep auth denials, 429 and server errors fail-closed.
+                if e.code not in {400,404,410}:
                     raise SourceUnavailable('robots_unavailable') from None
                 self.robots[host] = None
         rules = self.robots.get(host)
